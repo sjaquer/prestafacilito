@@ -1,0 +1,6 @@
+{
+  "name": "PrestaFacilito",
+  "description": "Plataforma de gestión de préstamos y clientes con autenticación, panel administrativo y sincronización con Google Sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
