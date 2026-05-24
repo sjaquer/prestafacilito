@@ -673,7 +673,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     const waLink = getWhatsAppLink(loan);
 
     return (
-      <div className="rounded-3xl border border-white/5 bg-slate-900/40 backdrop-blur-xl p-5 flex items-center justify-between gap-4 shadow-xl shadow-black/20 hover:border-indigo-500/20 transition-all duration-300">
+      <div className="rounded-3xl border border-white/5 bg-white/[0.02] backdrop-blur-xl p-5 flex items-center justify-between gap-4 shadow-xl shadow-black/20 hover:border-blue-500/20 transition-all duration-300">
         <div className="flex items-center gap-4 min-w-0">
           {/* Círculo de progreso estilizado */}
           <div className="relative h-20 w-20 shrink-0 select-none">
@@ -696,7 +696,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               <span className="text-2xl font-black text-white leading-none">
                 {timer.remainingDays < 0 ? Math.abs(timer.remainingDays) : Math.max(timer.remainingDays, 0)}
               </span>
-              <span className="mt-0.5 text-[8.5px] font-black uppercase tracking-widest text-slate-400">
+              <span className="mt-0.5 text-[8.5px] font-black uppercase tracking-widest text-gray-400">
                 {timer.remainingDays < 0 ? "Mora" : timer.remainingDays === 0 ? "Hoy" : "Días"}
               </span>
             </div>
@@ -705,8 +705,8 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
           {/* Información del crédito */}
           <div className="min-w-0">
             <h4 className="text-sm font-black text-white truncate leading-snug">{loan.cliente_nombre}</h4>
-            <p className="text-[11px] text-slate-400 mt-0.5">{loan.tipo_prestamo} · <span className="font-mono text-[12px] font-black text-indigo-300">{formatCurrency(loan.monto_capital)}</span></p>
-            <p className="text-[10px] text-slate-500 mt-1 font-bold flex items-center gap-1">
+            <p className="text-[11px] text-gray-400 mt-0.5">{loan.tipo_prestamo} · <span className="font-mono text-[12px] font-black text-indigo-300">{formatCurrency(loan.monto_capital)}</span></p>
+            <p className="text-[10px] text-gray-500 mt-1 font-bold flex items-center gap-1">
               <CalendarDays size={11} className="text-slate-600" />
               Vence: {loan.fecha_vencimiento}
             </p>
@@ -763,7 +763,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     return (
       <div id="dashboard-loader" className="flex flex-col items-center justify-center p-12 min-h-[500px]">
         <Loader2 className="animate-spin text-indigo-500 mb-4" size={36} />
-        <p className="text-slate-400 font-bold text-sm tracking-wide">Actualizando base de datos...</p>
+        <p className="text-gray-400 font-bold text-sm tracking-wide">Actualizando base de datos...</p>
       </div>
     );
   }
@@ -772,11 +772,11 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     <div id="dashboard-view" className="space-y-8 max-w-7xl mx-auto pb-12 px-4 sm:px-0">
       
       {/* 1. SECCIÓN DE OPERACIONES RÁPIDAS (Botones Grandes & Glassmorphism) */}
-      <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl shadow-black/20">
+      <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl shadow-black/20">
         <div>
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
-            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest select-none">
+            <span className="w-2 h-2 rounded-full bg-indigo-500 "></span>
+            <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest select-none">
               Panel Administrativo
             </span>
           </div>
@@ -787,9 +787,9 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
           <button
             id="btn-upload-voucher-quick"
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl border border-white/10 hover:border-white/20 bg-white/[0.03] hover:bg-white/[0.06] text-xs font-black uppercase tracking-wider text-slate-200 transition-all duration-200 cursor-pointer transform active:scale-98 min-h-[48px]"
+            className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/[0.06] text-xs font-black uppercase tracking-wider text-slate-200 transition-all duration-200 cursor-pointer transform active:scale-98 min-h-[48px]"
           >
-            <UploadCloud size={16} className="text-emerald-400" />
+            <UploadCloud size={16} className="text-green-400" />
             <span>Escanear Voucher</span>
           </button>
           
@@ -817,29 +817,29 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
       {/* 2. KPIs FINANCIEROS (Verticalidad Nivel 2) */}
       <div id="metrics-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* KPI 1 - Capital Prestado */}
-        <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 p-6 rounded-3xl relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Capital Colocado</span>
-            <Landmark size={16} className="text-indigo-400" />
+        <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 p-6 rounded-3xl relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500 shadow-sm" />
+          <div className="flex items-center justify-between text-gray-400">
+            <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Capital Colocado</span>
+            <Landmark size={16} className="text-blue-400" />
           </div>
           <div className="mt-4">
             <span className="text-2xl sm:text-3xl font-black text-white tracking-tight font-mono">
               {formatCurrency(capitalPrestado)}
             </span>
-            <p className="text-[10px] text-slate-500 font-bold mt-1.5 uppercase tracking-wide">Flujo emitido acumulado</p>
+            <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-wide">Flujo emitido acumulado</p>
           </div>
         </div>
 
         {/* KPI 2 - Total Recuperado */}
-        <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 p-6 rounded-3xl relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Monto Cobrado</span>
-            <Wallet size={16} className="text-emerald-400" />
+        <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 p-6 rounded-3xl relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500 shadow-sm" />
+          <div className="flex items-center justify-between text-gray-400">
+            <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Monto Cobrado</span>
+            <Wallet size={16} className="text-green-400" />
           </div>
           <div className="mt-4">
-            <span className="text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight font-mono">
+            <span className="text-2xl sm:text-3xl font-black text-green-400 tracking-tight font-mono">
               {formatCurrency(totalRecuperado)}
             </span>
             <p className="text-[10px] text-emerald-500/80 font-bold mt-1.5 flex items-center gap-1">
@@ -850,33 +850,33 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
         </div>
 
         {/* KPI 3 - Saldo Pendiente */}
-        <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 p-6 rounded-3xl relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Saldo Exigible</span>
+        <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 p-6 rounded-3xl relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500 shadow-sm" />
+          <div className="flex items-center justify-between text-gray-400">
+            <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Saldo Exigible</span>
             <Target size={16} className="text-blue-400" />
           </div>
           <div className="mt-4">
             <span className="text-2xl sm:text-3xl font-black text-white tracking-tight font-mono">
               {formatCurrency(saldoPendiente)}
             </span>
-            <p className="text-[10px] text-slate-500 font-bold mt-1.5 uppercase tracking-wide">Capital + Interés deudor</p>
+            <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-wide">Capital + Interés deudor</p>
           </div>
         </div>
 
         {/* KPI 4 - Mora Activa */}
-        <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 p-6 rounded-3xl relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Salud Cartera</span>
-            <Activity size={16} className="text-rose-400 animate-pulse" />
+        <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 p-6 rounded-3xl relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500 shadow-sm" />
+          <div className="flex items-center justify-between text-gray-400">
+            <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Salud Cartera</span>
+            <Activity size={16} className="text-red-400 " />
           </div>
           <div className="mt-4">
             <span className={`text-2xl sm:text-3xl font-black tracking-tight font-mono ${overdueLoans.length > 0 ? 'text-rose-450' : 'text-white'}`}>
               {healthRate.toFixed(0)}%
             </span>
             <p className="text-[10px] font-bold mt-1.5 flex items-center gap-1 uppercase tracking-wide">
-              <span className={overdueLoans.length > 0 ? 'text-rose-400' : 'text-slate-500'}>
+              <span className={overdueLoans.length > 0 ? 'text-red-400' : 'text-gray-500'}>
                 {overdueLoans.length} retrasados
               </span>
             </p>
@@ -885,19 +885,19 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
       </div>
 
       {/* 3. GRÁFICA DE BALANCE DE RETORNO (Estilo Premium con Glow y Bicolor) */}
-      <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 p-6 rounded-3xl shadow-xl shadow-black/10">
+      <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 p-6 rounded-3xl shadow-xl shadow-black/10">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2 text-xs">
           <div>
             <h3 className="font-extrabold text-white text-sm">Visualizador de Cartera y Retorno</h3>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Dinero amortizado frente a saldo restante</p>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">Dinero amortizado frente a saldo restante</p>
           </div>
           <div className="font-mono text-right">
-            <span className="text-emerald-400 font-black">{recoveryRate.toFixed(1)}%</span> Cobrado · <span className="text-indigo-400 font-black">{(100 - recoveryRate).toFixed(1)}%</span> Pendiente
+            <span className="text-green-400 font-black">{recoveryRate.toFixed(1)}%</span> Cobrado · <span className="text-blue-400 font-black">{(100 - recoveryRate).toFixed(1)}%</span> Pendiente
           </div>
         </div>
         
         {/* Barra de progreso bicolor súper estilizada */}
-        <div className="w-full h-5 bg-slate-950/60 rounded-full overflow-hidden p-1 border border-white/5 flex relative shadow-inner">
+        <div className="w-full h-5 bg-black/60 rounded-full overflow-hidden p-1 border border-white/5 flex relative shadow-inner">
           <div 
             className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-700 ease-out rounded-full shadow-[0_0_12px_rgba(16,185,129,0.4)]" 
             style={{ width: `${recoveryRate}%` }} 
@@ -918,11 +918,11 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
       <div className="space-y-4">
         <div>
           <h2 className="text-base sm:text-lg font-black text-white tracking-tight leading-none">Radar de Cuotas por Vencer</h2>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">Monitoreo dinámico del vencimiento de créditos</p>
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mt-1.5">Monitoreo dinámico del vencimiento de créditos</p>
         </div>
 
         {activeLoansSortedByDueDate.length === 0 ? (
-          <div className="p-8 rounded-3xl border border-dashed border-white/10 bg-slate-900/10 text-center text-slate-500 text-xs font-semibold">
+          <div className="p-8 rounded-3xl border border-dashed border-white/5 bg-[#0A0A0C]/10 text-center text-gray-500 text-xs font-semibold">
             No existen créditos activos con vencimientos vigentes.
           </div>
         ) : (
@@ -938,11 +938,11 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
       <div className="space-y-4">
         <div>
           <h2 className="text-base sm:text-lg font-black text-white tracking-tight leading-none">Comprobantes y Vouchers Registrados</h2>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">Galería de recibos escaneados en el sistema</p>
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mt-1.5">Galería de recibos escaneados en el sistema</p>
         </div>
 
         {registeredVouchers.length === 0 ? (
-          <div className="p-8 rounded-3xl border border-dashed border-white/10 bg-slate-900/10 text-center text-slate-500 text-xs font-semibold">
+          <div className="p-8 rounded-3xl border border-dashed border-white/5 bg-[#0A0A0C]/10 text-center text-gray-500 text-xs font-semibold">
             No se han registrado vouchers de pago en el sistema todavía.
           </div>
         ) : (
@@ -951,9 +951,9 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               <div 
                 key={voucher.id}
                 onClick={() => setSelectedLightboxImage(voucher.comprobante_url)}
-                className="bg-slate-900/40 border border-white/5 p-3 rounded-2xl shadow-md hover:border-emerald-500/20 transition-all duration-300 cursor-pointer flex flex-col justify-between group overflow-hidden"
+                className="bg-white/[0.02] border border-white/5 p-3 rounded-2xl shadow-md hover:border-emerald-500/20 transition-all duration-300 cursor-pointer flex flex-col justify-between group overflow-hidden"
               >
-                <div className="w-full h-32 bg-slate-950/50 rounded-xl overflow-hidden border border-white/5 relative flex items-center justify-center">
+                <div className="w-full h-32 bg-black/50 rounded-xl overflow-hidden border border-white/5 relative flex items-center justify-center">
                   <img 
                     src={voucher.comprobante_url} 
                     alt="Voucher" 
@@ -972,7 +972,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                     <span className={`text-[8.5px] font-extrabold px-1.5 py-0.5 rounded uppercase ${
                       voucher.metodo_pago.includes("Yape") ? "bg-pink-500/10 text-pink-400 border border-pink-500/10" :
                       voucher.metodo_pago.includes("Plin") ? "bg-teal-500/10 text-teal-400 border border-teal-500/10" :
-                      "bg-indigo-500/10 text-indigo-400 border border-indigo-500/10"
+                      "bg-blue-500/10 text-blue-400 border border-indigo-500/10"
                     }`}>
                       {voucher.metodo_pago.split(" ")[0]}
                     </span>
@@ -985,11 +985,11 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
       </div>
 
       {/* 6. CARTERA DE PRÉSTAMOS CON EDICIÓN Y BORRADO DE DEUDAS (Nivel 6) */}
-      <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-xl flex flex-col">
+      <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-xl flex flex-col">
         <div className="p-6 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="font-black text-white text-base tracking-tight leading-none">Cartera de Deudas</h2>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">Administrar, buscar, editar y borrar deudas en vivo</p>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mt-1.5">Administrar, buscar, editar y borrar deudas en vivo</p>
           </div>
           
           <div className="relative w-full sm:w-64">
@@ -1004,7 +1004,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               <button
                 type="button"
                 onClick={() => setLoanSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-slate-200 p-0.5"
               >
                 <X size={13} />
               </button>
@@ -1014,7 +1014,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
         <div className="flex-1 flex flex-col justify-between">
           {filteredPrestamos.length === 0 ? (
-            <div className="text-center py-16 text-slate-500">
+            <div className="text-center py-16 text-gray-500">
               <Coins className="mx-auto text-slate-700 mb-3" size={32} />
               <p className="text-sm font-bold text-slate-350">No se encontraron deudas</p>
             </div>
@@ -1025,7 +1025,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                 <div className="hidden md:block overflow-x-auto text-xs md:text-sm">
                   <table className="w-full text-left border-collapse font-sans">
                     <thead>
-                      <tr className="bg-white/2 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5 select-none">
+                      <tr className="bg-white/2 text-[10px] font-black text-gray-500 uppercase tracking-widest border-b border-white/5 select-none">
                         <th className="px-6 py-4.5">Prestatario</th>
                         <th className="px-6 py-4.5">Monto Deuda</th>
                         <th className="px-6 py-4.5">Interés (%)</th>
@@ -1035,7 +1035,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                         <th className="px-6 py-4.5 text-right">Acciones</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5 text-slate-300">
+                    <tbody className="divide-y divide-white/5 text-gray-300">
                       {displayedPrestamos.map((prestamo) => {
                         const waLink = getWhatsAppLink(prestamo);
                         return (
@@ -1061,11 +1061,11 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                             <td className="px-6 py-4 text-slate-350 font-bold font-mono">
                               {prestamo.tasa_interes_porcentaje}%
                             </td>
-                            <td className="px-6 py-4 text-slate-400 font-medium font-mono">
+                            <td className="px-6 py-4 text-gray-400 font-medium font-mono">
                               {prestamo.fecha_emision}
                             </td>
                             <td className="px-6 py-4">
-                              <span className="text-[10px] bg-slate-850 text-slate-400 border border-white/5 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                              <span className="text-[10px] bg-slate-850 text-gray-400 border border-white/5 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
                                 {prestamo.tipo_prestamo}
                               </span>
                             </td>
@@ -1073,7 +1073,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                               <span
                                 className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
                                   prestamo.estado === "activo"
-                                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-emerald-500/5 shadow-sm"
+                                    ? "bg-emerald-500/10 text-green-400 border border-emerald-500/20 shadow-emerald-500/5 shadow-sm"
                                     : "bg-slate-500/10 text-slate-450 border border-slate-500/20"
                                 }`}
                               >
@@ -1084,7 +1084,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                               <div className="flex items-center justify-end gap-2">
                                 <button
                                   onClick={(e) => handleOpenEditModal(prestamo, e)}
-                                  className="text-slate-400 hover:text-indigo-400 p-2 hover:bg-white/5 rounded-xl transition cursor-pointer"
+                                  className="text-gray-400 hover:text-blue-400 p-2 hover:bg-white/5 rounded-xl transition cursor-pointer"
                                   title="Editar Deuda"
                                 >
                                   <Edit3 size={14} />
@@ -1092,7 +1092,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                                 
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleDeleteLoan(prestamo.id); }}
-                                  className="text-slate-500 hover:text-rose-500 p-2 hover:bg-white/5 rounded-xl transition cursor-pointer"
+                                  className="text-gray-500 hover:text-rose-500 p-2 hover:bg-white/5 rounded-xl transition cursor-pointer"
                                   title="Eliminar Deuda"
                                 >
                                   <Trash2 size={14} />
@@ -1100,9 +1100,9 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                                 <button
                                   onClick={() => onSelectLoan(prestamo.id)}
-                                  className="text-xs bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 py-1.5 px-3 rounded-lg font-bold transition cursor-pointer inline-flex items-center gap-1"
+                                  className="text-xs bg-white/10 hover:bg-white/20 border border-white/10 text-white py-1.5 px-3 rounded-lg font-bold transition cursor-pointer inline-flex items-center gap-1 shadow-sm"
                                 >
-                                  <span>Detalle</span>
+                                  <span>Ver Deuda</span>
                                   <ArrowUpRight size={11} />
                                 </button>
                               </div>
@@ -1121,7 +1121,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                     return (
                       <div 
                         key={prestamo.id} 
-                        className="bg-[#0f172a]/60 p-4 rounded-2xl border border-white/5 hover:border-indigo-500/20 transition-all space-y-4 shadow-md"
+                        className="bg-[#0f172a]/60 p-4 rounded-2xl border border-white/5 hover:border-blue-500/20 transition-all space-y-4 shadow-md"
                       >
                         <div className="flex justify-between items-start">
                           <div>
@@ -1144,7 +1144,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                           <span
                             className={`text-[9px] px-2.5 py-0.5 rounded-full font-extrabold uppercase tracking-wider ${
                               prestamo.estado === "activo"
-                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                ? "bg-emerald-500/10 text-green-400 border border-emerald-500/20"
                                 : "bg-slate-500/10 text-slate-450 border border-slate-500/20"
                             }`}
                           >
@@ -1154,7 +1154,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                         <div className="flex justify-between items-end pt-1">
                           <div>
-                            <span className="text-[9px] font-bold text-slate-500 uppercase block">Deuda Capital</span>
+                            <span className="text-[9px] font-bold text-gray-500 uppercase block">Deuda Capital</span>
                             <span className="font-black text-white font-mono text-sm leading-none">
                               {formatCurrency(prestamo.monto_capital)}
                             </span>
@@ -1164,15 +1164,16 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                             {/* Editar/Eliminar en móvil */}
                             <button
                               onClick={(e) => handleOpenEditModal(prestamo, e)}
-                              className="text-slate-400 hover:text-indigo-400 p-3 bg-white/[0.02] border border-white/5 rounded-xl transition cursor-pointer"
+                              className="text-gray-400 hover:text-blue-400 p-3 bg-white/[0.02] border border-white/5 rounded-xl transition cursor-pointer"
                             >
                               <Edit3 size={14} />
                             </button>
 
                             <button
                               onClick={() => onSelectLoan(prestamo.id)}
-                              className="text-xs bg-indigo-500/15 text-indigo-400 p-3 border border-indigo-500/10 rounded-xl font-bold cursor-pointer"
+                              className="text-xs bg-white/10 hover:bg-white/20 border border-white/10 text-white px-4 py-3 rounded-xl font-medium cursor-pointer transition flex items-center gap-2"
                             >
+                              <span>Ver Deuda</span>
                               <ArrowUpRight size={14} />
                             </button>
                           </div>
@@ -1189,7 +1190,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                   <button
                     type="button"
                     onClick={() => setShowAllLoans(!showAllLoans)}
-                    className="px-5 py-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-350 text-xs font-bold rounded-xl transition duration-150 cursor-pointer"
+                    className="px-5 py-2.5 bg-blue-500/10 hover:bg-indigo-500/20 text-blue-400 hover:text-indigo-350 text-xs font-bold rounded-xl transition duration-150 cursor-pointer"
                   >
                     {showAllLoans ? (
                       <span>Mostrar menos deudas</span>
@@ -1207,20 +1208,20 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
       {/* 7. HERRAMIENTAS Y CONSULTAS DE RIESGO / OCR (Verticalidad Nivel 7) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Evaluador Crediticio Local */}
-        <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 p-6 rounded-3xl flex flex-col space-y-4">
+        <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 p-6 rounded-3xl flex flex-col space-y-4">
           <div className="flex items-center gap-2 border-b border-white/5 pb-3">
-            <div className="p-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400">
+            <div className="p-1.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
               <Activity size={16} />
             </div>
             <div>
               <h3 className="font-extrabold text-white text-sm tracking-tight">Evaluador de Riesgo Local</h3>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Fórmula y Análisis Matemático en Local</p>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide">Fórmula y Análisis Matemático en Local</p>
             </div>
           </div>
 
           <div className="space-y-4">
             <div className="space-y-1.5 relative">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block pl-0.5">Prestatario a evaluar</label>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block pl-0.5">Prestatario a evaluar</label>
               <div className="relative">
                 <input
                   type="text"
@@ -1241,7 +1242,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                       setEvalClientSearch("");
                       setShowEvalDropdown(false);
                     }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5 cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-slate-200 p-0.5 cursor-pointer"
                   >
                     <X size={13} />
                   </button>
@@ -1251,11 +1252,11 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               {showEvalDropdown && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowEvalDropdown(false)} />
-                  <div className="absolute left-0 right-0 mt-1 bg-[#0a0f1d] border border-white/10 rounded-xl max-h-48 overflow-y-auto z-20 shadow-xl custom-scrollbar divide-y divide-white/5">
+                  <div className="absolute left-0 right-0 mt-1 bg-[#0a0f1d] border border-white/5 rounded-xl max-h-48 overflow-y-auto z-20 shadow-xl custom-scrollbar divide-y divide-white/5">
                     {clientes.filter(c => 
                       c.nombre_completo.toLowerCase().includes(evalClientSearch.toLowerCase())
                     ).length === 0 ? (
-                      <div className="p-3 text-xs text-slate-500 text-center">
+                      <div className="p-3 text-xs text-gray-500 text-center">
                         No se encontraron clientes.
                       </div>
                     ) : (
@@ -1270,7 +1271,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                             setEvalClientSearch(c.nombre_completo);
                             setShowEvalDropdown(false);
                           }}
-                          className={`w-full text-left p-2.5 px-3.5 hover:bg-indigo-500/10 text-xs transition flex items-center justify-between cursor-pointer ${
+                          className={`w-full text-left p-2.5 px-3.5 hover:bg-blue-500/10 text-xs transition flex items-center justify-between cursor-pointer ${
                             aiClienteId === c.id ? "bg-indigo-500/20 text-indigo-300 font-extrabold" : "text-slate-200 font-semibold"
                           }`}
                         >
@@ -1293,13 +1294,13 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                   className="bg-[#0f172a]/80 border border-white/5 rounded-xl p-4 space-y-3.5"
                 >
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Riesgo Calculado</span>
+                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Riesgo Calculado</span>
                     <div className="flex items-center gap-2">
                       <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
-                        assessment.level === "Excelente" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+                        assessment.level === "Excelente" ? "bg-emerald-500/10 text-green-400 border border-emerald-500/20" :
                         assessment.level === "Bajo" ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
                         assessment.level === "Medio" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
-                        "bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse"
+                        "bg-rose-500/10 text-red-400 border border-rose-500/20 "
                       }`}>
                         {assessment.level}
                       </span>
@@ -1320,8 +1321,8 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                   </div>
 
                   <div className="space-y-1">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide block">Análisis</span>
-                    <p className="text-xs text-slate-300 leading-relaxed font-semibold">{assessment.rationale}</p>
+                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wide block">Análisis</span>
+                    <p className="text-xs text-gray-300 leading-relaxed font-semibold">{assessment.rationale}</p>
                   </div>
 
                   <div className="space-y-1.5 pt-2 border-t border-white/5">
@@ -1329,7 +1330,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                     <ul className="space-y-1.5">
                       {assessment.recommendations.map((rec, idx) => (
                         <li key={idx} className="text-[11px] text-slate-350 flex items-start gap-1.5 leading-normal">
-                          <CheckCircle className="shrink-0 mt-0.5 text-indigo-400" size={11} />
+                          <CheckCircle className="shrink-0 mt-0.5 text-blue-400" size={11} />
                           <span>{rec}</span>
                         </li>
                       ))}
@@ -1338,7 +1339,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                 </motion.div>
               );
             })() : (
-              <div className="p-5 bg-slate-900/10 border border-dashed border-white/5 rounded-2xl text-center text-slate-500 text-xs">
+              <div className="p-5 bg-[#0A0A0C]/10 border border-dashed border-white/5 rounded-2xl text-center text-gray-500 text-xs">
                 Selecciona un prestatario para ver su evaluación crediticia.
               </div>
             )}
@@ -1346,18 +1347,18 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
         </div>
 
         {/* Lector OCR manual */}
-        <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 p-6 rounded-3xl flex flex-col space-y-4 justify-between">
+        <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 p-6 rounded-3xl flex flex-col space-y-4 justify-between">
           <div className="flex items-center gap-2 border-b border-white/5 pb-3">
-            <div className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400">
+            <div className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-green-400">
               <UploadCloud size={16} />
             </div>
             <div>
               <h3 className="font-extrabold text-white text-sm tracking-tight">Escanear Voucher manual</h3>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Carga Rápida de Comprobante</p>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide">Carga Rápida de Comprobante</p>
             </div>
           </div>
 
-          <p className="text-xs text-slate-400 leading-normal font-semibold">
+          <p className="text-xs text-gray-400 leading-normal font-semibold">
             Sube un comprobante para que el lector OCR intente descifrar los datos automáticamente, rellenando el abono en un instante.
           </p>
 
@@ -1365,9 +1366,9 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
             onClick={() => fileInputRef.current?.click()}
             className="border border-dashed border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/[0.01] hover:bg-emerald-500/[0.03] p-5 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center"
           >
-            <FileImage className="text-emerald-400" size={24} />
-            <span className="text-[11px] font-extrabold text-slate-300 block">Subir comprobante de pago</span>
-            <span className="text-[9px] text-slate-500 block">JPEG o PNG</span>
+            <FileImage className="text-green-400" size={24} />
+            <span className="text-[11px] font-extrabold text-gray-300 block">Subir comprobante de pago</span>
+            <span className="text-[9px] text-gray-500 block">JPEG o PNG</span>
           </div>
 
           <button
@@ -1380,18 +1381,18 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
       </div>
 
       {/* 8. BITÁCORA DE AUDITORÍA (Consola de Sistema al final) */}
-      <div id="logs-audit-section" className="bg-slate-900/40 border border-white/5 p-6 rounded-3xl flex flex-col space-y-4">
+      <div id="logs-audit-section" className="bg-white/[0.02] border border-white/5 p-6 rounded-3xl flex flex-col space-y-4">
         <div className="flex items-center justify-between border-b border-white/5 pb-3">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400">
+            <div className="p-1.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
               <Terminal size={16} />
             </div>
             <div>
               <h3 className="font-extrabold text-white text-sm tracking-tight">Consola de Auditoría</h3>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Logs de operaciones de base de datos</p>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide">Logs de operaciones de base de datos</p>
             </div>
           </div>
-          <span className="text-[10px] bg-[#070a13] border border-white/5 text-slate-400 px-2.5 py-0.5 rounded-md font-mono select-none">
+          <span className="text-[10px] bg-[#070a13] border border-white/5 text-gray-400 px-2.5 py-0.5 rounded-md font-mono select-none">
             Historial
           </span>
         </div>
@@ -1409,22 +1410,22 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               return (
                 <div 
                   key={log.id} 
-                  className="p-2.5 rounded-xl bg-slate-950/40 border border-white/3 flex items-start justify-between gap-3 text-[11px]"
+                  className="p-2.5 rounded-xl bg-white/[0.04] border border-white/3 flex items-start justify-between gap-3 text-[11px]"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className={`text-[8.5px] font-black uppercase px-1.5 py-0.5 rounded ${
-                        isDanger ? "bg-rose-500/10 text-rose-400 border border-rose-500/20" :
-                        isSuccess ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
-                        "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                        isDanger ? "bg-rose-500/10 text-red-400 border border-rose-500/20" :
+                        isSuccess ? "bg-emerald-500/10 text-green-400 border border-emerald-500/20" :
+                        "bg-blue-500/10 text-blue-400 border border-blue-500/20"
                       }`}>
                         {log.accion}
                       </span>
-                      <span className="text-[9.5px] text-slate-400 font-bold font-mono">@{log.usuario}</span>
+                      <span className="text-[9.5px] text-gray-400 font-bold font-mono">@{log.usuario}</span>
                     </div>
                     <p className="text-slate-350 font-semibold leading-normal">{log.detalles}</p>
                   </div>
-                  <span className="text-[9.5px] text-slate-500 font-mono shrink-0 whitespace-nowrap pt-0.5">
+                  <span className="text-[9.5px] text-gray-500 font-mono shrink-0 whitespace-nowrap pt-0.5">
                     {new Date(log.fecha_hora).toLocaleTimeString("es-PE", { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                   </span>
                 </div>
@@ -1466,7 +1467,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                         setShowModal(false);
                         onNavigateToClients();
                       }}
-                      className="underline font-extrabold hover:text-amber-250 block mt-2 text-indigo-400 cursor-pointer"
+                      className="underline font-extrabold hover:text-amber-250 block mt-2 text-blue-400 cursor-pointer"
                     >
                       Ir a Registrar Cliente &rarr;
                     </button>
@@ -1474,7 +1475,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                 ) : (
                   <>
                     <div className="space-y-1.5 relative">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-0.5">Prestatario *</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Prestatario *</label>
                       <div className="relative">
                         <input
                           type="text"
@@ -1496,7 +1497,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                               setClientSearch("");
                               setShowClientDropdown(false);
                             }}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5 cursor-pointer"
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-slate-200 p-0.5 cursor-pointer"
                           >
                             <X size={14} />
                           </button>
@@ -1506,11 +1507,11 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                       {showClientDropdown && (
                         <>
                           <div className="fixed inset-0 z-10" onClick={() => setShowClientDropdown(false)} />
-                          <div className="absolute left-0 right-0 mt-1 bg-[#0a0f1d] border border-white/10 rounded-xl max-h-40 overflow-y-auto z-20 shadow-xl custom-scrollbar divide-y divide-white/5">
+                          <div className="absolute left-0 right-0 mt-1 bg-[#0a0f1d] border border-white/5 rounded-xl max-h-40 overflow-y-auto z-20 shadow-xl custom-scrollbar divide-y divide-white/5">
                             {clientes.filter(c => 
                               c.nombre_completo.toLowerCase().includes(clientSearch.toLowerCase())
                             ).length === 0 ? (
-                              <div className="p-3 text-xs text-slate-500 text-center">
+                              <div className="p-3 text-xs text-gray-500 text-center">
                                 No se encontraron clientes.
                               </div>
                             ) : (
@@ -1525,7 +1526,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                                     setClientSearch(c.nombre_completo);
                                     setShowClientDropdown(false);
                                   }}
-                                  className={`w-full text-left p-2.5 px-3.5 hover:bg-indigo-500/10 text-xs transition flex items-center justify-between cursor-pointer ${
+                                  className={`w-full text-left p-2.5 px-3.5 hover:bg-blue-500/10 text-xs transition flex items-center justify-between cursor-pointer ${
                                     selectedCliente === c.id ? "bg-indigo-500/20 text-indigo-300 font-extrabold" : "text-slate-200 font-semibold"
                                   }`}
                                 >
@@ -1540,7 +1541,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-0.5">Capital (S/.) *</label>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Capital (S/.) *</label>
                         <input
                           type="number"
                           min="1"
@@ -1554,7 +1555,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                       </div>
                       
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-0.5">Tasa (%) *</label>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tasa (%) *</label>
                         <input
                           type="number"
                           min="0"
@@ -1570,7 +1571,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-0.5">Tipo Crédito</label>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tipo Crédito</label>
                         <select
                           value={tipo}
                           onChange={(e) => setTipo(e.target.value)}
@@ -1583,7 +1584,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                       </div>
                       
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-0.5">F. Emisión</label>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">F. Emisión</label>
                         <input
                           type="date"
                           value={fechaEmision}
@@ -1594,7 +1595,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-0.5">Fecha Vencimiento</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Fecha Vencimiento</label>
                       <input
                         type="date"
                         value={fechaVencimiento}
@@ -1615,7 +1616,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                           <span className="font-mono text-indigo-350">+{formatCurrency((parseFloat(monto) || 0) * (parseFloat(tasa) / 100))}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm font-black text-white pt-2.5 border-t border-white/5">
-                          <span className="text-indigo-400">Deuda Total:</span>
+                          <span className="text-blue-400">Deuda Total:</span>
                           <span className="font-mono">{formatCurrency((parseFloat(monto) || 0) * (1 + parseFloat(tasa) / 100))}</span>
                         </div>
                       </div>
@@ -1659,7 +1660,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               <div className="p-5 border-b border-white/5 flex justify-between items-center bg-[#070a13]/40">
                 <div>
                   <h3 className="font-black text-white text-base">Modificar Datos de Deuda</h3>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Prestatario: {selectedEditLoan.cliente_nombre}</p>
+                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">Prestatario: {selectedEditLoan.cliente_nombre}</p>
                 </div>
                 <button
                   onClick={() => { setShowEditModal(false); setSelectedEditLoan(null); }}
@@ -1672,7 +1673,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               <form onSubmit={handleUpdateLoan} className="p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-0.5">Capital Activo (S/.) *</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Capital Activo (S/.) *</label>
                     <input
                       type="number"
                       min="1"
@@ -1685,7 +1686,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                   </div>
                   
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-0.5">Tasa (%) *</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tasa (%) *</label>
                     <input
                       type="number"
                       min="0"
@@ -1700,7 +1701,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-0.5">Tipo Crédito</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tipo Crédito</label>
                     <select
                       value={editTipo}
                       onChange={(e) => setEditTipo(e.target.value)}
@@ -1713,7 +1714,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                   </div>
                   
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-0.5">Estado</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Estado</label>
                     <select
                       value={editEstado}
                       onChange={(e) => setEditEstado(e.target.value)}
@@ -1727,7 +1728,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-0.5">F. Emisión</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">F. Emisión</label>
                     <input
                       type="date"
                       value={editFechaEmision}
@@ -1738,7 +1739,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                   </div>
                   
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-0.5">F. Vencimiento</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">F. Vencimiento</label>
                     <input
                       type="date"
                       value={editFechaVencimiento}
@@ -1750,14 +1751,14 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                 <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex items-center justify-between gap-4">
                   <div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block">Zona de Riesgo</span>
-                    <span className="text-[10.5px] text-slate-400 mt-0.5 block leading-normal">Eliminarás todos los registros en cascada relacionados.</span>
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block">Zona de Riesgo</span>
+                    <span className="text-[10.5px] text-gray-400 mt-0.5 block leading-normal">Eliminarás todos los registros en cascada relacionados.</span>
                   </div>
                   
                   <button
                     type="button"
                     onClick={() => handleDeleteLoan(selectedEditLoan.id)}
-                    className="flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500 border border-rose-500/20 hover:border-rose-500 text-rose-400 hover:text-white transition-all cursor-pointer"
+                    className="flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500 border border-rose-500/20 hover:border-rose-500 text-red-400 hover:text-white transition-all cursor-pointer"
                   >
                     <Trash2 size={13} />
                     <span>Eliminar</span>
@@ -1850,7 +1851,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               <div className="w-full md:w-1/2 bg-[#070a13]/30 p-6 flex flex-col justify-between items-center border-b md:border-b-0 md:border-r border-white/5">
                 <div className="w-full">
                   <span className="text-[10px] font-black text-emerald-450 uppercase tracking-widest block mb-1 pl-0.5">Captura del Abono</span>
-                  <p className="text-xs text-slate-500 font-semibold leading-normal mb-4">
+                  <p className="text-xs text-gray-500 font-semibold leading-normal mb-4">
                     Comprobante de transferencia subido para verificación.
                   </p>
                 </div>
@@ -1860,7 +1861,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                     <div className="absolute inset-0 bg-[#070a13]/90 backdrop-blur-sm flex flex-col items-center justify-center text-center p-4 z-10">
                       <Loader2 className="animate-spin text-emerald-450 mb-3" size={28} />
                       <span className="text-xs font-black text-white tracking-wide">{ocrProgress}</span>
-                      <span className="text-[10px] text-slate-500 mt-1.5 block">Leyendo campos financieros del voucher...</span>
+                      <span className="text-[10px] text-gray-500 mt-1.5 block">Leyendo campos financieros del voucher...</span>
                     </div>
                   )}
 
@@ -1878,7 +1879,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                 </div>
                 
                 {vcrFileName && (
-                  <div className="w-full text-center mt-4 p-2.5 bg-white/[0.01] border border-white/5 rounded-xl truncate text-[10px] text-slate-500 font-mono">
+                  <div className="w-full text-center mt-4 p-2.5 bg-white/[0.01] border border-white/5 rounded-xl truncate text-[10px] text-gray-500 font-mono">
                     {vcrFileName}
                   </div>
                 )}
@@ -1890,7 +1891,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                   <div className="flex justify-between items-center border-b border-white/5 pb-3">
                     <div>
                       <h3 className="font-extrabold text-white text-sm md:text-base">Registrar Abono por OCR</h3>
-                      <p className="text-[10px] text-emerald-400 uppercase tracking-widest font-black">Escaneo de Voucher</p>
+                      <p className="text-[10px] text-green-400 uppercase tracking-widest font-black">Escaneo de Voucher</p>
                     </div>
                     <button
                       type="button"
@@ -1915,7 +1916,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                   {/* Autocomplete de Clientes */}
                   <div className="space-y-1.5 relative">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-0.5">Asociar a Prestatario *</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Asociar a Prestatario *</label>
                     <div className="relative">
                       <input
                         type="text"
@@ -1938,7 +1939,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                             setShowVcrClienteDropdown(false);
                             setVcrSelectedLoanId("");
                           }}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5 cursor-pointer"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-slate-200 p-0.5 cursor-pointer"
                         >
                           <X size={14} />
                         </button>
@@ -1948,11 +1949,11 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                     {showVcrClienteDropdown && (
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setShowVcrClienteDropdown(false)} />
-                        <div className="absolute left-0 right-0 mt-1 bg-[#0a0f1d] border border-white/10 rounded-xl max-h-40 overflow-y-auto z-20 shadow-xl custom-scrollbar divide-y divide-white/5">
+                        <div className="absolute left-0 right-0 mt-1 bg-[#0a0f1d] border border-white/5 rounded-xl max-h-40 overflow-y-auto z-20 shadow-xl custom-scrollbar divide-y divide-white/5">
                           {clientes.filter(c => 
                             c.nombre_completo.toLowerCase().includes(vcrClienteSearch.toLowerCase())
                           ).length === 0 ? (
-                            <div className="p-3 text-xs text-slate-500 text-center">
+                            <div className="p-3 text-xs text-gray-500 text-center">
                               No se encontraron clientes.
                             </div>
                           ) : (
@@ -1967,7 +1968,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                                   setVcrClienteSearch(c.nombre_completo);
                                   setShowVcrClienteDropdown(false);
                                 }}
-                                className={`w-full text-left p-2.5 px-3.5 hover:bg-indigo-500/10 text-xs transition flex items-center justify-between cursor-pointer ${
+                                className={`w-full text-left p-2.5 px-3.5 hover:bg-blue-500/10 text-xs transition flex items-center justify-between cursor-pointer ${
                                   vcrSelectedClienteId === c.id ? "bg-indigo-500/20 text-indigo-300 font-extrabold" : "text-slate-200 font-semibold"
                                 }`}
                               >
@@ -1986,14 +1987,14 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                       <span className="text-[9px] font-black text-indigo-350 uppercase tracking-widest block">Crédito del Deudor</span>
                       {vcrClientLoans.length === 0 ? (
                         <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl text-[10.5px] leading-normal font-semibold flex items-center gap-2">
-                          <ShieldAlert size={14} className="shrink-0 text-rose-400 animate-pulse" />
+                          <ShieldAlert size={14} className="shrink-0 text-red-400 " />
                           <span>Este prestatario está al día (0 créditos activos).</span>
                         </div>
                       ) : vcrClientLoans.length === 1 ? (
                         <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 rounded-xl text-[10.5px] leading-normal font-semibold flex items-center gap-2">
-                          <CheckCircle size={14} className="shrink-0 text-emerald-400" />
+                          <CheckCircle size={14} className="shrink-0 text-green-400" />
                           <div>
-                            <span className="block text-[9px] text-slate-500 font-bold uppercase">Asociación Automática</span>
+                            <span className="block text-[9px] text-gray-500 font-bold uppercase">Asociación Automática</span>
                             <span className="block mt-0.5">{vcrClientLoans[0].tipo_prestamo} · Capital: {formatCurrency(vcrClientLoans[0].monto_capital)}</span>
                           </div>
                         </div>
@@ -2021,7 +2022,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                   {/* Monto y Fecha Confirmados */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-0.5 font-mono">Dinero (S/.) *</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5 font-mono">Dinero (S/.) *</label>
                       <input
                         type="number"
                         min="1"
@@ -2035,7 +2036,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                     </div>
                     
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-0.5">Fecha Operación *</label>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Fecha Operación *</label>
                       <input
                         type="date"
                         value={vcrFechaPago}
@@ -2048,7 +2049,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                   {/* Método de Pago */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-0.5">Canal de Pago *</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Canal de Pago *</label>
                     <select
                       value={vcrMetodoPago}
                       onChange={(e) => setVcrMetodoPago(e.target.value)}
@@ -2070,14 +2071,14 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                       <button
                         type="button"
                         onClick={() => setShowOcrDebug(!showOcrDebug)}
-                        className="text-[9.5px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1 hover:text-indigo-350 cursor-pointer"
+                        className="text-[9.5px] font-black text-blue-400 uppercase tracking-wider flex items-center gap-1 hover:text-indigo-350 cursor-pointer"
                       >
                         <Terminal size={11} />
                         <span>{showOcrDebug ? "Ocultar" : "Ver"} Consola OCR (Depuración)</span>
                       </button>
                       
                       {showOcrDebug && (
-                        <pre className="p-3 bg-slate-950/80 border border-white/5 rounded-xl text-[9px] text-slate-400 font-mono overflow-x-auto whitespace-pre-wrap max-h-32 custom-scrollbar">
+                        <pre className="p-3 bg-black/80 border border-white/5 rounded-xl text-[9px] text-gray-400 font-mono overflow-x-auto whitespace-pre-wrap max-h-32 custom-scrollbar">
                           {ocrRawText}
                         </pre>
                       )}

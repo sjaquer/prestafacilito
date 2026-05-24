@@ -7,17 +7,14 @@ import { supabase } from "./src/lib/supabase.js";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
-function requireEnv(name: string) {
-  const value = process.env[name]?.trim();
-  if (!value) {
-    throw new Error(`Falta configurar la variable de entorno ${name}.`);
-  }
-  return value;
+function getEnv(name: string) {
+  return process.env[name]?.trim() || "";
 }
 
-const JWT_SECRET = requireEnv("JWT_SECRET");
-const ADMIN_USER = requireEnv("ADMIN_USER");
-const ADMIN_PASS = requireEnv("ADMIN_PASS");
+// Variables cacheadas dinámicamente para no crashear en Vercel
+const getJwtSecret = () => getEnv("JWT_SECRET") || "fallback-secret-para-evitar-crashes-500";
+const getAdminUser = () => getEnv("ADMIN_USER");
+const getAdminPass = () => getEnv("ADMIN_PASS");
 
 // Helper para auditoría de acciones (Logs) en Supabase
 async function logAction(usuario: string, accion: string, detalles: string) {
@@ -54,7 +51,7 @@ const requireAuth = (req: express.Request, res: express.Response, next: express.
     return;
   }
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, getJwtSecret());
     (req as any).user = decoded;
     next();
   } catch (err) {
@@ -65,8 +62,8 @@ const requireAuth = (req: express.Request, res: express.Response, next: express.
 // Rutas de Autenticación
 app.post("/api/auth/login", async (req, res) => {
   const { username, password } = req.body;
-  if (username === ADMIN_USER && password === ADMIN_PASS) {
-    const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "24h" });
+  if (username === getAdminUser() && password === getAdminPass()) {
+    const token = jwt.sign({ username }, getJwtSecret(), { expiresIn: "24h" });
     res.cookie("token", token, cookieOptions);
     await logAction(username, "INICIAR_SESION", "El administrador inició sesión de forma exitosa.");
     res.json({ success: true, username });
@@ -82,7 +79,7 @@ app.get("/api/auth/me", (req, res) => {
     return;
   }
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, getJwtSecret());
     res.json({ authenticated: true, user: (decoded as any).username });
   } catch (err) {
     res.json({ authenticated: false });

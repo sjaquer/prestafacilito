@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { UserPlus, Search, Phone, Calendar, Loader2, Check, User, AlertCircle } from "lucide-react";
+import { UserPlus, Search, Phone, Calendar, Loader2, Check, User, AlertCircle, Filter } from "lucide-react";
 import { Cliente } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -7,6 +7,7 @@ export function Clientes() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState<"todos" | "con_deuda" | "sin_deuda">("todos");
   const [error, setError] = useState<string | null>(null);
 
   // Formulario de nuevo cliente
@@ -58,35 +59,38 @@ export function Clientes() {
       });
 
       if (res.ok) {
-        setSuccessMsg("¡Cliente registrado con éxito en la base de datos!");
+        setSuccessMsg("Cliente registrado correctamente");
         setNombre("");
         setTelefono("");
         setObservaciones("");
-        // Recargar lista
         fetchClientes();
-        
-        // Limpiar mensaje de éxito después de un tiempo
         setTimeout(() => setSuccessMsg(""), 4000);
       } else {
         const data = await res.json();
         setError(data.error || "No se pudo registrar el cliente.");
       }
     } catch (err) {
-      setError("Error de comunicación de red al crear el cliente.");
+      setError("Error de red al crear el cliente.");
     } finally {
       setSubmitting(false);
     }
   };
 
   // Filtrar clientes
-  const filteredClientes = clientes.filter(c => 
-    c.nombre_completo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.telefono.includes(searchQuery)
-  );
+  const filteredClientes = clientes.filter(c => {
+    const matchesSearch = c.nombre_completo.toLowerCase().includes(searchQuery.toLowerCase()) || c.telefono.includes(searchQuery);
+    if (!matchesSearch) return false;
+    
+    if (filterType === "con_deuda") {
+      return c.prestamos_activos && c.prestamos_activos > 0;
+    } else if (filterType === "sin_deuda") {
+      return !c.prestamos_activos || c.prestamos_activos === 0;
+    }
+    return true;
+  });
 
-  // Limpiar el teléfono formateado eliminando comilla simple si existe
   const displayPhone = (phoneNum: string) => {
-    if (!phoneNum) return "Sin teléfono registrado";
+    if (!phoneNum) return "Sin teléfono";
     return phoneNum.startsWith("'") ? phoneNum.substring(1) : phoneNum;
   };
 
@@ -95,40 +99,32 @@ export function Clientes() {
       
       {/* Columna Izquierda: Formulario de Registro - Bento Box */}
       <div id="new-client-card" className="bento-card p-6 rounded-3xl h-fit space-y-5">
-        <div className="flex items-center gap-2.5 pb-3 border-b border-white/5">
-          <div className="w-8 h-8 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400">
-            <UserPlus size={16} />
+        <div className="flex items-center gap-3 pb-4 border-b border-white/5">
+          <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center text-slate-300">
+            <UserPlus size={18} />
           </div>
-          <h2 className="font-extrabold text-white text-base tracking-tight">Registrar Cliente</h2>
+          <h2 className="font-semibold text-white text-base tracking-tight">Nuevo Cliente</h2>
         </div>
-        <p className="text-xs text-slate-400 leading-relaxed">
-          Agrega nuevos prospectos o clientes de forma directa y sincronizada con la base de datos de Supabase.
-        </p>
-
+        
         <form onSubmit={handleCreateCliente} className="space-y-4">
           <AnimatePresence>
             {successMsg && (
               <motion.div 
-                initial={{ opacity: 0, y: -10 }}
+                initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                id="form-success-alert" 
-                className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl text-xs flex items-center gap-2 font-bold"
+                exit={{ opacity: 0, y: -5 }}
+                className="p-3 bg-white/5 border border-white/10 text-slate-200 rounded-2xl text-xs flex items-center gap-2"
               >
-                <Check size={14} className="text-emerald-400" />
+                <Check size={14} className="text-white" />
                 <span>{successMsg}</span>
               </motion.div>
             )}
-          </AnimatePresence>
-          
-          <AnimatePresence>
             {error && (
               <motion.div 
-                initial={{ opacity: 0, y: -10 }}
+                initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                id="form-error-alert" 
-                className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl text-xs flex items-center gap-2 font-semibold"
+                exit={{ opacity: 0, y: -5 }}
+                className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl text-xs flex items-center gap-2"
               >
                 <AlertCircle size={14} className="shrink-0" />
                 <span>{error}</span>
@@ -137,53 +133,50 @@ export function Clientes() {
           </AnimatePresence>
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 uppercase block pl-1">Nombre Completo *</label>
+            <label className="text-[11px] font-medium text-slate-400 block pl-1">Nombre Completo *</label>
             <input
               type="text"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
-              placeholder="Ej. Juan Pérez Quispe"
-              className="w-full glass-input rounded-2xl p-3 text-xs sm:text-sm font-semibold"
+              placeholder="Ej. Juan Pérez"
+              className="w-full glass-input rounded-2xl p-3.5 text-sm"
               required
               autoComplete="off"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 uppercase block pl-1">Número de WhatsApp / Teléfono</label>
+            <label className="text-[11px] font-medium text-slate-400 block pl-1">WhatsApp (Corrido)</label>
             <input
               type="text"
               value={telefono}
               onChange={(e) => setTelefono(e.target.value.replace(/[^\d]/g, ""))}
               placeholder="Ej. 51987654321"
-              className="w-full glass-input rounded-2xl p-3 text-xs sm:text-sm font-semibold font-mono"
+              className="w-full glass-input rounded-2xl p-3.5 text-sm font-mono"
               autoComplete="off"
             />
-            <span className="text-[9px] text-slate-500 block pl-1">
-              * Escribe el número corrido (Ej: 51987654321). Evita el signo "+" y espacios para que funcione en WhatsApp.
-            </span>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 uppercase block pl-1">Dirección / Observaciones</label>
+            <label className="text-[11px] font-medium text-slate-400 block pl-1">Observaciones</label>
             <textarea
               value={observaciones}
               onChange={(e) => setObservaciones(e.target.value)}
-              placeholder="Agrega la ocupación, ingresos estimados o notas del cliente..."
+              placeholder="Detalles del cliente..."
               rows={3}
-              className="w-full glass-input rounded-2xl p-3 text-xs sm:text-sm font-medium resize-none leading-relaxed"
+              className="w-full glass-input rounded-2xl p-3.5 text-sm resize-none"
             />
           </div>
 
           <button
             type="submit"
             disabled={submitting}
-            className="w-full glow-btn text-white font-bold py-3 rounded-2xl text-xs sm:text-sm transition cursor-pointer flex justify-center items-center gap-2 min-h-[48px]"
+            className="w-full glow-btn font-medium py-3.5 rounded-2xl text-sm transition cursor-pointer flex justify-center items-center gap-2"
           >
             {submitting ? (
               <>
                 <Loader2 className="animate-spin" size={16} />
-                <span>Registrando...</span>
+                <span>Guardando...</span>
               </>
             ) : (
               <span>Registrar Cliente</span>
@@ -193,88 +186,113 @@ export function Clientes() {
       </div>
 
       {/* Columna Derecha: Listado de Clientes - Bento Grid */}
-      <div id="clients-list-card" className="bento-card p-6 rounded-3xl lg:col-span-2 flex flex-col min-h-[450px]">
-        <div id="clients-list-header" className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-white/5">
+      <div id="clients-list-card" className="bento-card p-6 rounded-3xl lg:col-span-2 flex flex-col min-h-[500px]">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-white/5">
           <div>
-            <h2 className="font-extrabold text-white text-base tracking-tight">Directorio de Clientes</h2>
-            <p className="text-[10px] text-indigo-400 font-black mt-1 uppercase tracking-wider">Total Registrados: {clientes.length}</p>
+            <h2 className="font-semibold text-white text-base tracking-tight">Directorio</h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">{clientes.length} registrados</p>
           </div>
           
-          <div className="relative w-full sm:w-72">
-            <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-450 select-none">
-              <Search size={16} />
-            </span>
-            <input
-              type="text"
-              placeholder="Buscar por nombre o celular..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3.5 py-2.5 glass-input rounded-2xl text-xs font-semibold"
-            />
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            {/* Filtros */}
+            <div className="flex bg-white/5 rounded-2xl p-1 w-full sm:w-auto">
+              <button 
+                onClick={() => setFilterType("todos")}
+                className={`flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-[11px] font-medium transition ${filterType === 'todos' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                Todos
+              </button>
+              <button 
+                onClick={() => setFilterType("con_deuda")}
+                className={`flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-[11px] font-medium transition ${filterType === 'con_deuda' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                Con Deuda
+              </button>
+              <button 
+                onClick={() => setFilterType("sin_deuda")}
+                className={`flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-[11px] font-medium transition ${filterType === 'sin_deuda' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                Sin Deuda
+              </button>
+            </div>
+            
+            <div className="relative w-full sm:w-64">
+              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                <Search size={16} />
+              </span>
+              <input
+                type="text"
+                placeholder="Buscar..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3.5 py-2.5 glass-input rounded-2xl text-sm"
+              />
+            </div>
           </div>
         </div>
 
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center py-12">
-            <Loader2 className="animate-spin text-indigo-500 mb-3" size={32} />
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Obteniendo directorio...</p>
+            <Loader2 className="animate-spin text-slate-400 mb-3" size={32} />
+            <p className="text-[11px] text-slate-500">Cargando...</p>
           </div>
         ) : filteredClientes.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 py-16 space-y-2">
-            <Search className="text-slate-600" size={40} />
-            <p className="text-sm font-extrabold text-slate-350">No se encontraron clientes</p>
-            <p className="text-xs text-slate-500 max-w-xs text-center leading-relaxed">
-              Prueba modificando el término de búsqueda o añade un nuevo cliente desde el formulario lateral.
-            </p>
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-500 py-16 space-y-2">
+            <User className="text-slate-600 mb-2" size={32} />
+            <p className="text-sm font-medium text-slate-300">No hay resultados</p>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 max-h-[550px] custom-scrollbar">
+          <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[600px] custom-scrollbar">
             {filteredClientes.map(cliente => (
               <div
                 key={cliente.id}
-                className="p-4 rounded-2xl border border-white/5 bg-slate-950/20 hover:border-indigo-500/30 hover:bg-slate-950/40 transition duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm group"
+                className="p-4 rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] transition flex flex-col sm:flex-row sm:items-center justify-between gap-4"
               >
                 <div className="space-y-1.5 flex-1 pr-4">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="w-6.5 h-6.5 bg-slate-900 border border-white/5 rounded-lg flex items-center justify-center text-slate-400 group-hover:bg-indigo-500/10 group-hover:text-indigo-400 transition-colors">
-                      <User size={13} />
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <div className="w-8 h-8 bg-white/5 rounded-xl flex items-center justify-center text-slate-300">
+                      <User size={14} />
                     </div>
-                    <span className="font-extrabold text-white text-sm leading-tight group-hover:text-indigo-300 transition-colors">
+                    <span className="font-medium text-white text-sm">
                       {cliente.nombre_completo}
                     </span>
                     {cliente.prestamos_activos !== undefined && (
                       cliente.prestamos_activos > 0 ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-rose-500/10 border border-rose-500/20 text-rose-400 uppercase tracking-wider animate-pulse flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                          Deuda Activa ({cliente.prestamos_activos})
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-white/10 text-slate-200">
+                          Activo ({cliente.prestamos_activos})
                         </span>
                       ) : (
-                        <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 uppercase tracking-wider flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                          Sin Deudas
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-transparent border border-white/10 text-slate-400">
+                          Sin Deuda
                         </span>
                       )
                     )}
                   </div>
                   {cliente.observaciones && (
-                    <p className="text-xs text-slate-400 leading-relaxed pl-8">
+                    <p className="text-[11px] text-slate-400 pl-10">
                       {cliente.observaciones}
                     </p>
                   )}
-                  <div className="flex flex-wrap items-center gap-4 pt-1.5 text-[10px] pl-8 text-slate-500 font-bold uppercase tracking-wider">
+                  <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] pl-10 text-slate-400">
                     <span className="flex items-center gap-1.5">
-                      <Phone size={13} className="text-slate-600" />
-                      <span className="font-mono text-slate-400">{displayPhone(cliente.telefono)}</span>
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <Calendar size={13} className="text-slate-600" />
-                      <span className="text-slate-400">{cliente.fecha_registro}</span>
+                      <Calendar size={13} className="text-slate-500" />
+                      <span>{cliente.fecha_registro}</span>
                     </span>
                   </div>
                 </div>
                 
-                <div className="bg-slate-950/70 group-hover:bg-slate-950 border border-white/5 p-2 px-3 rounded-xl text-[9px] font-mono text-indigo-400 font-bold text-center select-all shrink-0 w-fit self-start sm:self-center">
-                  REF: {cliente.id.substring(0, 8).toUpperCase()}
+                <div className="flex items-center gap-2 shrink-0">
+                  {cliente.telefono && (
+                    <a
+                      href={`https://wa.me/${cliente.telefono.replace(/[^\d]/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/5 px-3 py-2 rounded-xl text-slate-300 text-[11px] transition"
+                    >
+                      <Phone size={13} />
+                      <span className="font-mono">{displayPhone(cliente.telefono)}</span>
+                    </a>
+                  )}
                 </div>
               </div>
             ))}

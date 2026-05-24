@@ -44,8 +44,8 @@ export function Login({ onLoginSuccess }: LoginProps) {
       <div className="absolute inset-0 bg-gradient-to-b from-[#070a13] to-[#0c1122] z-0" />
       
       {/* Círculos Brillantes de Fondo (Glow Effect) */}
-      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl animate-pulse z-0" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl animate-pulse z-0" />
+      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl  z-0" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl  z-0" />
       
       <motion.div
         initial={{ opacity: 0, y: 30 }}
@@ -68,7 +68,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-indigo-200 tracking-tight">
               Control de Cartera
             </h1>
-            <p className="text-slate-400 text-xs sm:text-sm mt-2 font-medium">
+            <p className="text-gray-400 text-xs sm:text-sm mt-2 font-medium">
               Gestión segura de créditos y amortizaciones
             </p>
           </div>
@@ -95,7 +95,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
                 Usuario de Administración
               </label>
               <div className="relative group">
-                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-550 group-focus-within:text-indigo-400 transition-colors">
+                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-550 group-focus-within:text-blue-400 transition-colors">
                   <User size={18} />
                 </span>
                 <input
@@ -116,7 +116,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
                 Contraseña
               </label>
               <div className="relative group">
-                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-555 group-focus-within:text-indigo-400 transition-colors">
+                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-555 group-focus-within:text-blue-400 transition-colors">
                   <Lock size={18} />
                 </span>
                 <input
@@ -137,7 +137,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
               id="login-submit-button"
               type="submit"
               disabled={loading}
-              className="w-full glow-btn text-white py-4 rounded-2xl font-bold text-sm flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-2 min-h-[48px]"
+              className="w-full bg-white/10 hover:bg-white/15 border border-white/10 backdrop-blur-md transition-all text-white font-medium text-white py-4 rounded-2xl font-bold text-sm flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-2 min-h-[48px]"
             >
               {loading ? (
                 <>
@@ -152,7 +152,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
           {/* Pie de Página del Login */}
           <div id="login-footer" className="text-center mt-8 pt-6 border-t border-white/5">
-            <p className="text-[11px] text-slate-500 font-medium uppercase tracking-wider">
+            <p className="text-[11px] text-gray-500 font-medium uppercase tracking-wider">
               Acceso Restringido a Personal Autorizado 🇵🇪
             </p>
           </div>

@@ -3,16 +3,13 @@
 
 :root {
 	font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-	color: #f8fafc;
-	background:
-		radial-gradient(circle at top left, rgba(99, 102, 241, 0.15), transparent 40%),
-		radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 35%),
-		linear-gradient(180deg, #070a13 0%, #0d1224 100%);
+	color: #f1f5f9;
+	background: #000000;
 }
 
 html {
 	scroll-behavior: smooth;
-	background-color: #070a13;
+	background-color: #000000;
 }
 
 body {
@@ -20,7 +17,7 @@ body {
 	min-width: 320px;
 	min-height: 100vh;
 	background: transparent;
-	color: #f8fafc;
+	color: #f1f5f9;
 }
 
 #root {
@@ -28,35 +25,37 @@ body {
 }
 
 ::selection {
-	background: rgba(99, 102, 241, 0.3);
+	background: rgba(255, 255, 255, 0.15);
 	color: #ffffff;
 }
 
-/* Premium Bento Grid styles */
+/* Premium Apple Glass Bento Grid styles */
 .bento-card {
-	background: rgba(15, 23, 42, 0.55);
-	backdrop-filter: blur(12px);
-	-webkit-backdrop-filter: blur(12px);
-	border: 1px solid rgba(255, 255, 255, 0.06);
-	box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+	background: rgba(18, 18, 20, 0.6);
+	backdrop-filter: blur(24px);
+	-webkit-backdrop-filter: blur(24px);
+	border: 1px solid rgba(255, 255, 255, 0.05);
+	box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.4);
 	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .bento-card:hover {
-	border-color: rgba(99, 102, 241, 0.35);
-	box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.12);
-	transform: translateY(-2px);
+	border-color: rgba(255, 255, 255, 0.1);
+	box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
 }
 
 .glow-btn {
-	background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-	box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.4);
-	transition: all 0.2s ease-in-out;
+	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	backdrop-filter: blur(12px);
+	-webkit-backdrop-filter: blur(12px);
+	color: #ffffff;
+	transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glow-btn:hover {
-	box-shadow: 0 6px 20px 0 rgba(99, 102, 241, 0.6);
-	transform: scale(1.02);
+	background: rgba(255, 255, 255, 0.15);
+	border-color: rgba(255, 255, 255, 0.2);
 }
 
 .glass-input {
