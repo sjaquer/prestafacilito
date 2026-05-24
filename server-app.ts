@@ -452,6 +452,75 @@ app.get("/api/prestamos/:id", requireAuth, async (req, res) => {
   }
 });
 
+app.put("/api/prestamos/:id", requireAuth, async (req, res) => {
+  try {
+    const prestamoId = req.params.id;
+    const { monto_capital, tasa_interes_porcentaje, fecha_emision, fecha_vencimiento, estado, tipo_prestamo } = req.body;
+
+    const { data: updated, error } = await supabase
+      .from("prestamos")
+      .update({
+        monto_capital: parseFloat(monto_capital),
+        tasa_interes_porcentaje: parseFloat(tasa_interes_porcentaje),
+        fecha_emision,
+        fecha_vencimiento,
+        estado,
+        tipo_prestamo
+      })
+      .eq("id", prestamoId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const { data: cliente } = await supabase.from("clientes").select("nombre_completo").eq("id", updated.cliente_id).single();
+
+    const username = (req as any).user.username;
+    await logAction(
+      username,
+      "EDITAR_PRESTAMO",
+      `Editó detalles del préstamo ${tipo_prestamo} de S/. ${monto_capital} del cliente: ${cliente ? cliente.nombre_completo : updated.cliente_id}`
+    );
+
+    res.json(updated);
+  } catch (err: any) {
+    console.error("Error al actualizar préstamo:", err);
+    res.status(500).json({ error: "Error al actualizar préstamo", detail: err.message });
+  }
+});
+
+app.delete("/api/prestamos/:id", requireAuth, async (req, res) => {
+  try {
+    const prestamoId = req.params.id;
+
+    const { data: prestamo } = await supabase.from("prestamos").select("cliente_id, monto_capital").eq("id", prestamoId).single();
+    let clienteName = "Desconocido";
+    if (prestamo) {
+      const { data: cliente } = await supabase.from("clientes").select("nombre_completo").eq("id", prestamo.cliente_id).single();
+      if (cliente) clienteName = cliente.nombre_completo;
+    }
+
+    const { error } = await supabase
+      .from("prestamos")
+      .delete()
+      .eq("id", prestamoId);
+
+    if (error) throw error;
+
+    const username = (req as any).user.username;
+    await logAction(
+      username,
+      "ELIMINAR_PRESTAMO",
+      `Eliminó préstamo de S/. ${prestamo ? prestamo.monto_capital : "Desconocido"} del cliente: ${clienteName}`
+    );
+
+    res.json({ success: true, message: "Préstamo eliminado exitosamente" });
+  } catch (err: any) {
+    console.error("Error al eliminar préstamo:", err);
+    res.status(500).json({ error: "Error al eliminar préstamo", detail: err.message });
+  }
+});
+
 // 6. Registrar Abonos / Amortizaciones
 app.post("/api/prestamos/:id/pagos", requireAuth, async (req, res) => {
   try {
@@ -535,6 +604,38 @@ app.post("/api/prestamos/:id/pagos", requireAuth, async (req, res) => {
   } catch (err: any) {
     console.error("Error al registrar pago:", err);
     res.status(500).json({ error: "Error al registrar abono/pago", detail: err.message });
+  }
+});
+
+app.get("/api/amortizaciones", requireAuth, async (req, res) => {
+  try {
+    const [aRes, pRes, cRes] = await Promise.all([
+      supabase.from("amortizaciones").select("*").order("fecha_pago", { ascending: false }),
+      supabase.from("prestamos").select("*"),
+      supabase.from("clientes").select("*")
+    ]);
+    if (aRes.error) throw aRes.error;
+    if (pRes.error) throw pRes.error;
+    if (cRes.error) throw cRes.error;
+
+    const amortizaciones = aRes.data || [];
+    const prestamos = pRes.data || [];
+    const clientes = cRes.data || [];
+
+    const detailed = amortizaciones.map(a => {
+      const prestamo = prestamos.find(p => p.id === a.prestamo_id);
+      const cliente = prestamo ? clientes.find(c => c.id === prestamo.cliente_id) : null;
+      return {
+        ...a,
+        cliente_nombre: cliente ? cliente.nombre_completo : "Desconocido",
+        tipo_prestamo: prestamo ? prestamo.tipo_prestamo : "Personal"
+      };
+    });
+
+    res.json(detailed);
+  } catch (err: any) {
+    console.error("Error al obtener amortizaciones:", err);
+    res.status(500).json({ error: "Error al obtener amortizaciones", detail: err.message });
   }
 });
 
