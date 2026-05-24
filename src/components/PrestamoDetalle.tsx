@@ -722,8 +722,8 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
         </div>
       </div>
 
-      {/* Bento Grid Inferior: Cronograma de Cuotas Sugerido & Asistente IA WhatsApp */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Cronograma de Cuotas Sugerido (Pantalla Completa) */}
+      <div className="w-full">
         
         {/* Bento Box: Cronograma de Pagos Sugeridos */}
         <div id="amortization-schedule-card" className="bento-card p-6 rounded-3xl space-y-4">
@@ -784,115 +784,6 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Bento Box: Asistente de Cobranza con Inteligencia Artificial (Gemini) */}
-        <div id="ai-collections-assistant" className="bento-card p-6 rounded-3xl space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-white/5">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400">
-                <Sparkles size={16} />
-              </div>
-              <div>
-                <h3 className="font-extrabold text-white text-base tracking-tight">Cobranza Inteligente IA</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Asistente automatizado Gemini</p>
-              </div>
-            </div>
-            <span className="text-[9px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 font-bold px-2 py-0.5 rounded-md uppercase tracking-wider">Gemini AI</span>
-          </div>
-
-          <div className="space-y-3.5">
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Genera mensajes automáticos amigables y profesionales en español peruano adaptados al saldo pendiente de la cuenta. 
-            </p>
-
-            <AnimatePresence>
-              {aiError && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -5 }}
-                  className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl text-xs font-semibold flex items-center gap-2"
-                >
-                  <AlertCircle size={14} className="shrink-0" />
-                  <span>{aiError}</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {!aiMessage ? (
-              <button
-                type="button"
-                onClick={handleGenerateAiMessage}
-                disabled={aiLoading}
-                className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-550 hover:to-indigo-650 text-white font-bold rounded-2xl text-xs sm:text-sm transition flex justify-center items-center gap-2 min-h-[48px]"
-              >
-                {aiLoading ? (
-                  <>
-                    <Loader2 className="animate-spin" size={16} />
-                    <span>Redactando con Gemini...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={16} />
-                    <span>Redactar Recordatorio de Pago</span>
-                  </>
-                )}
-              </button>
-            ) : (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="space-y-3"
-              >
-                <div className="relative">
-                  <textarea
-                    value={aiMessage}
-                    onChange={(e) => setAiMessage(e.target.value)}
-                    rows={4}
-                    className="w-full glass-input rounded-2xl p-4 text-xs leading-relaxed font-semibold resize-none"
-                    placeholder="Escribe el mensaje..."
-                  />
-                  <div className="absolute bottom-3 right-3 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleCopyMessage}
-                      className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold text-[9px] rounded-lg tracking-wider uppercase transition"
-                    >
-                      {copySuccess ? "Copiado!" : "Copiar"}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={handleGenerateAiMessage}
-                    disabled={aiLoading}
-                    className="py-3 bg-slate-900 border border-white/5 text-slate-300 hover:bg-slate-800 font-bold rounded-2xl text-xs transition flex justify-center items-center gap-2 min-h-[48px]"
-                  >
-                    {aiLoading ? (
-                      <Loader2 className="animate-spin" size={14} />
-                    ) : (
-                      <>
-                        <Sparkles size={14} className="text-indigo-400" />
-                        <span>Volver a Redactar</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleSendWhatsApp}
-                    className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl text-xs transition flex justify-center items-center gap-2 shadow-lg shadow-emerald-600/10 min-h-[48px]"
-                  >
-                    <Send size={14} />
-                    <span>Enviar por WhatsApp</span>
-                  </button>
-                </div>
-              </motion.div>
-            )}
           </div>
         </div>
 

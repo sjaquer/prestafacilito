@@ -128,18 +128,6 @@ export default function App() {
                 <Users size={14} />
                 <span>Clientes</span>
               </button>
-
-              <button
-                onClick={() => setView("reporte-ia")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  view === "reporte-ia"
-                    ? "bg-purple-650 text-white shadow-md shadow-purple-500/10"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
-                }`}
-              >
-                <Sparkles size={14} className={view === "reporte-ia" ? "animate-pulse text-purple-400" : ""} />
-                <span>Reporte IA</span>
-              </button>
             </nav>
 
             {/* Administrador actual & Logout */}
@@ -185,17 +173,11 @@ export default function App() {
                   setView("loan-detail");
                 }}
                 onNavigateToClients={() => setView("clientes")}
-                onNavigateToAI={() => setView("reporte-ia")}
               />
             )}
 
             {view === "clientes" && <Clientes />}
 
-            {view === "reporte-ia" && (
-              <ReporteIA
-                onBack={() => setView("dashboard")}
-              />
-            )}
 
             {view === "loan-detail" && selectedLoanId && (
               <PrestamoDetalle
@@ -237,17 +219,6 @@ export default function App() {
             <span className="text-[10px]">Clientes</span>
           </button>
 
-          <button
-            onClick={() => setView("reporte-ia")}
-            className={`flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition duration-200 cursor-pointer ${
-              view === "reporte-ia"
-                ? "text-purple-400 font-bold bg-purple-500/15"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <Sparkles size={18} className={view === "reporte-ia" ? "animate-pulse text-purple-400" : ""} />
-            <span className="text-[10px]">Reporte IA</span>
-          </button>
         </div>
       </div>
 
