@@ -73,7 +73,7 @@ export default function App() {
         
         <Loader2 className="animate-spin text-indigo-500 mb-4 relative z-10" size={24} />
         <p className="text-sm font-semibold text-slate-400 tracking-wide uppercase relative z-10">
-          Iniciando PrestaFacilito...
+          Cargando Panel de Control...
         </p>
       </div>
     );
@@ -98,8 +98,8 @@ export default function App() {
                 <span className="relative z-10 font-extrabold tracking-wider">PF</span>
               </div>
               <div>
-                <span className="font-extrabold text-[#f8fafc] text-sm tracking-tight block">PrestaFacilito</span>
-                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Cartera & Clientes 🇵🇪</span>
+                <span className="font-extrabold text-[#f8fafc] text-sm tracking-tight block">Cartera</span>
+                <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider block">Panel de Control 🇵🇪</span>
               </div>
             </div>
 
@@ -133,11 +133,7 @@ export default function App() {
             {/* Administrador actual & Logout */}
             <div id="user-controls" className="flex items-center gap-4">
               <div className="hidden sm:block text-right">
-                <span className="text-xs font-bold text-slate-300 block">Administrador</span>
-                <span className="text-[10px] text-emerald-500 font-bold flex items-center justify-end gap-1.5">
-                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
-                  <span>En Línea</span>
-                </span>
+                <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider block">{user}</span>
               </div>
 
               <div className="w-px h-8 bg-white/10 hidden sm:block"></div>
@@ -225,9 +221,9 @@ export default function App() {
       {/* Footer */}
       <footer id="workspace-footer" className="bg-[#070a13] border-t border-white/5 py-5 text-[11px] text-slate-500 select-none hidden sm:block">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <p>© 2026 PrestaFacilito. Gestión financiera peruana segura y ordenada.</p>
-          <div className="flex items-center gap-2.5 font-semibold text-[#f8fafc]">
-            <span className="text-slate-400">Sincronizado con Google Sheets</span>
+          <p>© 2026. Panel de Administración de Cartera.</p>
+          <div className="flex items-center gap-2 font-semibold text-slate-400">
+            <span>Base de datos activa</span>
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>

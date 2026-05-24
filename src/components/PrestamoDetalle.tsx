@@ -293,7 +293,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
     const prestamoObj = data.prestamo;
     const rawPhone = prestamoObj.cliente_telefono || "";
     const sanitizedPhone = rawPhone.replace(/[^\d+]/g, "");
-    const msg = `*PrestaFacilito - Constancia de Pago* 📋✨\n\n` +
+    const msg = `*Constancia de Pago* 📋✨\n\n` +
       `Estimado(a) *${prestamoObj.cliente_nombre}*,\n` +
       `Confirmamos el registro exitoso de tu abono:\n\n` +
       `💵 *Monto:* ${formatCurrency(parseFloat(pago.monto))}\n` +
@@ -311,7 +311,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
     const prestamoObj = data.prestamo;
     const rawPhone = prestamoObj.cliente_telefono || "";
     const sanitizedPhone = rawPhone.replace(/[^\d+]/g, "");
-    const msg = `*PrestaFacilito - Detalles del Préstamo Otorgado* 💸✨\n\n` +
+    const msg = `*Detalles del Préstamo Otorgado* 💸✨\n\n` +
       `Estimado(a) *${prestamoObj.cliente_nombre}*,\n` +
       `Nos complace confirmar el desembolso de tu crédito:\n\n` +
       `💰 *Monto Capital:* ${formatCurrency(prestamoObj.monto_capital)}\n` +
@@ -715,7 +715,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
               </button>
 
               <div className="bg-indigo-500/5 border border-indigo-500/10 p-3 rounded-2xl text-[9px] sm:text-[10px] text-slate-400 leading-relaxed font-medium">
-                💡 <strong>Política de Amortización:</strong> Los abonos se aplican de manera automática amortizando primero los intereses generados y luego reduciendo el capital deudor, conforme a las políticas de <em>PrestaFacilito</em>.
+                💡 <strong>Política de Amortización:</strong> Los abonos se aplican de manera automática amortizando primero los intereses generados y luego reduciendo el capital deudor, conforme a las políticas establecidas.
               </div>
             </form>
           )}

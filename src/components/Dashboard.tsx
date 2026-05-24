@@ -100,7 +100,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
         setUltimosPrestamos(data.ultimosPrestamos);
       } else {
         // Inicialización automática transparente
-        if (data.error && (data.error.includes("Google Sheets") || data.error.includes("not found") || data.error.includes("configuración") || data.error.includes("inicializar"))) {
+        if (data.error && (data.error.includes("Supabase") || data.error.includes("not found") || data.error.includes("configuración") || data.error.includes("inicializar"))) {
           try {
             const initRes = await fetch("/api/initialize-sheets", { method: "POST" });
             if (initRes.ok) {
@@ -110,13 +110,13 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                 setMetrics(retryData.metrics);
                 setUltimosPrestamos(retryData.ultimosPrestamos);
               } else {
-                setError("El Google Sheet se configuró pero no tiene datos aún.");
+                setError("La base de datos se inicializó pero no contiene registros aún.");
               }
             } else {
-              setError("No se pudo conectar con Google Sheets de forma automática. Revisa las credenciales de tu archivo .env.");
+              setError("No se pudo conectar a la base de datos de forma automática. Revisa las credenciales de tu archivo .env.");
             }
           } catch (initErr) {
-            setError("Error al inicializar de manera silenciosa las hojas de Google Sheets.");
+            setError("Error al inicializar de manera silenciosa la base de datos de administración.");
           }
         } else {
           setError(data.detail || data.error || "Error al obtener info del dashboard");
@@ -375,7 +375,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     } else {
       level = "Bajo";
       score = 90;
-      rationale = `Cliente nuevo sin historial registrado en PrestaFacilito. Se encuentra libre de deudas.`;
+      rationale = `Cliente nuevo sin historial registrado. Se encuentra libre de deudas.`;
       recommendations = [
         "Comenzar con montos prudentes (menores a S/. 500) para medir puntualidad.",
         "Estructurar plazos cortos (semanales o quincenales).",
@@ -592,7 +592,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     const totalExigible = capital * (1 + interest / 100);
 
     const formattedAmount = formatCurrency(totalExigible);
-    const text = `¡Hola, ${loan.cliente_nombre}! Te saludamos de parte de PrestaFacilito. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} con vencimiento el ${loan.fecha_vencimiento}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
+    const text = `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} con vencimiento el ${loan.fecha_vencimiento}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
     
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   };
@@ -729,9 +729,9 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               href={waLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-emerald-600 hover:bg-emerald-500 text-white transition-all duration-150 shadow-lg shadow-emerald-600/10 transform active:scale-95"
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 sm:px-3 sm:py-1.5 rounded-xl text-[11px] sm:text-[10px] font-black uppercase tracking-wider bg-emerald-600 hover:bg-emerald-500 text-white transition-all duration-150 shadow-lg shadow-emerald-600/10 transform active:scale-95 min-h-[38px]"
             >
-              <MessageSquare size={11} />
+              <MessageSquare size={12} />
               <span>Cobrar</span>
             </a>
           )}
@@ -780,7 +780,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               Panel Administrativo
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white mt-1.5 tracking-tight leading-none">PrestaFacilito</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-white mt-1.5 tracking-tight leading-none">Cartera de Préstamos</h1>
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
@@ -1132,9 +1132,9 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                                   href={waLink}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-emerald-500 p-0.5"
+                                  className="text-emerald-500 p-2 hover:bg-white/5 rounded-lg transition"
                                 >
-                                  <MessageSquare size={13} />
+                                  <MessageSquare size={14} />
                                 </a>
                               )}
                             </div>
@@ -1164,16 +1164,16 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                             {/* Editar/Eliminar en móvil */}
                             <button
                               onClick={(e) => handleOpenEditModal(prestamo, e)}
-                              className="text-slate-400 hover:text-indigo-400 p-2 bg-white/[0.02] border border-white/5 rounded-xl transition cursor-pointer"
+                              className="text-slate-400 hover:text-indigo-400 p-3 bg-white/[0.02] border border-white/5 rounded-xl transition cursor-pointer"
                             >
-                              <Edit3 size={13} />
+                              <Edit3 size={14} />
                             </button>
 
                             <button
                               onClick={() => onSelectLoan(prestamo.id)}
-                              className="text-xs bg-indigo-500/15 text-indigo-455 p-2 border border-indigo-500/10 rounded-xl font-bold cursor-pointer"
+                              className="text-xs bg-indigo-500/15 text-indigo-400 p-3 border border-indigo-500/10 rounded-xl font-bold cursor-pointer"
                             >
-                              <ArrowUpRight size={13} />
+                              <ArrowUpRight size={14} />
                             </button>
                           </div>
                         </div>
@@ -1358,7 +1358,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
           </div>
 
           <p className="text-xs text-slate-400 leading-normal font-semibold">
-            Sube un comprobante para que el lector OCR de PrestaFacilito intente descifrar los datos automáticamente, rellenando el abono en un instante.
+            Sube un comprobante para que el lector OCR intente descifrar los datos automáticamente, rellenando el abono en un instante.
           </p>
 
           <div 

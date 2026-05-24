@@ -65,11 +65,11 @@ export function Login({ onLoginSuccess }: LoginProps) {
             >
               <Coins className="text-white" size={28} />
             </motion.div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-105 to-indigo-200 tracking-tight">
-              PrestaFacilito
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-indigo-200 tracking-tight">
+              Control de Cartera
             </h1>
             <p className="text-slate-400 text-xs sm:text-sm mt-2 font-medium">
-              Control de préstamos, clientes y amortizaciones
+              Gestión segura de créditos y amortizaciones
             </p>
           </div>
 
@@ -152,8 +152,8 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
           {/* Pie de Página del Login */}
           <div id="login-footer" className="text-center mt-8 pt-6 border-t border-white/5">
-            <p className="text-[11px] text-slate-500 font-medium">
-              Sincronización en tiempo real con Google Sheets 🇵🇪
+            <p className="text-[11px] text-slate-500 font-medium uppercase tracking-wider">
+              Acceso Restringido a Personal Autorizado 🇵🇪
             </p>
           </div>
         </div>
