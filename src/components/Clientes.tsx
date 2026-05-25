@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { UserPlus, Search, Phone, Calendar, Loader2, Check, User, AlertCircle, Filter, Activity, CheckCircle, ChevronDown, ChevronUp, ShieldAlert } from "lucide-react";
+import { UserPlus, Search, Phone, Calendar, Loader2, Check, User, AlertCircle, Filter, Activity, CheckCircle, ChevronDown, ChevronUp, ShieldAlert, Edit3, X } from "lucide-react";
 import { Cliente } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -17,6 +17,16 @@ export function Clientes() {
   const [observaciones, setObservaciones] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+
+  // Edición rápida de cliente
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedEditCliente, setSelectedEditCliente] = useState<Cliente | null>(null);
+  const [editNombre, setEditNombre] = useState("");
+  const [editTelefono, setEditTelefono] = useState("");
+  const [editDireccion, setEditDireccion] = useState("");
+  const [editObservaciones, setEditObservaciones] = useState("");
+  const [editInfoAdicional, setEditInfoAdicional] = useState("");
+  const [updatingCliente, setUpdatingCliente] = useState(false);
 
   const fetchClientes = async () => {
     try {
@@ -74,6 +84,49 @@ export function Clientes() {
       setError("Error de red al crear el cliente.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openEditCliente = (cliente: Cliente) => {
+    setSelectedEditCliente(cliente);
+    setEditNombre(cliente.nombre_completo || "");
+    setEditTelefono(cliente.telefono || "");
+    setEditDireccion("");
+    setEditObservaciones(cliente.observaciones || "");
+    setEditInfoAdicional("");
+    setShowEditModal(true);
+  };
+
+  const handleUpdateCliente = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEditCliente) return;
+
+    setUpdatingCliente(true);
+    try {
+      const res = await fetch(`/api/clientes/${selectedEditCliente.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre_completo: editNombre,
+          telefono: editTelefono,
+          observaciones: editObservaciones,
+          direccion: editDireccion,
+          informacion_adicional: editInfoAdicional
+        })
+      });
+
+      if (res.ok) {
+        setShowEditModal(false);
+        setSelectedEditCliente(null);
+        await fetchClientes();
+      } else {
+        const data = await res.json();
+        setError(data.error || "No se pudo actualizar el cliente.");
+      }
+    } catch (err) {
+      setError("Error de red al actualizar el cliente.");
+    } finally {
+      setUpdatingCliente(false);
     }
   };
 
@@ -372,6 +425,15 @@ export function Clientes() {
                           <span className="font-mono">{displayPhone(cliente.telefono)}</span>
                         </a>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={() => openEditCliente(cliente)}
+                        className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/5 px-3.5 py-2 rounded-xl text-white text-[11px] font-bold transition-all min-h-[38px] active:scale-95"
+                      >
+                        <Edit3 size={13} />
+                        <span>Editar</span>
+                      </button>
                       
                       <button
                         type="button"
@@ -455,6 +517,108 @@ export function Clientes() {
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {showEditModal && selectedEditCliente && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-3xl border border-white/5 bg-[#0f172a] shadow-2xl flex flex-col"
+            >
+              <div className="p-5 border-b border-white/5 flex items-center justify-between bg-[#070a13]/40">
+                <div>
+                  <h3 className="text-base font-black text-white">Editar Cliente</h3>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-0.5">{selectedEditCliente.nombre_completo}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="p-2 rounded-xl hover:bg-white/5 text-slate-300 hover:text-white transition"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateCliente} className="p-5 space-y-4 overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-1">Nombre *</label>
+                    <input
+                      type="text"
+                      value={editNombre}
+                      onChange={(e) => setEditNombre(e.target.value)}
+                      className="w-full glass-input rounded-2xl p-3 text-sm text-slate-200"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-1">Teléfono</label>
+                    <input
+                      type="text"
+                      value={editTelefono}
+                      onChange={(e) => setEditTelefono(e.target.value.replace(/[^\d]/g, ""))}
+                      className="w-full glass-input rounded-2xl p-3 text-sm text-slate-200 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-1">Dirección</label>
+                    <input
+                      type="text"
+                      value={editDireccion}
+                      onChange={(e) => setEditDireccion(e.target.value)}
+                      className="w-full glass-input rounded-2xl p-3 text-sm text-slate-200"
+                      placeholder="Opcional"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-1">Notas adicionales</label>
+                    <input
+                      type="text"
+                      value={editInfoAdicional}
+                      onChange={(e) => setEditInfoAdicional(e.target.value)}
+                      className="w-full glass-input rounded-2xl p-3 text-sm text-slate-200"
+                      placeholder="Referencia, trabajo, etc."
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-1">Observaciones</label>
+                  <textarea
+                    value={editObservaciones}
+                    onChange={(e) => setEditObservaciones(e.target.value)}
+                    rows={4}
+                    className="w-full glass-input rounded-2xl p-3 text-sm text-slate-200 resize-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditModal(false)}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-300 hover:bg-white/5"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updatingCliente}
+                    className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-indigo-500 to-violet-600 disabled:opacity-50"
+                  >
+                    {updatingCliente ? "Guardando..." : "Guardar Cliente"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

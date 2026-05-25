@@ -1,17 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   ArrowLeft, 
   CreditCard, 
   CheckCircle2, 
-  Clock, 
-  Calendar, 
   Landmark, 
   Coins, 
   Loader2, 
   HandCoins, 
   Send, 
   Sparkles, 
-  Check, 
   AlertCircle, 
   X,
   Image,
@@ -19,7 +16,8 @@ import {
   UploadCloud
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import Tesseract from "tesseract.js";
+
+import { buildPaymentSchedule } from "../lib/loanLogic";
 
 const resolveVoucherUrl = (url: string) => {
   if (!url) return "";
@@ -46,134 +44,70 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
 
   // Formulario de Pago / Amortización
   const [monto, setMonto] = useState("");
-  const [tipoMovimiento, setTipoMovimiento] = useState("Pago Ordinario");
   const [metodoPago, setMetodoPago] = useState("Transferencia");
   const [fechaPago, setFechaPago] = useState(new Date().toISOString().split("T")[0]);
   const [submitting, setSubmitting] = useState(false);
   const [pagoSuccess, setPagoSuccess] = useState("");
 
-  // Estados para OCR y Voucher
+  // Estados para Voucher
   const [comprobanteUrl, setComprobanteUrl] = useState("");
   const [comprobanteName, setComprobanteName] = useState("");
-  const [ocrLoading, setOcrLoading] = useState(false);
-  const [ocrProgress, setOcrProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
+  const [voucherError, setVoucherError] = useState("");
+  const [voucherUpdatingId, setVoucherUpdatingId] = useState<string | null>(null);
+  const [voucherUpdateError, setVoucherUpdateError] = useState("");
+  const voucherInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // Procesamiento de Voucher con OCR local Tesseract.js
+  // Subida de Voucher a Google Drive
   const handleVoucherUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setOcrLoading(true);
-    setOcrProgress(0);
+    setUploadStatus("uploading");
     setComprobanteName(file.name);
     setComprobanteUrl("");
+    setVoucherError("");
 
-    try {
-      // 1. Ejecutar OCR localmente con Tesseract.js
-      const { data: { text } } = await Tesseract.recognize(
-        file,
-        "spa",
-        {
-          logger: (m) => {
-            if (m.status === "recognizing text") {
-              setOcrProgress(Math.round(m.progress * 100));
-            }
-          }
-        }
-      );
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64Data = (reader.result as string).split(",")[1];
+        const uploadRes = await fetch("/api/upload-voucher", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            mimeType: file.type,
+            base64Data
+          })
+        });
 
-      console.log("OCR Texto Extraído:", text);
-
-      // 2. Extraer Monto
-      // Expresión regular robusta para monedas peruanas (S/., S/, s/., s/)
-      const montoRegex = /(?:s\/\.?\s*)(\d+(?:\.\d{1,2})?)/i;
-      const matchMonto = text.match(montoRegex);
-      if (matchMonto && matchMonto[1]) {
-        setMonto(matchMonto[1]);
-      } else {
-        // Buscar el número con decimales más probable
-        const fallbackRegex = /\b\d+(?:\.\d{2})\b/;
-        const matchFallback = text.match(fallbackRegex);
-        if (matchFallback) {
-          setMonto(matchFallback[0]);
-        }
-      }
-
-      // 3. Extraer Método de Pago
-      const lowerText = text.toLowerCase();
-      if (lowerText.includes("yape")) {
-        setMetodoPago("Yape/Plin");
-      } else if (lowerText.includes("plin")) {
-        setMetodoPago("Yape/Plin");
-      } else if (
-        lowerText.includes("bcp") || 
-        lowerText.includes("bbva") || 
-        lowerText.includes("interbank") || 
-        lowerText.includes("transferencia") ||
-        lowerText.includes("banco")
-      ) {
-        setMetodoPago("Transferencia");
-      } else if (lowerText.includes("depósito") || lowerText.includes("deposito")) {
-        setMetodoPago("Depósito");
-      }
-
-      // 4. Extraer Fecha (Formatos: DD/MM/AAAA, DD-MM-AAAA)
-      const dateRegex = /(\d{2})[-/](\d{2})[-/](\d{4})/;
-      const matchDate = text.match(dateRegex);
-      if (matchDate) {
-        const [_, day, month, year] = matchDate;
-        setFechaPago(`${year}-${month}-${day}`);
-      } else {
-        // Fecha escrita como "de [mes] de"
-        const monthsMap: Record<string, string> = {
-          enero: "01", febrero: "02", marzo: "03", abril: "04", mayo: "05", junio: "06",
-          julio: "07", agosto: "08", septiembre: "09", octubre: "10", noviembre: "11", diciembre: "12"
-        };
-        const spanishDateRegex = /(\d{1,2})\s+de\s+([a-z]+)\s+de\s+(\d{4})/i;
-        const matchSpanishDate = text.match(spanishDateRegex);
-        if (matchSpanishDate) {
-          const day = matchSpanishDate[1].padStart(2, "0");
-          const monthName = matchSpanishDate[2].toLowerCase();
-          const year = matchSpanishDate[3];
-          const month = monthsMap[monthName];
-          if (month) {
-            setFechaPago(`${year}-${month}-${day}`);
-          }
-        }
-      }
-
-      // 5. Subir imagen a Supabase Storage bucket "vouchers"
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          const base64Data = (reader.result as string).split(",")[1];
-          const uploadRes = await fetch("/api/upload-voucher", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fileName: file.name,
-              mimeType: file.type,
-              base64Data
-            })
-          });
-
-          if (uploadRes.ok) {
-            const uploadResult = await uploadRes.json();
+        if (uploadRes.ok) {
+          const uploadResult = await uploadRes.json();
+          if (uploadResult?.publicUrl) {
             setComprobanteUrl(uploadResult.publicUrl);
+            setUploadStatus("done");
           } else {
-            console.error("Error en respuesta de subida del voucher");
+            setVoucherError("La subida se completó, pero no se recibió la URL del voucher.");
+            setUploadStatus("error");
           }
-        } catch (uploadErr) {
-          console.error("Error de comunicación de subida", uploadErr);
+        } else {
+          const errData = await uploadRes.json().catch(() => ({}));
+          console.error("Error en respuesta de subida del voucher:", errData);
+          setVoucherError("No se pudo subir el voucher. Puedes registrar el pago sin él.");
+          setUploadStatus("error");
         }
-      };
-      reader.readAsDataURL(file);
-
-    } catch (ocrErr) {
-      console.error("Error al procesar el OCR:", ocrErr);
-    } finally {
-      setOcrLoading(false);
-    }
+      } catch (uploadErr) {
+        console.error("Error de red al subir el voucher:", uploadErr);
+        setVoucherError("Error de red al subir el voucher. Puedes registrar el pago sin él.");
+        setUploadStatus("error");
+      }
+    };
+    reader.onerror = () => {
+      setVoucherError("No se pudo leer el archivo seleccionado.");
+      setUploadStatus("error");
+    };
+    reader.readAsDataURL(file);
   };
 
   // Estados para el Asistente de Cobro por IA (Gemini)
@@ -219,7 +153,6 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           monto: parseFloat(monto),
-          tipo_movimiento: tipoMovimiento,
           metodo_pago: metodoPago,
           fecha_pago: fechaPago,
           comprobante_url: comprobanteUrl || null
@@ -227,7 +160,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
       });
 
       if (res.ok) {
-        setPagoSuccess("¡Pago registrado y amortización guardada con éxito!");
+        setPagoSuccess("¡Pago registrado con éxito!");
         setMonto("");
         setComprobanteUrl("");
         setComprobanteName("");
@@ -247,6 +180,47 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
     }
   };
 
+  const handleVoucherUpdate = async (pagoId: string, file: File) => {
+    if (!file) return;
+    setVoucherUpdatingId(pagoId);
+    setVoucherUpdateError("");
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64Data = (reader.result as string).split(",")[1];
+        const res = await fetch(`/api/amortizaciones/${pagoId}/voucher`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            mimeType: file.type || "image/jpeg",
+            base64Data
+          })
+        });
+
+        if (res.ok) {
+          await fetchLoanDetails();
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          setVoucherUpdateError(errData.error || "No se pudo adjuntar el voucher.");
+        }
+      } catch (err) {
+        console.error("Error al adjuntar voucher:", err);
+        setVoucherUpdateError("Error de red al adjuntar el voucher.");
+      } finally {
+        setVoucherUpdatingId(null);
+      }
+    };
+
+    reader.onerror = () => {
+      setVoucherUpdatingId(null);
+      setVoucherUpdateError("No se pudo leer el archivo seleccionado.");
+    };
+
+    reader.readAsDataURL(file);
+  };
+
   // Generador de Mensaje de Cobro con Gemini
   const handleGenerateAiMessage = async () => {
     if (!data?.prestamo) return;
@@ -260,7 +234,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clienteNombre: data.prestamo.cliente_nombre,
-          saldoPendiente: data.prestamo.saldo_pendiente,
+          saldoPendiente: resumenDeuda.saldoPendiente,
           fechaVencimiento: data.prestamo.fecha_vencimiento
         })
       });
@@ -312,7 +286,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
       `💵 *Monto:* ${formatCurrency(parseFloat(pago.monto))}\n` +
       `📅 *Fecha:* ${pago.fecha_pago}\n` +
       `💳 *Método de Pago:* ${pago.metodo_pago}\n` +
-      `✍️ *Tipo:* ${pago.tipo_movimiento}\n\n` +
+      `✍️ *Aplicacion:* ${getAplicacionLabel(pago)}\n\n` +
       `📉 *Saldo Restante Actual:* ${formatCurrency(prestamoObj.saldo_pendiente)}\n\n` +
       `¡Muchas gracias por tu puntualidad y confianza! 🤝`;
     const waUrl = `https://wa.me/${sanitizedPhone}?text=${encodeURIComponent(msg)}`;
@@ -329,7 +303,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
       `Nos complace confirmar el desembolso de tu crédito:\n\n` +
       `💰 *Monto Capital:* ${formatCurrency(prestamoObj.monto_capital)}\n` +
       `📈 *Tasa de Interés:* ${prestamoObj.tasa_interes_porcentaje}%\n` +
-      `💵 *Total Exigible:* ${formatCurrency(prestamoObj.total_a_pagar)}\n` +
+      `💵 *Total Exigible:* ${formatCurrency(prestamoObj.total_exigible_actual || prestamoObj.total_a_pagar)}\n` +
       `📅 *Fecha de Emisión:* ${prestamoObj.fecha_emision}\n` +
       `📅 *Fecha de Vencimiento:* ${prestamoObj.fecha_vencimiento || "No establecida"}\n\n` +
       `Recuerda que tus pagos se pueden realizar a través de transferencia bancaria o billeteras digitales como Yape o Plin. ¡Estamos para servirte! 🤝`;
@@ -347,16 +321,31 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
     }).format(amount);
   };
 
-  // Función para estimar las fechas de las cuotas
-  const calculateDueDate = (startDateStr: string, monthsToAdd: number) => {
-    try {
-      const date = new Date(startDateStr);
-      if (isNaN(date.getTime())) return startDateStr;
-      date.setMonth(date.getMonth() + monthsToAdd);
-      return date.toISOString().split("T")[0];
-    } catch (e) {
-      return startDateStr;
+  const formatMonthYear = (dateValue: string) => {
+    const parsed = new Date(`${dateValue}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return "Periodo sin fecha";
+    const raw = parsed.toLocaleString("es-ES", { month: "long", year: "numeric" });
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
+  };
+
+  const getAplicacionLabel = (pago: any) => {
+    const period = formatMonthYear(pago.fecha_pago);
+    const tipo = String(pago.tipo_movimiento || "").toLowerCase();
+
+    if (tipo.includes("liquidacion") || tipo.includes("liquidación")) {
+      return "Liquidacion total";
     }
+    if (tipo.includes("parcial")) {
+      return `Amortizacion parcial ${period}`;
+    }
+    if (tipo.includes("adelantado")) {
+      return `Pago adelantado ${period}`;
+    }
+    if (tipo.includes("exacto")) {
+      return `Pago aplicado a ${period}`;
+    }
+
+    return `Pago aplicado a ${period}`;
   };
 
   if (loading) {
@@ -387,43 +376,13 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
   }
 
   const { prestamo, pagosRealizados } = data;
-  const progressPercent = Math.min(100, (prestamo.total_pagado / prestamo.total_a_pagar) * 100);
-
-  // Calcular cronograma de pagos sugerido (3 cuotas)
-  const totalCuotas = 3;
-  const cuotaMonto = prestamo.total_a_pagar / totalCuotas;
-  const totalPagadoAcumulado = prestamo.total_pagado;
-
-  const cuotasList = Array.from({ length: totalCuotas }).map((_, idx) => {
-    const numCuota = idx + 1;
-    const estimatedDate = calculateDueDate(prestamo.fecha_emision, numCuota);
-    
-    // Determinar estado de la cuota basado en pagos reales acumulados
-    let estado = "Pendiente";
-    let pagadoEnCuota = 0;
-    
-    const limiteCobro = cuotaMonto * numCuota;
-    const inicioCobro = cuotaMonto * idx;
-    
-    if (totalPagadoAcumulado >= limiteCobro) {
-      estado = "Pagado";
-      pagadoEnCuota = cuotaMonto;
-    } else if (totalPagadoAcumulado > inicioCobro) {
-      estado = "Pago Parcial";
-      pagadoEnCuota = totalPagadoAcumulado - inicioCobro;
-    } else {
-      estado = "Pendiente";
-      pagadoEnCuota = 0;
-    }
-
-    return {
-      numero: numCuota,
-      monto: cuotaMonto,
-      pagado: pagadoEnCuota,
-      fechaVencimiento: estimatedDate,
-      estado
-    };
-  });
+  const debtState = buildPaymentSchedule(prestamo, pagosRealizados, new Date());
+  const resumenDeuda = debtState.resumen;
+  const cuotaSiguiente = debtState.cuotaSiguiente;
+  const progressPercent = Math.min(100, resumenDeuda.totalExigible > 0 ? (resumenDeuda.totalPagado / resumenDeuda.totalExigible) * 100 : 0);
+  const deudaTotalActual = resumenDeuda.totalExigible || prestamo.total_exigible_actual || prestamo.total_a_pagar;
+  const cuotaRapida = cuotaSiguiente ? Math.min(resumenDeuda.saldoPendiente, cuotaSiguiente.montoExigible || cuotaSiguiente.montoCuotaBase || 0) : resumenDeuda.saldoPendiente;
+  const interesMensual = (prestamo.monto_capital * prestamo.tasa_interes_porcentaje) / 100;
 
   return (
     <div id="loan-details-view" className="space-y-6 font-sans">
@@ -479,7 +438,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
         <div className="text-left md:text-right border-t border-white/5 md:border-0 pt-4 md:pt-0 w-full md:w-auto">
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">Saldo por Amortizar</span>
           <p className="text-3xl md:text-4xl font-black text-blue-400 mt-1 tracking-tight font-mono">
-            {formatCurrency(prestamo.saldo_pendiente)}
+            {formatCurrency(resumenDeuda.saldoPendiente)}
           </p>
         </div>
       </div>
@@ -501,16 +460,36 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-white/[0.04] p-4 rounded-2xl border border-white/5">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Capital Recibido</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Capital recibido</span>
                 <span className="text-lg font-black text-slate-200 font-mono">{formatCurrency(prestamo.monto_capital)}</span>
               </div>
               <div className="bg-white/[0.04] p-4 rounded-2xl border border-white/5">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Interés</span>
-                <span className="text-lg font-black text-slate-200 font-mono">+{prestamo.tasa_interes_porcentaje}%</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Interes mensual</span>
+                <span className="text-lg font-black text-slate-200 font-mono">{formatCurrency(interesMensual)}</span>
+                <span className="text-[10px] text-slate-500 font-semibold block mt-1">Tasa {prestamo.tasa_interes_porcentaje}%</span>
               </div>
               <div className="bg-indigo-500/5 p-4 rounded-2xl border border-indigo-500/10">
-                <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider block mb-1">Total Exigible</span>
-                <span className="text-lg font-black text-blue-400 font-mono">{formatCurrency(prestamo.total_a_pagar)}</span>
+                <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider block mb-1">Total exigible actualizado</span>
+                <span className="text-lg font-black text-blue-400 font-mono">{formatCurrency(deudaTotalActual)}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white/[0.03] p-4 rounded-2xl border border-white/5">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Capital pendiente</span>
+                <span className="text-2xl font-black text-slate-100 font-mono">{formatCurrency(resumenDeuda.capitalPendiente)}</span>
+              </div>
+              <div className="bg-white/[0.03] p-4 rounded-2xl border border-white/5">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Cuotas vencidas</span>
+                <span className="text-2xl font-black text-rose-400 font-mono">{resumenDeuda.cuotasVencidas}</span>
+              </div>
+              <div className="bg-white/[0.03] p-4 rounded-2xl border border-white/5">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Cuotas pendientes</span>
+                <span className="text-2xl font-black text-amber-400 font-mono">{resumenDeuda.cuotasPendientes}</span>
+              </div>
+              <div className="bg-white/[0.03] p-4 rounded-2xl border border-white/5">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Mora acumulada</span>
+                <span className="text-2xl font-black text-orange-400 font-mono">{formatCurrency(resumenDeuda.moraAcumulada)}</span>
               </div>
             </div>
 
@@ -529,141 +508,13 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                 />
               </div>
               <div className="flex justify-between text-[10px] text-gray-500 font-bold uppercase tracking-wider pt-1">
-                <span>Pagado: {formatCurrency(prestamo.total_pagado)}</span>
-                <span>Pendiente: {formatCurrency(prestamo.saldo_pendiente)}</span>
+                <span>Pagado: {formatCurrency(resumenDeuda.totalPagado)}</span>
+                <span>Pendiente: {formatCurrency(resumenDeuda.saldoPendiente)}</span>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-5 border-t border-white/5 text-xs text-gray-400 font-semibold select-none">
-            <div className="flex items-center gap-2.5">
-              <Calendar size={16} className="text-gray-500" />
-              <span>Emisión de Crédito: <strong className="text-slate-200 font-mono">{prestamo.fecha_emision}</strong></span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <Calendar size={16} className="text-gray-500" />
-              <span>Plazo de Vencimiento: <strong className="text-slate-200 font-mono">{prestamo.fecha_vencimiento || "No establecido"}</strong></span>
-            </div>
-          </div>
         </div>
-
-        {/* Control de Alquiler Mensual en caso sea tipo Alquiler de Casa */}
-        {prestamo.tipo_prestamo === "Alquiler de Casa" && (() => {
-          const getMonthsCount = (start: string, end: string) => {
-            if (!start || !end) return 6;
-            const d1 = new Date(start + "T00:00:00");
-            const d2 = new Date(end + "T00:00:00");
-            let months = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
-            return Math.max(1, Math.round(months));
-          };
-
-          const totalMonths = getMonthsCount(prestamo.fecha_emision, prestamo.fecha_vencimiento);
-          const rentPerMonth = prestamo.monto_capital / totalMonths;
-          const totalPaid = prestamo.total_pagado || 0;
-          
-          const monthsList = [];
-          const startDate = new Date(prestamo.fecha_emision + "T12:00:00");
-          for (let i = 0; i < totalMonths; i++) {
-            const currentMonthDate = new Date(startDate);
-            currentMonthDate.setMonth(startDate.getMonth() + i);
-            const monthName = currentMonthDate.toLocaleString("es-ES", { month: "long", year: "numeric" });
-            
-            const monthIndex = i + 1;
-            const thresholdPaid = rentPerMonth * monthIndex;
-            const previousThreshold = rentPerMonth * i;
-            
-            let status: "paid" | "amortized" | "pending" = "pending";
-            let amountPaidThisMonth = 0;
-            let pendingThisMonth = rentPerMonth;
-            
-            if (totalPaid >= thresholdPaid) {
-              status = "paid";
-              amountPaidThisMonth = rentPerMonth;
-              pendingThisMonth = 0;
-            } else if (totalPaid > previousThreshold) {
-              status = "amortized";
-              amountPaidThisMonth = totalPaid - previousThreshold;
-              pendingThisMonth = rentPerMonth - amountPaidThisMonth;
-            }
-            
-            monthsList.push({
-              index: monthIndex,
-              name: monthName.charAt(0).toUpperCase() + monthName.slice(1),
-              amount: rentPerMonth,
-              status,
-              paid: amountPaidThisMonth,
-              pending: pendingThisMonth,
-            });
-          }
-
-          return (
-            <div className="bento-card p-6 rounded-3xl space-y-4 lg:col-span-2 select-none">
-              <div className="flex items-center gap-2 pb-3 border-b border-white/5">
-                <div className="w-8 h-8 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center text-blue-400">
-                  <Calendar size={16} />
-                </div>
-                <h2 className="font-extrabold text-white text-base tracking-tight">
-                  Control de Alquiler Mensual (Contrato)
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
-                {monthsList.map(m => {
-                  let statusBadge = null;
-                  if (m.status === "paid") {
-                    statusBadge = (
-                      <span className="text-[10px] px-2.5 py-0.5 rounded-full font-black bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center gap-1">
-                        <CheckCircle2 size={10} /> PAGADO
-                      </span>
-                    );
-                  } else if (m.status === "amortized") {
-                    statusBadge = (
-                      <span className="text-[10px] px-2.5 py-0.5 rounded-full font-black bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center gap-1">
-                        <AlertCircle size={10} /> AMORTIZADO
-                      </span>
-                    );
-                  } else {
-                    statusBadge = (
-                      <span className="text-[10px] px-2.5 py-0.5 rounded-full font-black bg-slate-800 border border-slate-700 text-gray-400 flex items-center gap-1">
-                        <Clock size={10} /> PENDIENTE
-                      </span>
-                    );
-                  }
-
-                  return (
-                    <div 
-                      key={m.index} 
-                      className={`p-3 rounded-2xl border transition ${
-                        m.status === "paid" 
-                          ? "bg-emerald-500/[0.02] border-emerald-500/10" 
-                          : m.status === "amortized"
-                          ? "bg-amber-500/[0.02] border-amber-500/10"
-                          : "bg-white/[0.02] border-white/5"
-                      }`}
-                    >
-                      <div className="flex justify-between items-center gap-2">
-                        <div>
-                          <span className="text-[9px] text-gray-500 uppercase tracking-widest block font-bold">Mes {m.index}</span>
-                          <span className="font-extrabold text-white text-xs">{m.name}</span>
-                        </div>
-                        {statusBadge}
-                      </div>
-
-                      <div className="mt-2.5 pt-2 border-t border-white/5 text-[10px] flex justify-between text-slate-400 font-semibold">
-                        <span>Mensualidad: <strong className="text-slate-200 font-mono">{formatCurrency(m.amount)}</strong></span>
-                        {m.status === "amortized" && (
-                          <span className="text-amber-400 font-mono font-bold">
-                            Abonado: {formatCurrency(m.paid)} / Falta: {formatCurrency(m.pending)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
 
         {/* Formulario Registrar Pago - Columna 1/3 */}
         <div id="payment-form-card" className="bento-card p-6 rounded-3xl h-fit">
@@ -716,32 +567,19 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                 <div className="flex flex-wrap gap-2 mt-2">
                   <button
                     type="button"
-                    onClick={() => setMonto(String(Math.min(Math.round(prestamo.saldo_pendiente * 100) / 100, Math.round(cuotaMonto * 100) / 100)))}
+                    onClick={() => setMonto(String(Math.round(cuotaRapida * 100) / 100))}
                     className="px-2.5 py-1.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-xl text-[9px] font-extrabold uppercase hover:bg-indigo-500/20 transition cursor-pointer select-none"
                   >
-                    Siguiente Cuota ({formatCurrency(Math.min(prestamo.saldo_pendiente, cuotaMonto))})
+                    {cuotaSiguiente ? `Siguiente Cuota #${cuotaSiguiente.numero} (${formatCurrency(cuotaRapida)})` : `Aplicar Pago (${formatCurrency(cuotaRapida)})`}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMonto(String(Math.round(prestamo.saldo_pendiente * 100) / 100))}
+                    onClick={() => setMonto(String(Math.round(resumenDeuda.saldoPendiente * 100) / 100))}
                     className="px-2.5 py-1.5 bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-xl text-[9px] font-extrabold uppercase hover:bg-purple-500/20 transition cursor-pointer select-none"
                   >
-                    Liquidar Saldo ({formatCurrency(prestamo.saldo_pendiente)})
+                    Liquidar Saldo ({formatCurrency(resumenDeuda.saldoPendiente)})
                   </button>
                 </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase block pl-1">Tipo de Movimiento</label>
-                <select
-                  value={tipoMovimiento}
-                  onChange={(e) => setTipoMovimiento(e.target.value)}
-                  className="w-full glass-input rounded-2xl p-3 bg-[#0A0A0C] text-xs font-bold text-slate-200 cursor-pointer"
-                >
-                  <option value="Pago Ordinario">Pago Ordinario</option>
-                  <option value="Abono a Capital">Abono a Capital</option>
-                  <option value="Pago de Intereses">Pago de Intereses</option>
-                </select>
               </div>
 
               <div className="space-y-1.5">
@@ -759,19 +597,54 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase block pl-1">Fecha de Operación</label>
+                <div className="flex items-center justify-between pl-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">Fecha de Operación</label>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setFechaPago(new Date().toISOString().split("T")[0])}
+                      className={`px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-wider transition cursor-pointer select-none ${
+                        fechaPago === new Date().toISOString().split("T")[0]
+                          ? "bg-indigo-500/20 border border-indigo-500/30 text-indigo-300"
+                          : "bg-white/[0.04] border border-white/5 text-gray-400 hover:text-slate-200 hover:border-white/10"
+                      }`}
+                    >
+                      Hoy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const yesterday = new Date();
+                        yesterday.setDate(yesterday.getDate() - 1);
+                        setFechaPago(yesterday.toISOString().split("T")[0]);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-wider transition cursor-pointer select-none ${
+                        (() => { const y = new Date(); y.setDate(y.getDate() - 1); return fechaPago === y.toISOString().split("T")[0]; })()
+                          ? "bg-indigo-500/20 border border-indigo-500/30 text-indigo-300"
+                          : "bg-white/[0.04] border border-white/5 text-gray-400 hover:text-slate-200 hover:border-white/10"
+                      }`}
+                    >
+                      Ayer
+                    </button>
+                  </div>
+                </div>
                 <input
                   type="date"
                   value={fechaPago}
                   onChange={(e) => setFechaPago(e.target.value)}
                   className="w-full glass-input rounded-2xl p-3 text-xs font-bold text-slate-200"
                 />
+                {fechaPago && (
+                  <p className="text-[10px] text-indigo-300/80 font-semibold pl-1 capitalize">
+                    {new Date(`${fechaPago}T00:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                  </p>
+                )}
               </div>
 
               {/* Cargar Voucher con OCR */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-gray-400 uppercase block pl-1">
-                  Cargar Voucher (OCR Local)
+                  Cargar Voucher (Opcional)
                 </label>
                 <div className="relative group/file">
                   <input
@@ -780,166 +653,108 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                     onChange={handleVoucherUpload}
                     className="hidden"
                     id="voucher-upload-input"
-                    disabled={ocrLoading}
+                    disabled={uploadStatus === "uploading"}
                   />
                   <label
                     htmlFor="voucher-upload-input"
                     className={`flex flex-col items-center justify-center p-3.5 border border-dashed rounded-2xl cursor-pointer transition select-none min-h-[85px] ${
-                      ocrLoading
+                      uploadStatus === "uploading"
                         ? "bg-white/[0.02] border-indigo-500/30 text-blue-400 cursor-not-allowed"
-                        : comprobanteUrl
+                        : uploadStatus === "done" || comprobanteUrl
                         ? "bg-emerald-500/5 border-emerald-500/30 text-green-400 hover:bg-emerald-500/10 hover:border-emerald-500/40"
+                        : uploadStatus === "error"
+                        ? "bg-rose-500/5 border-rose-500/30 text-rose-400 hover:bg-rose-500/10"
                         : "bg-white/[0.04] border-white/5 hover:border-indigo-500/40 text-gray-400 hover:text-slate-200"
                     }`}
                   >
-                    {ocrLoading ? (
-                      <div className="flex flex-col items-center gap-2 w-full">
+                    {uploadStatus === "uploading" ? (
+                      <div className="flex flex-col items-center gap-2">
                         <Loader2 className="animate-spin text-blue-400" size={20} />
-                        <span className="text-[9px] font-bold text-gray-400 tracking-wider">
-                          Procesando OCR: {ocrProgress}%
+                        <span className="text-[9px] font-bold text-gray-400 tracking-wider uppercase">
+                          Subiendo a Drive...
                         </span>
-                        <div className="w-full bg-[#0A0A0C] h-1 rounded-full overflow-hidden p-px border border-white/5">
-                          <div
-                            className="bg-indigo-400 h-full rounded-full transition-all duration-300"
-                            style={{ width: `${ocrProgress}%` }}
-                          />
-                        </div>
                       </div>
-                    ) : comprobanteUrl ? (
+                    ) : uploadStatus === "done" || comprobanteUrl ? (
                       <div className="flex items-center gap-2 text-center text-xs">
                         <CheckCircle2 size={18} className="text-green-400 shrink-0" />
                         <div className="text-left">
-                          <p className="font-extrabold text-slate-200 text-[11px]">Voucher Listo</p>
-                          <p className="text-[9px] text-slate-450 font-bold truncate max-w-[170px]">
+                          <p className="font-extrabold text-slate-200 text-[11px]">Voucher listo ✓</p>
+                          <p className="text-[9px] text-slate-400 font-bold truncate max-w-[170px]">
                             {comprobanteName}
                           </p>
+                          <p className="text-[9px] text-gray-500 font-semibold mt-0.5">Clic para cambiar</p>
                         </div>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-1 text-center">
                         <UploadCloud size={20} className="text-blue-400 group-hover/file:scale-105 transition-transform" />
                         <div>
-                          <p className="font-extrabold text-xs text-slate-350">Subir imagen de voucher</p>
+                          <p className="font-extrabold text-xs text-slate-300">Subir imagen de voucher</p>
                           <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">
-                            Auto-completa monto, banco y fecha
+                            JPG, PNG o WEBP · Opcional
                           </p>
                         </div>
                       </div>
                     )}
                   </label>
                 </div>
+                {voucherError && (
+                  <p className="text-[10px] text-rose-400 font-semibold">
+                    {voucherError}
+                  </p>
+                )}
               </div>
 
               <button
                 type="submit"
-                disabled={submitting}
-                className="w-full bg-white/10 hover:bg-white/15 border border-white/10 backdrop-blur-md transition-all text-white font-medium text-white font-bold py-3 rounded-2xl text-xs sm:text-sm transition cursor-pointer flex justify-center items-center gap-2 min-h-[48px]"
+                disabled={submitting || uploadStatus === "uploading"}
+                className="w-full bg-white/10 hover:bg-white/15 border border-white/10 backdrop-blur-md transition-all text-white font-medium text-white font-bold py-3 rounded-2xl text-xs sm:text-sm transition cursor-pointer flex justify-center items-center gap-2 min-h-[48px] disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {submitting ? (
                   <>
                     <Loader2 className="animate-spin" size={16} />
                     <span>Procesando abono...</span>
                   </>
+                ) : uploadStatus === "uploading" ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} />
+                    <span>Subiendo voucher...</span>
+                  </>
                 ) : (
-                  <span>Registrar Amortización</span>
+                  <span>Registrar pago</span>
                 )}
               </button>
 
-              <div className="bg-indigo-500/5 border border-indigo-500/10 p-3 rounded-2xl text-[9px] sm:text-[10px] text-gray-400 leading-relaxed font-medium">
-                💡 <strong>Política de Amortización:</strong> Los abonos se aplican de manera automática amortizando primero los intereses generados y luego reduciendo el capital deudor, conforme a las políticas establecidas.
-              </div>
             </form>
           )}
         </div>
       </div>
 
-      {/* Cronograma de Cuotas Sugerido (Pantalla Completa) */}
-      <div className="w-full">
-        
-        {/* Bento Box: Cronograma de Pagos Sugeridos */}
-        <div id="amortization-schedule-card" className="bento-card p-6 rounded-3xl space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-white/5">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center text-blue-400">
-                <Calendar size={16} />
-              </div>
-              <div>
-                <h3 className="font-extrabold text-white text-base tracking-tight">Cronograma de Pagos</h3>
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Plan de amortización en 3 cuotas</p>
-              </div>
-            </div>
-            <span className="text-[10px] bg-white/[0.03] border border-white/5 text-gray-400 font-bold px-2.5 py-1 rounded-lg">Sugerido</span>
-          </div>
-
-          <div className="space-y-3">
-            {cuotasList.map((cuota) => (
-              <div 
-                key={cuota.numero}
-                className="p-4 bg-black/30 rounded-2xl border border-white/5 flex items-center justify-between gap-4"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black ${
-                    cuota.estado === "Pagado" 
-                      ? "bg-emerald-500/10 border border-emerald-500/20 text-green-400" 
-                      : cuota.estado === "Pago Parcial"
-                      ? "bg-amber-500/10 border border-amber-500/20 text-amber-400"
-                      : "bg-slate-800 border border-slate-700 text-gray-400"
-                  }`}>
-                    {cuota.numero}
-                  </div>
-                  <div>
-                    <span className="font-extrabold text-slate-200 text-sm block">Cuota {cuota.numero}</span>
-                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider block">Vence: {cuota.fechaVencimiento}</span>
-                  </div>
-                </div>
-
-                <div className="text-right space-y-1">
-                  <span className="text-sm font-black text-slate-200 font-mono block">{formatCurrency(cuota.monto)}</span>
-                  <div className="flex items-center justify-end gap-1.5">
-                    {cuota.estado === "Pagado" ? (
-                      <span className="text-[9px] font-bold text-green-400 uppercase tracking-widest bg-emerald-500/5 px-2 py-0.5 rounded-md border border-emerald-500/10 flex items-center gap-1">
-                        <Check size={9} />
-                        Pagado
-                      </span>
-                    ) : cuota.estado === "Pago Parcial" ? (
-                      <span className="text-[9px] font-bold text-amber-400 uppercase tracking-widest bg-amber-500/5 px-2 py-0.5 rounded-md border border-amber-500/10 flex items-center gap-1">
-                        <Clock size={9} />
-                        Parcial ({formatCurrency(cuota.pagado)})
-                      </span>
-                    ) : (
-                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest bg-slate-800 px-2 py-0.5 rounded-md border border-slate-700">
-                        Pendiente
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-      </div>
-
-      {/* Historial de Amortizaciones (Diseño Dual) */}
+      {/* Historial de Pagos (Diseño Dual) */}
       <div id="amortizations-history-card" className="bento-card rounded-3xl overflow-hidden">
         <div className="p-5 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center text-blue-400">
               <Coins size={16} />
             </div>
-            <h3 className="font-extrabold text-white text-base tracking-tight">Historial de Amortizaciones</h3>
+            <h3 className="font-extrabold text-white text-base tracking-tight">Historial de Pagos</h3>
           </div>
           <span className="text-[10px] bg-white/[0.03] border border-white/5 text-indigo-300 font-bold px-3 py-1 rounded-lg font-mono select-none">
-            Abonos: {pagosRealizados.length}
+            Pagos: {pagosRealizados.length}
           </span>
         </div>
+        {voucherUpdateError && (
+          <div className="px-5 py-3 text-[11px] text-rose-400 font-semibold border-b border-white/5 bg-rose-500/5">
+            {voucherUpdateError}
+          </div>
+        )}
 
         {pagosRealizados.length === 0 ? (
           <div className="text-center py-16 text-gray-400 bg-black/10">
             <Coins className="mx-auto text-slate-600 mb-3" size={40} />
-            <p className="font-extrabold text-sm text-gray-300">No hay amortizaciones registradas</p>
+            <p className="font-extrabold text-sm text-gray-300">No hay pagos registrados</p>
             <p className="text-xs text-gray-500 mt-1.5 max-w-xs mx-auto leading-relaxed">
-              Ingresa el monto del abono en el formulario superior para registrar la primera amortización de este crédito.
+              Ingresa el monto del abono en el formulario superior para registrar el primer pago de este credito.
             </p>
           </div>
         ) : (
@@ -951,8 +766,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                   <tr className="bg-white/[0.02] text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-white/5 select-none">
                     <th className="px-6 py-4.5">ID Transacción</th>
                     <th className="px-6 py-4.5">Fecha Pago</th>
-                    <th className="px-6 py-4.5">Tipo Movimiento</th>
-                    <th className="px-6 py-4.5">Método de Recibo</th>
+                    <th className="px-6 py-4.5">Aplicacion</th>
                     <th className="px-6 py-4.5">Comprobante</th>
                     <th className="px-6 py-4.5 text-right">Monto</th>
                   </tr>
@@ -967,15 +781,32 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                         {pago.fecha_pago}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-[10px] bg-slate-800 text-gray-300 border border-slate-700 px-2.5 py-0.5 rounded-md font-bold uppercase tracking-wider">
-                          {pago.tipo_movimiento}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 font-bold text-slate-350">
-                        {pago.metodo_pago}
+                        <div className="space-y-1">
+                          <span className="text-[11px] font-bold text-slate-200">
+                            {getAplicacionLabel(pago)}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-semibold">
+                            Metodo: {pago.metodo_pago}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            ref={(el) => {
+                              voucherInputRefs.current[pago.id] = el;
+                            }}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                handleVoucherUpdate(pago.id, file);
+                              }
+                              e.currentTarget.value = "";
+                            }}
+                          />
                           {pago.comprobante_url ? (
                             <a
                               href={resolveVoucherUrl(pago.comprobante_url)}
@@ -990,6 +821,14 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                           ) : (
                             <span className="text-slate-600 font-bold text-[10px] uppercase tracking-wider">- Sin Voucher -</span>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => voucherInputRefs.current[pago.id]?.click()}
+                            disabled={voucherUpdatingId === pago.id}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/70 border border-slate-700 text-slate-300 hover:bg-slate-700 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-60"
+                          >
+                            {voucherUpdatingId === pago.id ? "Subiendo..." : (pago.comprobante_url ? "Actualizar Voucher" : "Adjuntar Voucher")}
+                          </button>
                           <button
                             onClick={() => handleShareReceipt(pago)}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-green-400 hover:bg-emerald-500/20 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors cursor-pointer"
@@ -1019,11 +858,11 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
 
                   <div className="flex justify-between items-end pt-1">
                     <div className="space-y-1">
-                      <span className="text-[9px] bg-slate-800 text-gray-300 border border-slate-700 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider block w-fit">
-                        {pago.tipo_movimiento}
+                      <span className="text-[10px] font-bold text-slate-200 block">
+                        {getAplicacionLabel(pago)}
                       </span>
-                      <span className="text-[10px] text-slate-450 font-bold block text-gray-300">Vía: {pago.metodo_pago}</span>
-                      <div className="flex items-center gap-2 mt-1.5">
+                      <span className="text-[10px] text-slate-450 font-bold block text-gray-300">Metodo: {pago.metodo_pago}</span>
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
                         {pago.comprobante_url ? (
                           <a
                             href={resolveVoucherUrl(pago.comprobante_url)}
@@ -1038,6 +877,24 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                         ) : (
                           <span className="text-slate-600 font-bold text-[9px] uppercase tracking-wider select-none">- Sin Voucher -</span>
                         )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          ref={(el) => { voucherInputRefs.current[pago.id] = el; }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleVoucherUpdate(pago.id, file);
+                            e.currentTarget.value = "";
+                          }}
+                        />
+                        <button
+                          onClick={() => voucherInputRefs.current[pago.id]?.click()}
+                          disabled={voucherUpdatingId === pago.id}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-slate-800/60 border border-slate-700 text-slate-300 rounded-md text-[9px] font-bold cursor-pointer disabled:opacity-60"
+                        >
+                          {voucherUpdatingId === pago.id ? "Subiendo..." : (pago.comprobante_url ? "Actualizar" : "Adjuntar")}
+                        </button>
                         <button
                           onClick={() => handleShareReceipt(pago)}
                           className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 text-green-400 hover:bg-emerald-500/20 rounded-lg font-bold text-[9px] uppercase tracking-wider transition-colors cursor-pointer"

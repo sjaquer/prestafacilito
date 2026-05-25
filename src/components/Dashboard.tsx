@@ -3,7 +3,7 @@ import {
   TrendingUp, CreditCard, Users, PlusCircle, ArrowUpRight, Coins, Loader2, 
   Wallet, Landmark, Activity, X, ShieldAlert, CheckCircle, Terminal, 
   UploadCloud, FileImage, Clock3, CalendarDays, Gauge, Target, Phone, MessageSquare,
-  Trash2, Edit3, Image, Download, Eye, ExternalLink, FileText, AlertCircle, Search
+  Edit3, Image, Download, Eye, ExternalLink, FileText, AlertCircle, Search
 } from "lucide-react";
 import Tesseract from "tesseract.js";
 import { Cliente } from "../types";
@@ -396,32 +396,6 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     }
   };
 
-  // Eliminar Préstamo Permanentemente
-  const handleDeleteLoan = async (loanId: string) => {
-    if (!confirm("¿Estás absolutamente seguro de eliminar este préstamo? Esto borrará irreversiblemente todos los abonos y cuotas asociadas al mismo de la base de datos.")) {
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/prestamos/${loanId}`, {
-        method: "DELETE"
-      });
-
-      if (res.ok) {
-        setShowEditModal(false);
-        setSelectedEditLoan(null);
-        fetchDashboardData();
-      } else {
-        const errData = await res.json();
-        alert(errData.error || "Fallo al eliminar préstamo.");
-      }
-    } catch (err) {
-      alert("Error de conexión al eliminar.");
-    }
-  };
-
-
-
   // Motor Inteligente Ultra-Preciso OCR para vouchers de bancos Peruanos (Yape, Plin, BCP, etc.)
   const handleOcrProcess = async (file: File) => {
     setVcrFile(file);
@@ -539,17 +513,36 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     }
   };
 
+  useEffect(() => {
+    if (!showVoucherModal) return;
+
+    const onPaste = (event: ClipboardEvent) => {
+      const items = Array.from(event.clipboardData?.items || []);
+      const imageItem = items.find((item) => item.kind === "file" && item.type.startsWith("image/"));
+      const file = imageItem?.getAsFile() || event.clipboardData?.files?.[0] || null;
+
+      if (file && file.type.startsWith("image/")) {
+        event.preventDefault();
+        handleOcrProcess(file);
+      }
+    };
+
+    window.addEventListener("paste", onPaste as unknown as EventListener);
+    return () => window.removeEventListener("paste", onPaste as unknown as EventListener);
+  }, [showVoucherModal]);
+
   // Registrar abono de voucher
   const handleVoucherRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!vcrSelectedClienteId || !vcrSelectedLoanId || !vcrMonto) {
-      alert("Por favor selecciona un cliente, préstamo activo y confirma el monto.");
+    if (!vcrSelectedClienteId || !vcrMonto || !vcrFechaPago) {
+      alert("Por favor selecciona un cliente, confirma el monto y la fecha del pago.");
       return;
     }
 
     setVcrRegistering(true);
     try {
       let uploadedUrl = null;
+      let matchedLoanId = vcrSelectedLoanId;
 
       if (vcrBase64) {
         const uploadRes = await fetch("/api/upload-voucher", {
@@ -568,7 +561,26 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
         }
       }
 
-      const paymentRes = await fetch(`/api/prestamos/${vcrSelectedLoanId}/pagos`, {
+      if (!matchedLoanId) {
+        const matchRes = await fetch("/api/prestamos/autoseleccionar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cliente_id: vcrSelectedClienteId,
+            monto: parseFloat(vcrMonto),
+            fecha_pago: vcrFechaPago
+          })
+        });
+
+        const matchData = await matchRes.json();
+        if (!matchRes.ok || !matchData.mejorCoincidencia?.prestamo_id) {
+          throw new Error(matchData.error || "No se pudo identificar automáticamente el préstamo correcto.");
+        }
+
+        matchedLoanId = matchData.mejorCoincidencia.prestamo_id;
+      }
+
+      const paymentRes = await fetch(`/api/prestamos/${matchedLoanId}/pagos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -852,7 +864,6 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
       {/* 2. KPIs FINANCIEROS (Verticalidad Nivel 2) */}
       <div id="metrics-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* KPI 1 - Capital Prestado */}
         <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 p-6 rounded-3xl relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500 shadow-sm" />
           <div className="flex items-center justify-between text-gray-400">
@@ -867,7 +878,6 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
           </div>
         </div>
 
-        {/* KPI 2 - Total Recuperado */}
         <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 p-6 rounded-3xl relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500 shadow-sm" />
           <div className="flex items-center justify-between text-gray-400">
@@ -885,7 +895,6 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
           </div>
         </div>
 
-        {/* KPI 3 - Saldo Pendiente */}
         <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 p-6 rounded-3xl relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500 shadow-sm" />
           <div className="flex items-center justify-between text-gray-400">
@@ -900,12 +909,11 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
           </div>
         </div>
 
-        {/* KPI 4 - Mora Activa */}
         <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 p-6 rounded-3xl relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500 shadow-sm" />
           <div className="flex items-center justify-between text-gray-400">
             <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Salud Cartera</span>
-            <Activity size={16} className="text-red-400 " />
+            <Activity size={16} className="text-red-400" />
           </div>
           <div className="mt-4">
             <span className={`text-2xl sm:text-3xl font-black tracking-tight font-mono ${overdueLoans.length > 0 ? 'text-rose-450' : 'text-white'}`}>
@@ -1128,14 +1136,6 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                                 >
                                   <Edit3 size={14} />
                                 </button>
-                                
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleDeleteLoan(prestamo.id); }}
-                                  className="text-gray-500 hover:text-rose-500 p-2 hover:bg-white/5 rounded-xl transition cursor-pointer"
-                                  title="Eliminar Deuda"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
 
                                 <button
                                   onClick={() => onSelectLoan(prestamo.id)}
@@ -1344,7 +1344,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="bg-[#0f172a] rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden border border-white/5 font-sans"
+              className="bg-[#0f172a] rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden border border-white/5 font-sans max-h-[90vh]"
             >
               <div className="p-5 border-b border-white/5 flex justify-between items-center bg-[#070a13]/40">
                 <div className="flex items-center gap-2 text-indigo-400">
@@ -1359,7 +1359,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                 </button>
               </div>
 
-              <form onSubmit={handleCreateLoan} className="p-6 space-y-5">
+              <form onSubmit={handleCreateLoan} className="p-6 space-y-5 max-h-[70vh] overflow-y-auto pr-1">
                 {clientes.length === 0 ? (
                   <div className="p-4 bg-amber-500/10 text-amber-300 rounded-2xl text-xs space-y-2 border border-amber-500/20">
                     <p className="font-bold flex items-center gap-1.5">
@@ -1804,60 +1804,18 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               </div>
 
               <form onSubmit={handleUpdateLoan} className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Capital Activo (S/.) *</label>
-                    <input
-                      type="number"
-                      min="1"
-                      step="any"
-                      value={editMonto}
-                      onChange={(e) => setEditMonto(e.target.value)}
-                      className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold font-mono"
-                      required
-                    />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1.5 p-3 rounded-2xl bg-white/[0.03] border border-white/5">
+                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Capital</span>
+                    <span className="text-sm font-mono text-slate-100">{formatCurrency(Number(selectedEditLoan.monto_capital) || 0)}</span>
                   </div>
-                  
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tasa (%) *</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="any"
-                      value={editTasa}
-                      onChange={(e) => setEditTasa(e.target.value)}
-                      className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold font-mono"
-                      required
-                    />
+                  <div className="space-y-1.5 p-3 rounded-2xl bg-white/[0.03] border border-white/5">
+                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Interés</span>
+                    <span className="text-sm font-mono text-slate-100">{selectedEditLoan.tasa_interes_porcentaje}%</span>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tipo Deuda</label>
-                    <select
-                      value={editTipo}
-                      onChange={(e) => setEditTipo(e.target.value)}
-                      className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
-                    >
-                      <option value="Personal" className="bg-[#0f172a]">Personal</option>
-                      <option value="Negocio" className="bg-[#0f172a]">Negocio</option>
-                      <option value="Alquiler de Casa" className="bg-[#0f172a]">Alquiler de Casa</option>
-                      <option value="Servicios" className="bg-[#0f172a]">Servicios</option>
-                      <option value="Otros" className="bg-[#0f172a]">Otros</option>
-                    </select>
-                  </div>
-                  
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Estado</label>
-                    <select
-                      value={editEstado}
-                      onChange={(e) => setEditEstado(e.target.value)}
-                      className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
-                    >
-                      <option value="activo" className="bg-[#0f172a]">Activo</option>
-                      <option value="pagado" className="bg-[#0f172a]">Pagado</option>
-                    </select>
+                  <div className="space-y-1.5 p-3 rounded-2xl bg-white/[0.03] border border-white/5">
+                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Estado</span>
+                    <span className="text-sm font-bold text-slate-100 uppercase">{selectedEditLoan.estado}</span>
                   </div>
                 </div>
 
@@ -1882,22 +1840,6 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                       className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
                     />
                   </div>
-                </div>
-
-                <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex items-center justify-between gap-4">
-                  <div>
-                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide block">Zona de Riesgo</span>
-                    <span className="text-[10.5px] text-gray-400 mt-0.5 block leading-normal">Eliminarás todos los registros en cascada relacionados.</span>
-                  </div>
-                  
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteLoan(selectedEditLoan.id)}
-                    className="flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500 border border-rose-500/20 hover:border-rose-500 text-red-400 hover:text-white transition-all cursor-pointer"
-                  >
-                    <Trash2 size={13} />
-                    <span>Eliminar</span>
-                  </button>
                 </div>
 
                 <div className="pt-4 border-t border-white/5 flex justify-end gap-2.5">
@@ -1986,9 +1928,6 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               <div className="w-full md:w-1/2 bg-[#070a13]/30 p-6 flex flex-col justify-between items-center border-b md:border-b-0 md:border-r border-white/5">
                 <div className="w-full">
                   <span className="text-[10px] font-black text-emerald-450 uppercase tracking-widest block mb-1 pl-0.5">Captura del Abono</span>
-                  <p className="text-xs text-gray-500 font-semibold leading-normal mb-4">
-                    Comprobante de transferencia subido para verificación.
-                  </p>
                 </div>
 
                 <div className="w-full flex-1 flex items-center justify-center min-h-[220px] max-h-[300px] bg-slate-955/50 rounded-2xl p-3 border border-white/5 relative overflow-hidden">
@@ -2122,54 +2061,41 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                       </>
                     )}
                     
-                    {vcrSelectedClienteId && (() => {
-                      const selClient = clientes.find(c => c.id === vcrSelectedClienteId);
-                      if (!selClient || !selClient.observaciones) return null;
-                      return (
-                        <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl text-[11px] text-slate-350 leading-relaxed font-semibold mt-2.5 flex gap-2 items-start">
-                          <FileText size={14} className="text-indigo-400 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="text-[9px] font-black text-indigo-300 uppercase tracking-widest block mb-0.5 select-none">Nota Importante del Cliente</span>
-                            {selClient.observaciones}
-                          </div>
-                        </div>
-                      );
-                    })()}
+                    {vcrSelectedClienteId && clientes.find(c => c.id === vcrSelectedClienteId)?.observaciones && (
+                      <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl text-[11px] text-slate-350 leading-relaxed font-semibold mt-2.5 flex gap-2 items-start">
+                        <FileText size={14} className="text-indigo-400 shrink-0 mt-0.5" />
+                        <div>{clientes.find(c => c.id === vcrSelectedClienteId)?.observaciones}</div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Préstamo Destino */}
                   {vcrSelectedClienteId && (
                     <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl space-y-2">
-                      <span className="text-[9px] font-black text-indigo-350 uppercase tracking-widest block">Crédito del Deudor</span>
+                      <span className="text-[9px] font-black text-indigo-350 uppercase tracking-widest block">Asociación</span>
                       {vcrClientLoans.length === 0 ? (
                         <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl text-[10.5px] leading-normal font-semibold flex items-center gap-2">
-                          <ShieldAlert size={14} className="shrink-0 text-red-400 " />
-                          <span>Este prestatario está al día (0 créditos activos).</span>
-                        </div>
-                      ) : vcrClientLoans.length === 1 ? (
-                        <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 rounded-xl text-[10.5px] leading-normal font-semibold flex items-center gap-2">
-                          <CheckCircle size={14} className="shrink-0 text-green-400" />
-                          <div>
-                            <span className="block text-[9px] text-gray-500 font-bold uppercase">Asociación Automática</span>
-                            <span className="block mt-0.5">{vcrClientLoans[0].tipo_prestamo} · Capital: {formatCurrency(vcrClientLoans[0].monto_capital)}</span>
-                          </div>
+                          <ShieldAlert size={14} className="shrink-0 text-red-400" />
+                          <span>No hay préstamos activos.</span>
                         </div>
                       ) : (
-                        <div className="space-y-1.5">
-                          <label className="text-[9px] font-bold text-indigo-300 uppercase block">Seleccionar Préstamo *</label>
-                          <select
-                            value={vcrSelectedLoanId}
-                            onChange={(e) => setVcrSelectedLoanId(e.target.value)}
-                            className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
-                            required
-                          >
-                            <option value="" className="bg-[#0f172a]">-- Elegir Préstamo Destino --</option>
-                            {vcrClientLoans.map(p => (
-                              <option key={p.id} value={p.id} className="bg-[#0f172a]">
-                                {p.tipo_prestamo} — Capital: S/. {p.monto_capital} ({p.fecha_emision})
-                              </option>
-                            ))}
-                          </select>
+                        <div className="space-y-2">
+                          <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 rounded-xl text-[10.5px] leading-normal font-semibold flex items-center gap-2">
+                            <CheckCircle size={14} className="shrink-0 text-green-400" />
+                            <span>Se asociará automáticamente.</span>
+                          </div>
+                          {vcrClientLoans.length > 1 && (
+                            <div className="space-y-1.5">
+                              {vcrClientLoans.slice(0, 3).map((loan) => (
+                                <div key={loan.id} className="p-2.5 bg-black/20 rounded-xl border border-white/5 text-[10.5px] leading-normal font-semibold flex items-center justify-between gap-2">
+                                  <div>
+                                    <span className="block text-slate-200">{loan.tipo_prestamo}</span>
+                                    <span className="block text-slate-500 font-mono">{loan.fecha_emision} · {formatCurrency(loan.monto_capital)}</span>
+                                  </div>
+                                  <span className="text-[9px] uppercase tracking-wider text-indigo-300 font-black">Candidato</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -2270,7 +2196,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                   </button>
                   <button
                     onClick={handleVoucherRegister}
-                    disabled={vcrRegistering || !vcrSelectedClienteId || !vcrSelectedLoanId || !vcrMonto || vcrOcrLoading}
+                    disabled={vcrRegistering || !vcrSelectedClienteId || !vcrMonto || vcrOcrLoading}
                     className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 to-teal-600 disabled:opacity-40"
                   >
                     {vcrRegistering ? "Procesando..." : "Confirmar Abono"}

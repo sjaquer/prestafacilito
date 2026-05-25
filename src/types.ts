@@ -29,4 +29,43 @@ export interface Amortizacion {
   monto: number;
   fecha_pago: string;
   metodo_pago: string;
+  comprobante_url?: string | null;
+}
+
+export interface CuotaPrestamo {
+  numero: number;
+  fechaVencimiento: string;
+  capitalPendiente: number;
+  interesPendiente: number;
+  moraPendiente: number;
+  penalidad: number;
+  cargosAdicionales: number;
+  montoCuotaBase: number;
+  montoExigible: number;
+  pagado: number;
+  saldoPendiente: number;
+  diasVencidos: number;
+  estado: "Saldada" | "Pendiente" | "Vencida" | "Parcial";
+}
+
+export interface ResumenDeudaPrestamo {
+  totalCuotas: number;
+  cuotasPendientes: number;
+  cuotasVencidas: number;
+  capitalPendiente: number;
+  interesPendiente: number;
+  moraAcumulada: number;
+  penalidadesAcumuladas: number;
+  cargosAdicionalesAcumulados: number;
+  totalExigible: number;
+  totalPagado: number;
+  saldoPendiente: number;
+}
+
+export interface EstadoDeudaPrestamo {
+  resumen: ResumenDeudaPrestamo;
+  cuotas: CuotaPrestamo[];
+  cuotaSiguiente: CuotaPrestamo | null;
+  cuotasVencidasDetalle: CuotaPrestamo[];
+  clasificacionPagoSugerida?: string;
 }

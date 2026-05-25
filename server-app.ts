@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import { GoogleGenAI } from "@google/genai";
 import { JWT } from "google-auth-library";
 import { supabase } from "./src/lib/supabase.js";
+import { buildPaymentSchedule, classifyPayment, toNumber } from "./src/lib/loanLogic.js";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
@@ -85,6 +86,7 @@ async function makeVoucherPublic(fileId: string, accessToken: string) {
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error(`⚠️  Error al publicar archivo ${fileId} en Drive:`, errorText);
     throw new Error(`No se pudo publicar el archivo de Drive: ${errorText}`);
   }
 }
@@ -488,6 +490,43 @@ app.post("/api/clientes", requireAuth, async (req, res) => {
   }
 });
 
+app.put("/api/clientes/:id", requireAuth, async (req, res) => {
+  try {
+    const clienteId = req.params.id;
+    const { nombre_completo, telefono, observaciones, direccion, informacion_adicional } = req.body;
+
+    if (!nombre_completo) {
+      res.status(400).json({ error: "El nombre completo es requerido" });
+      return;
+    }
+
+    const extraNotas = [direccion, informacion_adicional].filter(Boolean).join(" | ");
+    const observacionesFinales = [observaciones || "", extraNotas].filter(Boolean).join(observaciones && extraNotas ? "\n" : "");
+    const telSanitized = telefono ? String(telefono).replace(/\+/g, "").trim() : "";
+
+    const { data, error } = await supabase
+      .from("clientes")
+      .update({
+        nombre_completo,
+        telefono: telSanitized,
+        observaciones: observacionesFinales
+      })
+      .eq("id", clienteId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const username = (req as any).user.username;
+    await logAction(username, "EDITAR_CLIENTE", `Actualizó el cliente: ${nombre_completo}`);
+
+    res.json(data);
+  } catch (err: any) {
+    console.error("Error al actualizar cliente:", err);
+    res.status(500).json({ error: "Error al actualizar cliente", detail: err.message });
+  }
+});
+
 // 4. Préstamos Endpoints
 app.post("/api/prestamos", requireAuth, async (req, res) => {
   try {
@@ -554,25 +593,35 @@ app.get("/api/prestamos/:id", requireAuth, async (req, res) => {
     const cliente = cRes.data;
     const pagosRealizados = aRes.data || [];
 
-    // Conversión de tipos para cálculos de negocio
-    const capital = parseFloat(prestamo.monto_capital) || 0;
-    const tasaInteres = parseFloat(prestamo.tasa_interes_porcentaje) || 0;
-    const totalAPagar = capital * (1 + tasaInteres / 100);
-    const totalPagado = pagosRealizados.reduce((sum, a) => sum + (parseFloat(a.monto) || 0), 0);
-    const saldoPendiente = Math.max(0, totalAPagar - totalPagado);
+    const debtState = buildPaymentSchedule(prestamo, pagosRealizados, new Date());
+    const capital = toNumber(prestamo.monto_capital);
+    const tasaInteres = toNumber(prestamo.tasa_interes_porcentaje);
+    const totalBaseExigible = capital * (1 + tasaInteres / 100);
 
     res.json({
       prestamo: {
         ...prestamo,
         monto_capital: capital,
         tasa_interes_porcentaje: tasaInteres,
-        total_a_pagar: totalAPagar,
-        total_pagado: totalPagado,
-        saldo_pendiente: saldoPendiente,
+        total_a_pagar: debtState.resumen.totalExigible,
+        total_a_pagar_base: totalBaseExigible,
+        total_exigible_actual: debtState.resumen.totalExigible,
+        total_pagado: debtState.resumen.totalPagado,
+        saldo_pendiente: debtState.resumen.saldoPendiente,
+        capital_pendiente: debtState.resumen.capitalPendiente,
+        interes_pendiente: debtState.resumen.interesPendiente,
+        mora_acumulada: debtState.resumen.moraAcumulada,
+        cuotas_totales: debtState.resumen.totalCuotas,
+        cuotas_pendientes: debtState.resumen.cuotasPendientes,
+        cuotas_vencidas: debtState.resumen.cuotasVencidas,
         cliente_nombre: cliente ? cliente.nombre_completo : "Cliente desconocido",
         cliente_telefono: cliente ? cliente.telefono : ""
       },
-      pagosRealizados
+      pagosRealizados,
+      deuda: debtState.resumen,
+      cuotas: debtState.cuotas,
+      cuota_siguiente: debtState.cuotaSiguiente,
+      cuotas_vencidas_detalle: debtState.cuotasVencidasDetalle
     });
   } catch (err: any) {
     console.error("Error al cargar detalle de préstamo:", err);
@@ -583,17 +632,13 @@ app.get("/api/prestamos/:id", requireAuth, async (req, res) => {
 app.put("/api/prestamos/:id", requireAuth, async (req, res) => {
   try {
     const prestamoId = req.params.id;
-    const { monto_capital, tasa_interes_porcentaje, fecha_emision, fecha_vencimiento, estado, tipo_prestamo } = req.body;
+    const { fecha_emision, fecha_vencimiento } = req.body;
 
     const { data: updated, error } = await supabase
       .from("prestamos")
       .update({
-        monto_capital: parseFloat(monto_capital),
-        tasa_interes_porcentaje: parseFloat(tasa_interes_porcentaje),
         fecha_emision,
-        fecha_vencimiento,
-        estado,
-        tipo_prestamo
+        fecha_vencimiento
       })
       .eq("id", prestamoId)
       .select()
@@ -607,7 +652,7 @@ app.put("/api/prestamos/:id", requireAuth, async (req, res) => {
     await logAction(
       username,
       "EDITAR_PRESTAMO",
-      `Editó detalles del préstamo ${tipo_prestamo} de S/. ${monto_capital} del cliente: ${cliente ? cliente.nombre_completo : updated.cliente_id}`
+      `Actualizó fechas del préstamo ${updated.tipo_prestamo} de S/. ${updated.monto_capital} del cliente: ${cliente ? cliente.nombre_completo : updated.cliente_id}`
     );
 
     res.json(updated);
@@ -617,36 +662,10 @@ app.put("/api/prestamos/:id", requireAuth, async (req, res) => {
   }
 });
 
-app.delete("/api/prestamos/:id", requireAuth, async (req, res) => {
-  try {
-    const prestamoId = req.params.id;
-
-    const { data: prestamo } = await supabase.from("prestamos").select("cliente_id, monto_capital").eq("id", prestamoId).single();
-    let clienteName = "Desconocido";
-    if (prestamo) {
-      const { data: cliente } = await supabase.from("clientes").select("nombre_completo").eq("id", prestamo.cliente_id).single();
-      if (cliente) clienteName = cliente.nombre_completo;
-    }
-
-    const { error } = await supabase
-      .from("prestamos")
-      .delete()
-      .eq("id", prestamoId);
-
-    if (error) throw error;
-
-    const username = (req as any).user.username;
-    await logAction(
-      username,
-      "ELIMINAR_PRESTAMO",
-      `Eliminó préstamo de S/. ${prestamo ? prestamo.monto_capital : "Desconocido"} del cliente: ${clienteName}`
-    );
-
-    res.json({ success: true, message: "Préstamo eliminado exitosamente" });
-  } catch (err: any) {
-    console.error("Error al eliminar préstamo:", err);
-    res.status(500).json({ error: "Error al eliminar préstamo", detail: err.message });
-  }
+app.delete("/api/prestamos/:id", requireAuth, async (_req, res) => {
+  res.status(405).json({
+    error: "El borrado de préstamos está deshabilitado. Solo se permite editar fechas y registrar pagos."
+  });
 });
 
 // 6. Registrar Abonos / Amortizaciones
@@ -678,10 +697,15 @@ app.post("/api/prestamos/:id/pagos", requireAuth, async (req, res) => {
 
     if (aErr) throw aErr;
 
+    const pagosAnteriores = pagosPrevios || [];
+    const deudaAntes = buildPaymentSchedule(prestamo, pagosAnteriores, new Date(fecha_pago || new Date()));
+    const clasificacionAutomatica = classifyPayment(montoPago, deudaAntes);
+    const excedenteAplicado = Math.max(0, montoPago - deudaAntes.resumen.totalExigible);
+
     // Insertar la amortización en Supabase
     const nuevaAmortizacion = {
       prestamo_id: prestamoId,
-      tipo_movimiento: tipo_movimiento || "Pago Ordinario",
+      tipo_movimiento: clasificacionAutomatica,
       monto: montoPago,
       fecha_pago: fecha_pago || new Date().toISOString().split("T")[0],
       metodo_pago: metodo_pago || "Efectivo",
@@ -696,16 +720,11 @@ app.post("/api/prestamos/:id/pagos", requireAuth, async (req, res) => {
 
     if (insertErr) throw insertErr;
 
-    // Recalcular saldo e intereses
-    const capital = parseFloat(prestamo.monto_capital) || 0;
-    const tasaInteres = parseFloat(prestamo.tasa_interes_porcentaje) || 0;
-    const totalAPagar = capital * (1 + tasaInteres / 100);
-    const totalPagado = (pagosPrevios || []).reduce((sum, a) => sum + (parseFloat(a.monto) || 0), 0) + montoPago;
-
-    const saldoPendiente = Math.max(0, totalAPagar - totalPagado);
+    const pagosActualizados = [...pagosAnteriores, insertedAmort];
+    const deudaDespues = buildPaymentSchedule(prestamo, pagosActualizados, new Date(fecha_pago || new Date()));
     let nuevoEstado = prestamo.estado;
 
-    if (saldoPendiente <= 0.01) {
+    if (deudaDespues.resumen.saldoPendiente <= 0.01) {
       nuevoEstado = "pagado";
       await supabase
         .from("prestamos")
@@ -720,18 +739,81 @@ app.post("/api/prestamos/:id/pagos", requireAuth, async (req, res) => {
     await logAction(
       username,
       "REGISTRAR_PAGO",
-      `Abonó S/. ${montoPago} (Vía: ${metodo_pago}) al préstamo de: ${cliente ? cliente.nombre_completo : prestamo.cliente_id}`
+      `Abonó S/. ${montoPago} (${clasificacionAutomatica}) al préstamo de: ${cliente ? cliente.nombre_completo : prestamo.cliente_id}`
     );
 
     res.status(201).json({
       success: true,
       nuevaAmortizacion: insertedAmort,
-      saldo_pendiente: saldoPendiente,
-      estado_prestamo: nuevoEstado
+      clasificacion_automatica: clasificacionAutomatica,
+      excedente_aplicado: excedenteAplicado,
+      saldo_pendiente: deudaDespues.resumen.saldoPendiente,
+      estado_prestamo: nuevoEstado,
+      deuda_actualizada: deudaDespues.resumen,
+      cuotas_actualizadas: deudaDespues.cuotas
     });
   } catch (err: any) {
     console.error("Error al registrar pago:", err);
     res.status(500).json({ error: "Error al registrar abono/pago", detail: err.message });
+  }
+});
+
+app.post("/api/prestamos/autoseleccionar", requireAuth, async (req, res) => {
+  try {
+    const { cliente_id, monto, fecha_pago } = req.body;
+
+    if (!cliente_id || !monto) {
+      res.status(400).json({ error: "El cliente y el monto son obligatorios." });
+      return;
+    }
+
+    const montoPago = toNumber(monto);
+    const [prestamosRes, amortRes] = await Promise.all([
+      supabase.from("prestamos").select("*").eq("cliente_id", cliente_id).eq("estado", "activo"),
+      supabase.from("amortizaciones").select("*")
+    ]);
+
+    if (prestamosRes.error) throw prestamosRes.error;
+    if (amortRes.error) throw amortRes.error;
+
+    const prestamosActivos = prestamosRes.data || [];
+    const amortizaciones = amortRes.data || [];
+    const candidatos = prestamosActivos.map((prestamo) => {
+      const pagosDelPrestamo = amortizaciones.filter((pago) => pago.prestamo_id === prestamo.id);
+      const debtState = buildPaymentSchedule(prestamo, pagosDelPrestamo, new Date(fecha_pago || new Date()));
+      const cuotaSiguiente = debtState.cuotaSiguiente;
+      const diferenciaCuota = cuotaSiguiente ? Math.abs(montoPago - cuotaSiguiente.montoExigible) : Math.abs(montoPago - debtState.resumen.totalExigible);
+      const scoreBase = Math.max(0, 100 - Math.round(diferenciaCuota));
+      const scoreMorosidad = debtState.resumen.cuotasVencidas > 0 ? 12 : 0;
+      const scoreExactitud = cuotaSiguiente && Math.abs(montoPago - cuotaSiguiente.montoExigible) <= 0.01 ? 15 : 0;
+      const scoreLiquidacion = montoPago >= debtState.resumen.totalExigible - 0.01 ? 20 : 0;
+
+      return {
+        prestamo_id: prestamo.id,
+        cliente_id: prestamo.cliente_id,
+        cliente_nombre: prestamo.cliente_nombre || cliente_id,
+        tipo_prestamo: prestamo.tipo_prestamo,
+        monto_capital: toNumber(prestamo.monto_capital),
+        fecha_emision: prestamo.fecha_emision,
+        fecha_vencimiento: prestamo.fecha_vencimiento,
+        deuda: debtState.resumen,
+        clasificacion_sugerida: classifyPayment(montoPago, debtState),
+        score: scoreBase + scoreMorosidad + scoreExactitud + scoreLiquidacion
+      };
+    }).sort((a, b) => b.score - a.score);
+
+    const mejorCoincidencia = candidatos[0] || null;
+    const sugerencias = candidatos.slice(0, 3);
+
+    res.json({
+      success: true,
+      mejorCoincidencia,
+      sugerencias,
+      totalCandidatos: candidatos.length
+    });
+  } catch (err: any) {
+    console.error("Error al autoseleccionar préstamo:", err);
+    res.status(500).json({ error: "No se pudo autoseleccionar la deuda", detail: err.message });
   }
 });
 
@@ -764,6 +846,70 @@ app.get("/api/amortizaciones", requireAuth, async (req, res) => {
   } catch (err: any) {
     console.error("Error al obtener amortizaciones:", err);
     res.status(500).json({ error: "Error al obtener amortizaciones", detail: err.message });
+  }
+});
+
+app.post("/api/amortizaciones/:id/voucher", requireAuth, async (req, res) => {
+  try {
+    const amortizacionId = req.params.id;
+    const { fileName, mimeType, base64Data } = req.body;
+
+    if (!fileName || !mimeType || !base64Data) {
+      res.status(400).json({ error: "Datos del comprobante incompletos" });
+      return;
+    }
+
+    const { data: amortizacion, error: amortErr } = await supabase
+      .from("amortizaciones")
+      .select("*")
+      .eq("id", amortizacionId)
+      .single();
+
+    if (amortErr || !amortizacion) {
+      res.status(404).json({ error: "No se encontro la amortizacion solicitada." });
+      return;
+    }
+
+    const buffer = Buffer.from(base64Data, "base64");
+    const uploaded = await uploadVoucherToDrive(fileName, mimeType, buffer);
+
+    const { data: updated, error: updateErr } = await supabase
+      .from("amortizaciones")
+      .update({
+        comprobante_url: uploaded.publicUrl,
+        voucher_drive_file_id: uploaded.fileId
+      })
+      .eq("id", amortizacionId)
+      .select()
+      .single();
+
+    if (updateErr) {
+      // El archivo se subió a Drive pero no se guardó en BD — registrar para auditoría
+      console.error(`⚠️  Voucher subido a Drive (${uploaded.fileId}) pero no se guardó en BD para amortizacion ${amortizacionId}:`, updateErr);
+      throw updateErr;
+    }
+
+    const username = (req as any).user.username;
+    await logAction(
+      username,
+      "ACTUALIZAR_VOUCHER",
+      `Actualizo voucher de amortizacion ${amortizacionId} (prestamo ${amortizacion.prestamo_id}).`
+    );
+
+    res.json({
+      success: true,
+      amortizacion: updated,
+      voucher: {
+        publicUrl: uploaded.publicUrl,
+        directUrl: uploaded.directUrl,
+        driveFileId: uploaded.fileId,
+        driveWebViewLink: uploaded.webViewLink,
+        driveWebContentLink: uploaded.webContentLink
+      }
+    });
+  } catch (err: any) {
+    console.error("Error al adjuntar voucher en amortizacion:", err);
+    res.status(500).json({ error: "No se pudo adjuntar el voucher", detail: err.message });
   }
 });
 
