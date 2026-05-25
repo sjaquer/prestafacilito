@@ -3,7 +3,9 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import { GoogleGenAI } from "@google/genai";
-import { JWT } from "google-auth-library";
+import { JWT, OAuth2Client } from "google-auth-library";
+import fs from "fs";
+import path from "path";
 import { supabase } from "./src/lib/supabase.js";
 import { buildPaymentSchedule, classifyPayment, toNumber } from "./src/lib/loanLogic.js";
 
@@ -21,95 +23,91 @@ const getDriveFolderId = () => getEnv("GOOGLE_DRIVE_FOLDER_ID");
 
 const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 
-function getGoogleDriveCredentials() {
-  const rawPrivateKey = getEnv("GOOGLE_PRIVATE_KEY");
-
-  if (rawPrivateKey.startsWith("{")) {
-    try {
-      const parsed = JSON.parse(rawPrivateKey);
-      if (parsed?.client_email && parsed?.private_key) {
-        return {
-          clientEmail: String(parsed.client_email),
-          privateKey: String(parsed.private_key).replace(/\\n/g, "\n")
-        };
-      }
-    } catch (error) {
-      console.warn("No se pudo interpretar GOOGLE_PRIVATE_KEY como JSON. Se intentará con variables separadas.");
-    }
-  }
-
-  const clientEmail = getEnv("GOOGLE_SERVICE_ACCOUNT_EMAIL");
-  const privateKey = rawPrivateKey.replace(/\\n/g, "\n");
-
-  if (!clientEmail || !privateKey) {
-    return null;
-  }
-
-  return {
-    clientEmail,
-    privateKey
-  };
-}
+const getGoogleClientId = () => getEnv("GOOGLE_CLIENT_ID");
+const getGoogleClientSecret = () => getEnv("GOOGLE_CLIENT_SECRET");
+const getGoogleRefreshToken = () => getEnv("GOOGLE_REFRESH_TOKEN");
 
 async function getGoogleDriveAccessToken() {
-  const credentials = getGoogleDriveCredentials();
-  if (!credentials) {
-    throw new Error("Faltan credenciales de Google Drive. Revisa GOOGLE_SERVICE_ACCOUNT_EMAIL y GOOGLE_PRIVATE_KEY.");
+  const clientId = getGoogleClientId();
+  const clientSecret = getGoogleClientSecret();
+  const refreshToken = getGoogleRefreshToken();
+
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error("Faltan credenciales de Google Drive OAuth 2.0. Revisa GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y GOOGLE_REFRESH_TOKEN en el archivo .env.");
   }
 
-  const auth = new JWT({
-    email: credentials.clientEmail,
-    key: credentials.privateKey,
-    scopes: [GOOGLE_DRIVE_SCOPE]
-  });
+  const oauth2Client = new OAuth2Client(clientId, clientSecret);
+  oauth2Client.setCredentials({ refresh_token: refreshToken });
 
-  const tokens = await auth.authorize();
-  if (!tokens.access_token) {
-    throw new Error("No se pudo obtener un access token para Google Drive.");
+  const response = await oauth2Client.getAccessToken();
+  if (!response.token) {
+    throw new Error("No se pudo obtener un access token para Google Drive. Revisa si tu GOOGLE_REFRESH_TOKEN es válido.");
   }
 
-  return tokens.access_token;
-}
-
-async function makeVoucherPublic(fileId: string, accessToken: string) {
-  // Obsoleto: Supabase Storage ya es público
+  return response.token;
 }
 
 async function uploadVoucherToDrive(fileName: string, mimeType: string, buffer: Buffer) {
-  // Usamos Supabase Storage en lugar de Google Drive debido a las restricciones 
-  // recientes de Google sobre Service Accounts y cuotas de almacenamiento.
+  const accessToken = await getGoogleDriveAccessToken();
+  const folderId = getDriveFolderId();
   const uniqueName = `${Date.now()}-${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+  const boundary = `----prestafacilito-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   
-  const { error } = await supabase.storage
-    .from("vouchers")
-    .upload(uniqueName, buffer, {
-      contentType: mimeType,
-      upsert: false
-    });
+  const metadata: Record<string, unknown> = {
+    name: uniqueName
+  };
 
-  if (error) {
-    throw new Error(`No se pudo subir el archivo a Supabase Storage: ${error.message}`);
+  if (folderId) {
+    metadata.parents = [folderId];
   }
 
-  const { data: publicUrlData } = supabase.storage
-    .from("vouchers")
-    .getPublicUrl(uniqueName);
+  const multipartPrefix = Buffer.from([
+    `--${boundary}`,
+    "Content-Type: application/json; charset=UTF-8",
+    "",
+    JSON.stringify(metadata),
+    `--${boundary}`,
+    `Content-Type: ${mimeType}`,
+    "",
+    ""
+  ].join("\r\n"), "utf8");
+
+  const multipartSuffix = Buffer.from(`\r\n--${boundary}--`, "utf8");
+  const multipartBody = Buffer.concat([multipartPrefix, buffer, multipartSuffix]);
+
+  const uploadResponse = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink,mimeType",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": `multipart/related; boundary=${boundary}`
+      },
+      body: multipartBody
+    }
+  );
+
+  if (!uploadResponse.ok) {
+    const errorText = await uploadResponse.text();
+    throw new Error(`No se pudo subir el archivo a Google Drive: ${errorText}`);
+  }
+
+  const uploadedFile = await uploadResponse.json();
 
   return {
-    fileId: uniqueName,
-    fileName: fileName,
-    webViewLink: publicUrlData.publicUrl,
-    webContentLink: publicUrlData.publicUrl,
-    publicUrl: publicUrlData.publicUrl,
-    directUrl: publicUrlData.publicUrl,
-    folderId: "supabase-storage"
+    fileId: uploadedFile.id as string,
+    fileName: uploadedFile.name as string,
+    webViewLink: uploadedFile.webViewLink as string | undefined,
+    webContentLink: uploadedFile.webContentLink as string | undefined,
+    publicUrl: `/api/vouchers/proxy/${uploadedFile.id}`,
+    directUrl: `https://drive.google.com/uc?export=view&id=${uploadedFile.id}`,
+    folderId: folderId || ""
   };
 }
 
 /** Verifica si Drive está correctamente configurado sin lanzar error */
 function isDriveConfigured(): boolean {
-  const creds = getGoogleDriveCredentials();
-  return creds !== null;
+  return !!getGoogleClientId() && !!getGoogleClientSecret() && !!getGoogleRefreshToken();
 }
 
 // Helper para auditoría de acciones (Logs) en Supabase
@@ -966,7 +964,7 @@ app.post("/api/upload-voucher", requireAuth, async (req, res) => {
     if (!isDriveConfigured()) {
       res.status(503).json({
         error: "El almacenamiento de comprobantes (Google Drive) no esta configurado en este servidor.",
-        detail: "Configura GOOGLE_SERVICE_ACCOUNT_EMAIL y GOOGLE_PRIVATE_KEY en el archivo .env.",
+        detail: "Configura GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y GOOGLE_REFRESH_TOKEN en el archivo .env.",
         driveConfigured: false
       });
       return;
@@ -1009,6 +1007,111 @@ app.post("/api/upload-voucher", requireAuth, async (req, res) => {
   }
 });
 
+// Rutas para flujo de autorización de Google Drive OAuth 2.0
+app.get("/api/auth/google/login", (req, res) => {
+  const clientId = getGoogleClientId();
+  const clientSecret = getGoogleClientSecret();
+  
+  if (!clientId || !clientSecret) {
+    res.status(400).send("Faltan GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET en tu archivo .env");
+    return;
+  }
+
+  const oauth2Client = new OAuth2Client(clientId, clientSecret, "http://localhost:3000/api/auth/google/callback");
+  
+  const authUrl = oauth2Client.generateAuthUrl({
+    access_type: "offline",
+    scope: ["https://www.googleapis.com/auth/drive"],
+    prompt: "consent"
+  });
+
+  res.redirect(authUrl);
+});
+
+app.get("/api/auth/google/callback", async (req, res) => {
+  const code = req.query.code as string;
+  if (!code) {
+    res.status(400).send("Código de autorización ausente.");
+    return;
+  }
+
+  const clientId = getGoogleClientId();
+  const clientSecret = getGoogleClientSecret();
+
+  const oauth2Client = new OAuth2Client(clientId, clientSecret, "http://localhost:3000/api/auth/google/callback");
+
+  try {
+    const { tokens } = await oauth2Client.getToken(code);
+    const refreshToken = tokens.refresh_token;
+
+    if (!refreshToken) {
+      res.status(400).send(`
+        <html>
+          <body style="font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; background: #0f172a; color: #f8fafc;">
+            <div style="max-width: 600px; margin: 40px auto; background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #ef4444;">
+              <h2 style="color: #f87171;">⚠️ ¡Error al obtener el Refresh Token!</h2>
+              <p>Google no ha devuelto un <code>refresh_token</code>.</p>
+              <p>Esto ocurre porque ya habías autorizado la aplicación antes. Para solucionarlo:</p>
+              <ol>
+                <li>Ve a la configuración de tu cuenta de Google (Seguridad > Aplicaciones con acceso a tu cuenta).</li>
+                <li>Elimina el acceso de la aplicación (ej. "prestafacilito").</li>
+                <li>Vuelve a intentar ingresar a: <a href="/api/auth/google/login" style="color: #60a5fa;">/api/auth/google/login</a></li>
+              </ol>
+            </div>
+          </body>
+        </html>
+      `);
+      return;
+    }
+
+    // Intentar escribir el refresh token directamente en el archivo .env de forma segura
+    let envWriteStatus = "No se pudo escribir en el archivo .env automáticamente.";
+    try {
+      const envPath = path.join(process.cwd(), ".env");
+      if (fs.existsSync(envPath)) {
+        let envContent = fs.readFileSync(envPath, "utf8");
+        if (envContent.includes("GOOGLE_REFRESH_TOKEN=")) {
+          envContent = envContent.replace(/GOOGLE_REFRESH_TOKEN=.*/, `GOOGLE_REFRESH_TOKEN=${refreshToken}`);
+        } else {
+          envContent += `\nGOOGLE_REFRESH_TOKEN=${refreshToken}`;
+        }
+        fs.writeFileSync(envPath, envContent, "utf8");
+        envWriteStatus = "¡Guardado automáticamente en tu archivo <code>.env</code>!";
+      }
+    } catch (fsErr: any) {
+      console.warn("No se pudo escribir en el archivo .env:", fsErr);
+    }
+
+    res.send(`
+      <html>
+        <body style="font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; background: #0f172a; color: #f8fafc;">
+          <div style="max-width: 600px; margin: 40px auto; background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #3b82f6; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+            <h2 style="color: #4ade80; margin-top: 0;">🎉 ¡Autenticación de Google Exitosa!</h2>
+            <p>Hemos obtenido tu <b>Refresh Token</b> de larga duración de forma segura.</p>
+            <p><b>Estado del archivo .env:</b> <span style="color: #4ade80; font-weight: bold;">${envWriteStatus}</span></p>
+            
+            <p>Si no se guardó automáticamente, cópialo manualmente y colócalo en tu archivo <code>.env</code>:</p>
+            
+            <div style="background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #475569; overflow-x: auto;">
+              <code style="color: #38bdf8; font-size: 14px; word-break: break-all;">GOOGLE_REFRESH_TOKEN=${refreshToken}</code>
+            </div>
+            
+            <p style="margin-top: 20px; font-size: 14px; color: #94a3b8;">
+              💡 <i>Ya puedes cerrar esta ventana. Reinicia tu servidor local para que aplique el nuevo token en caso de que no se actualice dinámicamente.</i>
+            </p>
+            
+            <a href="http://localhost:3000" style="display: inline-block; background: #3b82f6; color: white; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; margin-top: 15px; transition: background 0.2s;">
+              Volver a PrestaFacilito
+            </a>
+          </div>
+        </body>
+      </html>
+    `);
+  } catch (error: any) {
+    res.status(500).send(`Error al intercambiar el código por tokens: ${error.message}`);
+  }
+});
+
 // Estado de configuracion de Google Drive
 app.get("/api/drive/status", requireAuth, (_req, res) => {
   const configured = isDriveConfigured();
@@ -1018,7 +1121,7 @@ app.get("/api/drive/status", requireAuth, (_req, res) => {
     folderConfigured: !!folderId,
     message: configured
       ? "Google Drive esta configurado correctamente."
-      : "Faltan credenciales de Google Drive. Configura GOOGLE_SERVICE_ACCOUNT_EMAIL y GOOGLE_PRIVATE_KEY en .env."
+      : "Faltan credenciales de Google Drive. Configura GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y GOOGLE_REFRESH_TOKEN en .env."
   });
 });
 
