@@ -1008,6 +1008,12 @@ app.post("/api/upload-voucher", requireAuth, async (req, res) => {
 });
 
 // Rutas para flujo de autorización de Google Drive OAuth 2.0
+const getRedirectUri = (req: express.Request) => {
+  const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
+  const host = req.get("host");
+  return `${protocol}://${host}/api/auth/google/callback`;
+};
+
 app.get("/api/auth/google/login", (req, res) => {
   const clientId = getGoogleClientId();
   const clientSecret = getGoogleClientSecret();
@@ -1017,7 +1023,8 @@ app.get("/api/auth/google/login", (req, res) => {
     return;
   }
 
-  const oauth2Client = new OAuth2Client(clientId, clientSecret, "http://localhost:3000/api/auth/google/callback");
+  const redirectUri = getRedirectUri(req);
+  const oauth2Client = new OAuth2Client(clientId, clientSecret, redirectUri);
   
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: "offline",
@@ -1038,7 +1045,8 @@ app.get("/api/auth/google/callback", async (req, res) => {
   const clientId = getGoogleClientId();
   const clientSecret = getGoogleClientSecret();
 
-  const oauth2Client = new OAuth2Client(clientId, clientSecret, "http://localhost:3000/api/auth/google/callback");
+  const redirectUri = getRedirectUri(req);
+  const oauth2Client = new OAuth2Client(clientId, clientSecret, redirectUri);
 
   try {
     const { tokens } = await oauth2Client.getToken(code);
@@ -1090,17 +1098,17 @@ app.get("/api/auth/google/callback", async (req, res) => {
             <p>Hemos obtenido tu <b>Refresh Token</b> de larga duración de forma segura.</p>
             <p><b>Estado del archivo .env:</b> <span style="color: #4ade80; font-weight: bold;">${envWriteStatus}</span></p>
             
-            <p>Si no se guardó automáticamente, cópialo manualmente y colócalo en tu archivo <code>.env</code>:</p>
+            <p>Si no se guardó automáticamente, cópialo manualmente y colócalo en tu archivo <code>.env</code> (o agrégalo como Environment Variable en tu panel de Vercel):</p>
             
             <div style="background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #475569; overflow-x: auto;">
               <code style="color: #38bdf8; font-size: 14px; word-break: break-all;">GOOGLE_REFRESH_TOKEN=${refreshToken}</code>
             </div>
             
             <p style="margin-top: 20px; font-size: 14px; color: #94a3b8;">
-              💡 <i>Ya puedes cerrar esta ventana. Reinicia tu servidor local para que aplique el nuevo token en caso de que no se actualice dinámicamente.</i>
+              💡 <i>Ya puedes cerrar esta ventana. Si estás en localhost, reinicia tu servidor local para aplicar el nuevo token. Si estás en Vercel, cópialo y agrégalo en las variables de entorno de tu proyecto en vercel.com.</i>
             </p>
             
-            <a href="http://localhost:3000" style="display: inline-block; background: #3b82f6; color: white; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; margin-top: 15px; transition: background 0.2s;">
+            <a href="/" style="display: inline-block; background: #3b82f6; color: white; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; margin-top: 15px; transition: background 0.2s;">
               Volver a PrestaFacilito
             </a>
           </div>
