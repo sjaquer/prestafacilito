@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { 
   Sparkles, 
   ArrowLeft, 
@@ -30,11 +30,71 @@ interface ReporteIAProps {
 
 type TabType = "cockpit" | "diagnostico" | "estrategias" | "alertas";
 
+interface KPIItem {
+  label: string;
+  value: string;
+  indicator: "up" | "down" | "stable";
+  descripcion: string;
+}
+
+interface ProjectionItem {
+  period: string;
+  cobroEstimado: number;
+  morosidadEstimada: number;
+}
+
+interface StrategyItem {
+  titulo: string;
+  descripcion: string;
+  impacto: "Alto" | "Medio";
+  prioridad: "Alta" | "Media" | "Baja";
+}
+
+interface OverdueLoanItem {
+  cliente: string;
+  capital: number | string;
+  vencimiento: string;
+  tipo?: string;
+}
+
+interface FinancialContext {
+  totalClientes: number;
+  totalPrestamos: number;
+  prestamosActivosCount: number;
+  prestamosPagadosCount: number;
+  prestamosVencidosCount: number;
+  resumenFinanciero: {
+    totalCapitalPrestado: number;
+    totalExigibleConIntereses: number;
+    totalRecuperadoAmortizado: number;
+    saldoPendienteCobro: number;
+    porcentajeRecuperacion: number;
+  };
+  metodosPagoPopulares: Record<string, number>;
+  prestamosVencidosDetalle: OverdueLoanItem[];
+}
+
+interface ReportData {
+  fechaReporte?: string;
+  saludFinanciera?: string;
+  tasaMorosidadPorcentaje?: number;
+  resumenDesempeño?: string;
+  kpis?: KPIItem[];
+  analisisDetallado?: {
+    liquidez: string;
+    riesgos: string;
+    eficiencia: string;
+  };
+  proyeccionesCaja?: ProjectionItem[];
+  estrategiasCobranza?: StrategyItem[];
+  contextoFinanciero?: FinancialContext;
+}
+
 export function ReporteIA({ onBack }: ReporteIAProps) {
   const [activeTab, setActiveTab] = useState<TabType>("cockpit");
-  const [report, setReport] = useState<any>(() => {
+  const [report, setReport] = useState<ReportData | null>(() => {
     const saved = localStorage.getItem("presta_weekly_report");
-    return saved ? JSON.parse(saved) : null;
+    return saved ? (JSON.parse(saved) as ReportData) : null;
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,23 +131,23 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
     }
   }, [report]);
 
-  const generateWhatsAppMessage = async (p: any) => {
-    setGeneratingMsgId(p.cliente);
+  const generateWhatsAppMessage = async (loan: OverdueLoanItem) => {
+    setGeneratingMsgId(loan.cliente);
     try {
       const res = await fetch("/api/ai/mensaje-cobro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          clienteNombre: p.cliente,
-          saldoPendiente: p.capital,
-          fechaVencimiento: p.vencimiento
+          clienteNombre: loan.cliente,
+          saldoPendiente: loan.capital,
+          fechaVencimiento: loan.vencimiento
         })
       });
       const data = await res.json();
       if (res.ok && data.mensaje) {
         setGeneratedMsgText(prev => ({
           ...prev,
-          [p.cliente]: data.mensaje
+          [loan.cliente]: data.mensaje
         }));
       } else {
         alert("No se pudo generar el mensaje.");
@@ -100,16 +160,17 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
     }
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | string) => {
+    const numericAmount = typeof amount === "string" ? Number(amount) : amount;
     return new Intl.NumberFormat("es-PE", {
       style: "currency",
       currency: "PEN",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(amount);
+    }).format(Number.isFinite(numericAmount) ? numericAmount : 0);
   };
 
-  const finCtx = report?.contextoFinanciero || {
+  const finCtx: FinancialContext = report?.contextoFinanciero || {
     totalClientes: 0,
     totalPrestamos: 0,
     prestamosActivosCount: 0,
@@ -123,7 +184,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
       porcentajeRecuperacion: 0
     },
     metodosPagoPopulares: {},
-    prestamosVencidosDetalle: []
+    prestamosVencidosDetalle: [] as OverdueLoanItem[]
   };
 
   const totalCapital = finCtx.resumenFinanciero?.totalCapitalPrestado || 0;
@@ -146,7 +207,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
   const risk = getRiskDetails(tasaMorosidad);
 
   const metodos = finCtx.metodosPagoPopulares || {};
-  const totalPagos = Object.values(metodos).reduce((sum: any, val: any) => sum + val, 0) as number;
+  const totalPagos = Object.values(metodos).reduce((sum: number, val: number) => sum + val, 0);
   const metodosList = Object.entries(metodos).map(([name, count]) => {
     const qty = count as number;
     const pct = totalPagos > 0 ? Math.round((qty / totalPagos) * 100) : 0;
@@ -154,21 +215,28 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
   }).sort((a, b) => b.qty - a.qty);
 
   // SVG Area Chart Math
-  const proyecciones = report?.proyeccionesCaja || [
+  const proyecciones: ProjectionItem[] = report?.proyeccionesCaja || [
     { period: "Semana 1", cobroEstimado: 0, morosidadEstimada: 0 },
     { period: "Semana 2", cobroEstimado: 0, morosidadEstimada: 0 },
     { period: "Semana 3", cobroEstimado: 0, morosidadEstimada: 0 },
     { period: "Semana 4", cobroEstimado: 0, morosidadEstimada: 0 }
   ];
 
-  const maxCobro = Math.max(...proyecciones.map((p: any) => p.cobroEstimado || 0), 100);
+  const maxCobro = Math.max(...proyecciones.map((projection) => projection.cobroEstimado || 0), 100);
   const maxVal = maxCobro > 0 ? maxCobro : 100;
 
+  type GraphPoint = {
+    x: number;
+    y: number;
+    label: string;
+    value: number;
+  };
+
   // Mapeo de coordenadas para el gráfico de área
-  const graphPoints = proyecciones.map((p: any, idx: number) => {
+  const graphPoints: GraphPoint[] = proyecciones.map((projection: ProjectionItem, idx: number) => {
     const x = 60 + idx * 115;
-    const y = 150 - ((p.cobroEstimado || 0) / maxVal) * 100;
-    return { x, y, label: p.period || `Sem ${idx + 1}`, value: p.cobroEstimado || 0 };
+    const y = 150 - ((projection.cobroEstimado || 0) / maxVal) * 100;
+    return { x, y, label: projection.period || `Sem ${idx + 1}`, value: projection.cobroEstimado || 0 };
   });
 
   const pathD = graphPoints.length > 0 
@@ -180,14 +248,18 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
     : "";
 
   // Mapeo de coordenadas para el gráfico de morosidad proyectada (línea secundaria en rojo)
-  const maxMora = Math.max(...proyecciones.map((p: any) => p.morosidadEstimada || 0), 10);
+  const maxMora = Math.max(...proyecciones.map((projection) => projection.morosidadEstimada || 0), 10);
   const maxMoraVal = maxMora > 0 ? maxMora : 10;
 
-  const graphMoraPoints = proyecciones.map((p: any, idx: number) => {
+  const graphMoraPoints: Array<{ x: number; y: number; value: number }> = proyecciones.map((projection: ProjectionItem, idx: number) => {
     const x = 60 + idx * 115;
-    const y = 150 - ((p.morosidadEstimada || 0) / maxMoraVal) * 80;
-    return { x, y, value: p.morosidadEstimada || 0 };
+    const y = 150 - ((projection.morosidadEstimada || 0) / maxMoraVal) * 80;
+    return { x, y, value: projection.morosidadEstimada || 0 };
   });
+
+  const topProjection = proyecciones.length > 0
+    ? proyecciones.reduce((max, current) => (current.cobroEstimado > max.cobroEstimado ? current : max))
+    : null;
 
   const pathMoraD = graphMoraPoints.length > 0
     ? `M ${graphMoraPoints[0].x} ${graphMoraPoints[0].y} ` + graphMoraPoints.slice(1).map(p => `L ${p.x} ${p.y}`).join(" ")
@@ -335,7 +407,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                       
                       {/* KPIs del Negocio */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                        {report.kpis && report.kpis.map((kpi: any, idx: number) => (
+                        {report.kpis?.map((kpi: KPIItem, idx: number) => (
                           <div key={idx} className="bento-card p-5 rounded-2xl relative overflow-hidden group">
                             <div className="flex items-center justify-between border-b border-white/5 pb-2.5 mb-2.5">
                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{kpi.label}</span>
@@ -431,8 +503,8 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                         
                         <div className="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-2xl flex gap-2 items-start text-[11px] text-slate-350 leading-relaxed">
                           <Info className="text-purple-400 shrink-0 mt-0.5" size={13} />
-                          <p>
-                            <strong>Insight Ejecutivo:</strong> La proyección indica que la **{proyecciones.reduce((max: any, curr: any) => (curr.cobroEstimado > max.cobroEstimado ? curr : max), proyecciones).period || "semana de mayor volumen"}** será el pico de recaudo más alto, acumulando una amortización estimada de cobro óptima. Se sugiere desplegar notificaciones masivas 48h antes de este lapso.
+                            <p>
+                            <strong>Insight Ejecutivo:</strong> La proyección indica que la **{topProjection?.period || "semana de mayor volumen"}** será el pico de recaudo más alto, acumulando una amortización estimada de cobro óptima. Se sugiere desplegar notificaciones masivas 48h antes de este lapso.
                           </p>
                         </div>
                       </div>
@@ -671,7 +743,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {report.estrategiasCobranza && report.estrategiasCobranza.map((est: any, idx: number) => (
+                      {report.estrategiasCobranza?.map((est: StrategyItem, idx: number) => (
                         <div key={idx} className="bento-card p-6 rounded-3xl border border-white/5 hover:border-white/10 transition-all duration-200 flex flex-col justify-between space-y-4">
                           
                           <div className="space-y-3">
@@ -728,7 +800,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                         </div>
                       ) : (
                         <div className="space-y-4">
-                          {finCtx.prestamosVencidosDetalle.map((p: any, idx: number) => (
+                          {finCtx.prestamosVencidosDetalle.map((p: OverdueLoanItem, idx: number) => (
                             <div 
                               key={idx} 
                               className="p-4 bg-[#0f172a]/80 border border-rose-500/10 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition hover:border-rose-500/25"
@@ -748,7 +820,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                               <div className="flex items-center justify-between md:justify-end gap-4">
                                 <div className="text-right">
                                   <span className="text-[9px] font-bold text-slate-500 uppercase block">Saldo Vencido</span>
-                                  <span className="text-rose-400 font-mono font-bold text-sm">{formatCurrency(parseFloat(p.capital))}</span>
+                                  <span className="text-rose-400 font-mono font-bold text-sm">{formatCurrency(Number(p.capital) || 0)}</span>
                                 </div>
 
                                 <div className="flex flex-col gap-1.5 min-w-[160px]">
