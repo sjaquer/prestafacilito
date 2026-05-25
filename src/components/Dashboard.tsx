@@ -9,6 +9,19 @@ import Tesseract from "tesseract.js";
 import { Cliente } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 
+const resolveVoucherUrl = (url: string) => {
+  if (!url) return "";
+  if (url.startsWith("/api/vouchers/proxy/")) return url;
+  
+  // Extract File ID from Google Drive URL if applicable
+  const match = url.match(/(?:\/file\/d\/|\?id=)([a-zA-Z0-9_-]+)/);
+  if (match && match[1]) {
+    return `/api/vouchers/proxy/${match[1]}`;
+  }
+  
+  return url;
+};
+
 interface DashboardProps {
   onSelectLoan: (id: string) => void;
   onNavigateToClients: () => void;
@@ -34,8 +47,6 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
   const [editEstado, setEditEstado] = useState("");
   const [updatingLoan, setUpdatingLoan] = useState(false);
 
-  // Estados para el Evaluador de Riesgo Matemático
-  const [aiClienteId, setAiClienteId] = useState("");
 
   // Estados para Carga de Voucher Exprés & OCR local
   const [showVoucherModal, setShowVoucherModal] = useState(false);
@@ -66,7 +77,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
   const [showModal, setShowModal] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState("");
   const [monto, setMonto] = useState("");
-  const [tasa, setTasa] = useState("10"); // Default 10%
+  const [tasa, setTasa] = useState("0"); // Default 0%
   const [tipo, setTipo] = useState("Personal");
   const [fechaEmision, setFechaEmision] = useState(new Date().toISOString().split("T")[0]);
   const [fechaVencimiento, setFechaVencimiento] = useState("");
@@ -75,8 +86,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
   // Estados de Búsqueda Rápida Autocomplete y Filtros de Dashboard (UI/UX)
   const [clientSearch, setClientSearch] = useState("");
   const [showClientDropdown, setShowClientDropdown] = useState(false);
-  const [evalClientSearch, setEvalClientSearch] = useState("");
-  const [showEvalDropdown, setShowEvalDropdown] = useState(false);
+
   const [loanSearchQuery, setLoanSearchQuery] = useState("");
   const [showAllLoans, setShowAllLoans] = useState(false);
   const [nowTick, setNowTick] = useState(Date.now());
@@ -154,17 +164,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     fetchDashboardData();
   }, []);
 
-  // Sincronizar el texto de búsqueda con el cliente seleccionado en el Evaluador
-  useEffect(() => {
-    if (aiClienteId) {
-      const match = clientes.find(c => c.id === aiClienteId);
-      if (match && evalClientSearch !== match.nombre_completo) {
-        setEvalClientSearch(match.nombre_completo);
-      }
-    } else {
-      setEvalClientSearch("");
-    }
-  }, [aiClienteId, clientes]);
+
 
   // Sincronizar el texto de búsqueda con el cliente seleccionado en el Modal
   useEffect(() => {
@@ -244,7 +244,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
         setClientSearch("");
         setShowClientDropdown(false);
         setMonto("");
-        setTasa("10");
+        setTasa("0");
         setTipo("Personal");
         setFechaEmision(new Date().toISOString().split("T")[0]);
         setFechaVencimiento("");
@@ -332,59 +332,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     }
   };
 
-  // Algoritmo de Riesgo Crediticio Matemático (Costo S/. 0.00)
-  const getClientRiskAssessment = (cliente: Cliente) => {
-    const activeLoans = cliente.prestamos_activos || 0;
-    const totalLoans = cliente.total_prestamos || 0;
-    const exigible = Number(cliente.total_exigible) || 0;
-    const amortizado = Number(cliente.total_amortizado) || 0;
-    const outstanding = Math.max(0, exigible - amortizado);
-    
-    let level: "Excelente" | "Bajo" | "Medio" | "Alto";
-    let score = 100;
-    let rationale = "";
-    let recommendations: string[] = [];
 
-    if (activeLoans > 1 || outstanding > 1500) {
-      level = "Alto";
-      score = activeLoans > 2 ? 25 : 45;
-      rationale = `El prestatario tiene un nivel de endeudamiento elevado con ${activeLoans} préstamos activos y un saldo deudor acumulado de ${formatCurrency(outstanding)}.`;
-      recommendations = [
-        "Rechazar preventivamente nuevos préstamos hasta liquidar deudas vigentes.",
-        "Priorizar visitas y llamadas en el canal de cobros.",
-        "Solicitar un codeudor solidario o aval para futuras operaciones."
-      ];
-    } else if (activeLoans === 1 || outstanding > 0) {
-      level = "Medio";
-      score = 70;
-      rationale = `El cliente cuenta con un crédito vigente y un saldo pendiente de ${formatCurrency(outstanding)}. Comportamiento regular.`;
-      recommendations = [
-        "Limitar nuevas ampliaciones de capital por el momento.",
-        "Monitorear la puntualidad de sus cuotas actuales.",
-        "Enviar recordatorios amistosos 2 días antes de la fecha de cobro."
-      ];
-    } else if (totalLoans > 0) {
-      level = "Excelente";
-      score = 98;
-      rationale = `¡Excelente prestatario! Historial impecable con ${totalLoans} préstamo(s) totalmente cancelado(s).`;
-      recommendations = [
-        "Aprobar ampliaciones de crédito de forma rápida y preferente.",
-        "Ofrecer tasas reducidas o incentivos de fidelidad.",
-        "Brindar plazos flexibles adaptados a su negocio."
-      ];
-    } else {
-      level = "Bajo";
-      score = 90;
-      rationale = `Cliente nuevo sin historial registrado. Se encuentra libre de deudas.`;
-      recommendations = [
-        "Comenzar con montos prudentes (menores a S/. 500) para medir puntualidad.",
-        "Estructurar plazos cortos (semanales o quincenales).",
-        "Solicitar referencias comerciales básicas."
-      ];
-    }
-
-    return { level, score, rationale, recommendations };
-  };
 
   // Motor Inteligente Ultra-Preciso OCR para vouchers de bancos Peruanos (Yape, Plin, BCP, etc.)
   const handleOcrProcess = async (file: File) => {
@@ -928,7 +876,9 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {activeLoansSortedByDueDate.slice(0, 3).map((loan) => (
-              <CircularTimerCard key={loan.id} loan={loan} />
+              <div key={loan.id}>
+                <CircularTimerCard loan={loan} />
+              </div>
             ))}
           </div>
         )}
@@ -950,12 +900,12 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
             {registeredVouchers.slice(0, 5).map((voucher) => (
               <div 
                 key={voucher.id}
-                onClick={() => setSelectedLightboxImage(voucher.comprobante_url)}
+                onClick={() => setSelectedLightboxImage(resolveVoucherUrl(voucher.comprobante_url))}
                 className="bg-white/[0.02] border border-white/5 p-3 rounded-2xl shadow-md hover:border-emerald-500/20 transition-all duration-300 cursor-pointer flex flex-col justify-between group overflow-hidden"
               >
                 <div className="w-full h-32 bg-black/50 rounded-xl overflow-hidden border border-white/5 relative flex items-center justify-center">
                   <img 
-                    src={voucher.comprobante_url} 
+                    src={resolveVoucherUrl(voucher.comprobante_url)} 
                     alt="Voucher" 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
@@ -1205,149 +1155,10 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
         </div>
       </div>
 
-      {/* 7. HERRAMIENTAS Y CONSULTAS DE RIESGO / OCR (Verticalidad Nivel 7) */}
+      {/* 7. HERRAMIENTAS Y AUDITORÍA (Verticalidad Nivel 7 - Bento Grid Responsivo) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Evaluador Crediticio Local */}
-        <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 p-6 rounded-3xl flex flex-col space-y-4">
-          <div className="flex items-center gap-2 border-b border-white/5 pb-3">
-            <div className="p-1.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
-              <Activity size={16} />
-            </div>
-            <div>
-              <h3 className="font-extrabold text-white text-sm tracking-tight">Evaluador de Riesgo Local</h3>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide">Fórmula y Análisis Matemático en Local</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="space-y-1.5 relative">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block pl-0.5">Prestatario a evaluar</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="🔍 Buscar por nombre..."
-                  value={evalClientSearch}
-                  onChange={(e) => {
-                    setEvalClientSearch(e.target.value);
-                    setShowEvalDropdown(true);
-                  }}
-                  onFocus={() => setShowEvalDropdown(true)}
-                  className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none pr-8 font-semibold"
-                />
-                {aiClienteId && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAiClienteId("");
-                      setEvalClientSearch("");
-                      setShowEvalDropdown(false);
-                    }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-slate-200 p-0.5 cursor-pointer"
-                  >
-                    <X size={13} />
-                  </button>
-                )}
-              </div>
-
-              {showEvalDropdown && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setShowEvalDropdown(false)} />
-                  <div className="absolute left-0 right-0 mt-1 bg-[#0a0f1d] border border-white/5 rounded-xl max-h-48 overflow-y-auto z-20 shadow-xl custom-scrollbar divide-y divide-white/5">
-                    {clientes.filter(c => 
-                      c.nombre_completo.toLowerCase().includes(evalClientSearch.toLowerCase())
-                    ).length === 0 ? (
-                      <div className="p-3 text-xs text-gray-500 text-center">
-                        No se encontraron clientes.
-                      </div>
-                    ) : (
-                      clientes.filter(c => 
-                        c.nombre_completo.toLowerCase().includes(evalClientSearch.toLowerCase())
-                      ).map(c => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => {
-                            setAiClienteId(c.id);
-                            setEvalClientSearch(c.nombre_completo);
-                            setShowEvalDropdown(false);
-                          }}
-                          className={`w-full text-left p-2.5 px-3.5 hover:bg-blue-500/10 text-xs transition flex items-center justify-between cursor-pointer ${
-                            aiClienteId === c.id ? "bg-indigo-500/20 text-indigo-300 font-extrabold" : "text-slate-200 font-semibold"
-                          }`}
-                        >
-                          <span>{c.nombre_completo}</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {aiClienteId && clientes.find(c => c.id === aiClienteId) ? (() => {
-              const selectedRiskClient = clientes.find(c => c.id === aiClienteId)!;
-              const assessment = getClientRiskAssessment(selectedRiskClient);
-              return (
-                <motion.div
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-[#0f172a]/80 border border-white/5 rounded-xl p-4 space-y-3.5"
-                >
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Riesgo Calculado</span>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
-                        assessment.level === "Excelente" ? "bg-emerald-500/10 text-green-400 border border-emerald-500/20" :
-                        assessment.level === "Bajo" ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
-                        assessment.level === "Medio" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
-                        "bg-rose-500/10 text-red-400 border border-rose-500/20 "
-                      }`}>
-                        {assessment.level}
-                      </span>
-                      <span className="font-mono font-bold text-slate-200">{assessment.score}/100</span>
-                    </div>
-                  </div>
-
-                  <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                    <div 
-                      className={`h-1.5 rounded-full ${
-                        assessment.level === "Excelente" ? "bg-emerald-500" :
-                        assessment.level === "Bajo" ? "bg-blue-500" :
-                        assessment.level === "Medio" ? "bg-amber-500" :
-                        "bg-rose-500"
-                      }`}
-                      style={{ width: `${assessment.score}%` }}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wide block">Análisis</span>
-                    <p className="text-xs text-gray-300 leading-relaxed font-semibold">{assessment.rationale}</p>
-                  </div>
-
-                  <div className="space-y-1.5 pt-2 border-t border-white/5">
-                    <span className="text-[9px] font-bold text-slate-555 uppercase tracking-wide block">Políticas recomendadas</span>
-                    <ul className="space-y-1.5">
-                      {assessment.recommendations.map((rec, idx) => (
-                        <li key={idx} className="text-[11px] text-slate-350 flex items-start gap-1.5 leading-normal">
-                          <CheckCircle className="shrink-0 mt-0.5 text-blue-400" size={11} />
-                          <span>{rec}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </motion.div>
-              );
-            })() : (
-              <div className="p-5 bg-[#0A0A0C]/10 border border-dashed border-white/5 rounded-2xl text-center text-gray-500 text-xs">
-                Selecciona un prestatario para ver su evaluación crediticia.
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Lector OCR manual */}
-        <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 p-6 rounded-3xl flex flex-col space-y-4 justify-between">
+        <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 p-6 rounded-3xl flex flex-col space-y-4 justify-between min-h-[300px]">
           <div className="flex items-center gap-2 border-b border-white/5 pb-3">
             <div className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-green-400">
               <UploadCloud size={16} />
@@ -1378,60 +1189,60 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
             Elegir Archivo
           </button>
         </div>
-      </div>
 
-      {/* 8. BITÁCORA DE AUDITORÍA (Consola de Sistema al final) */}
-      <div id="logs-audit-section" className="bg-white/[0.02] border border-white/5 p-6 rounded-3xl flex flex-col space-y-4">
-        <div className="flex items-center justify-between border-b border-white/5 pb-3">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
-              <Terminal size={16} />
+        {/* BITÁCORA DE AUDITORÍA */}
+        <div id="logs-audit-section" className="bg-white/[0.02] backdrop-blur-xl border border-white/5 p-6 rounded-3xl flex flex-col space-y-4 justify-between min-h-[300px]">
+          <div className="flex items-center justify-between border-b border-white/5 pb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
+                <Terminal size={16} />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-white text-sm tracking-tight">Consola de Auditoría</h3>
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide">Logs de operaciones de base de datos</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-extrabold text-white text-sm tracking-tight">Consola de Auditoría</h3>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide">Logs de operaciones de base de datos</p>
-            </div>
+            <span className="text-[10px] bg-[#070a13] border border-white/5 text-gray-400 px-2.5 py-0.5 rounded-md font-mono select-none">
+              Historial
+            </span>
           </div>
-          <span className="text-[10px] bg-[#070a13] border border-white/5 text-gray-400 px-2.5 py-0.5 rounded-md font-mono select-none">
-            Historial
-          </span>
-        </div>
 
-        <div className="max-h-[160px] overflow-y-auto pr-1 space-y-2.5 custom-scrollbar">
-          {logs.length === 0 ? (
-            <div className="text-center py-6 text-slate-550 text-xs font-semibold">
-              No hay actividades registradas en la bitácora.
-            </div>
-          ) : (
-            logs.slice(0, 10).map((log) => {
-              const isDanger = log.accion.includes("ELIMINAR") || log.accion.includes("FALLO") || log.accion.includes("RECHAZAR");
-              const isSuccess = log.accion.includes("PAGO") || log.accion.includes("CREAR") || log.accion.includes("CONECTAR") || log.accion.includes("SEMBRAR") || log.accion.includes("EDITAR");
-              
-              return (
-                <div 
-                  key={log.id} 
-                  className="p-2.5 rounded-xl bg-white/[0.04] border border-white/3 flex items-start justify-between gap-3 text-[11px]"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[8.5px] font-black uppercase px-1.5 py-0.5 rounded ${
-                        isDanger ? "bg-rose-500/10 text-red-400 border border-rose-500/20" :
-                        isSuccess ? "bg-emerald-500/10 text-green-400 border border-emerald-500/20" :
-                        "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                      }`}>
-                        {log.accion}
-                      </span>
-                      <span className="text-[9.5px] text-gray-400 font-bold font-mono">@{log.usuario}</span>
+          <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 custom-scrollbar max-h-[180px]">
+            {logs.length === 0 ? (
+              <div className="text-center py-12 text-slate-550 text-xs font-semibold">
+                No hay actividades registradas en la bitácora.
+              </div>
+            ) : (
+              logs.slice(0, 10).map((log) => {
+                const isDanger = log.accion.includes("ELIMINAR") || log.accion.includes("FALLO") || log.accion.includes("RECHAZAR");
+                const isSuccess = log.accion.includes("PAGO") || log.accion.includes("CREAR") || log.accion.includes("CONECTAR") || log.accion.includes("SEMBRAR") || log.accion.includes("EDITAR");
+                
+                return (
+                  <div 
+                    key={log.id} 
+                    className="p-2.5 rounded-xl bg-white/[0.04] border border-white/3 flex items-start justify-between gap-3 text-[11px]"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[8.5px] font-black uppercase px-1.5 py-0.5 rounded ${
+                          isDanger ? "bg-rose-500/10 text-red-400 border border-rose-500/20" :
+                          isSuccess ? "bg-emerald-500/10 text-green-400 border border-emerald-500/20" :
+                          "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                        }`}>
+                          {log.accion}
+                        </span>
+                        <span className="text-[9.5px] text-gray-400 font-bold font-mono">@{log.usuario}</span>
+                      </div>
+                      <p className="text-slate-350 font-semibold leading-normal">{log.detalles}</p>
                     </div>
-                    <p className="text-slate-350 font-semibold leading-normal">{log.detalles}</p>
+                    <span className="text-[9.5px] text-gray-500 font-mono shrink-0 whitespace-nowrap pt-0.5">
+                      {new Date(log.fecha_hora).toLocaleTimeString("es-PE", { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </span>
                   </div>
-                  <span className="text-[9.5px] text-gray-500 font-mono shrink-0 whitespace-nowrap pt-0.5">
-                    {new Date(log.fecha_hora).toLocaleTimeString("es-PE", { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                  </span>
-                </div>
-              );
-            })
-          )}
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
 
@@ -1571,7 +1382,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tipo Crédito</label>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tipo Deuda</label>
                         <select
                           value={tipo}
                           onChange={(e) => setTipo(e.target.value)}
@@ -1579,7 +1390,9 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                         >
                           <option value="Personal" className="bg-[#0f172a]">Personal</option>
                           <option value="Negocio" className="bg-[#0f172a]">Negocio</option>
-                          <option value="Hipotecario" className="bg-[#0f172a]">Hipotecario</option>
+                          <option value="Alquiler de Casa" className="bg-[#0f172a]">Alquiler de Casa</option>
+                          <option value="Servicios" className="bg-[#0f172a]">Servicios</option>
+                          <option value="Otros" className="bg-[#0f172a]">Otros</option>
                         </select>
                       </div>
                       
@@ -1701,7 +1514,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tipo Crédito</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tipo Deuda</label>
                     <select
                       value={editTipo}
                       onChange={(e) => setEditTipo(e.target.value)}
@@ -1709,7 +1522,9 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                     >
                       <option value="Personal" className="bg-[#0f172a]">Personal</option>
                       <option value="Negocio" className="bg-[#0f172a]">Negocio</option>
-                      <option value="Hipotecario" className="bg-[#0f172a]">Hipotecario</option>
+                      <option value="Alquiler de Casa" className="bg-[#0f172a]">Alquiler de Casa</option>
+                      <option value="Servicios" className="bg-[#0f172a]">Servicios</option>
+                      <option value="Otros" className="bg-[#0f172a]">Otros</option>
                     </select>
                   </div>
                   

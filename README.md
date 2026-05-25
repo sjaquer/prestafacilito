@@ -1,10 +1,10 @@
 # PrestaFacilito
 
-PrestaFacilito es una app de administración de préstamos, clientes y amortizaciones con autenticación local y sincronización con Google Sheets.
+PrestaFacilito es una app de administración de préstamos, clientes y amortizaciones con autenticación local, sincronización con Google Sheets y carga de comprobantes a Google Drive.
 
 ## Requisitos
 
-Necesitas Node.js 18 o superior y una hoja de Google Sheets con acceso para una cuenta de servicio.
+Necesitas Node.js 18 o superior, una hoja de Google Sheets con acceso para una cuenta de servicio y una carpeta de Google Drive compartida con esa misma cuenta de servicio si quieres que los vouchers queden dentro de tu Drive.
 
 ## Variables de entorno
 
@@ -15,7 +15,10 @@ Configura estas variables en tu archivo `.env`:
 - `ADMIN_PASS`
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL`
 - `GOOGLE_PRIVATE_KEY`
+- `GOOGLE_DRIVE_FOLDER_ID`
 - `SPREADSHEET_ID`
+
+Para que los vouchers se guarden en tu Drive personal o en una carpeta de tu organización, crea una carpeta en Google Drive, compártela con el correo de la cuenta de servicio y coloca su ID en `GOOGLE_DRIVE_FOLDER_ID`. Si no defines ese valor, el archivo se guardará en la raíz del Drive de la cuenta de servicio, no en una carpeta tuya.
 
 ## Ejecutar localmente
 

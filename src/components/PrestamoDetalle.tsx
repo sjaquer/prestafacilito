@@ -21,6 +21,19 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import Tesseract from "tesseract.js";
 
+const resolveVoucherUrl = (url: string) => {
+  if (!url) return "";
+  if (url.startsWith("/api/vouchers/proxy/")) return url;
+  
+  // Extract File ID from Google Drive URL if applicable
+  const match = url.match(/(?:\/file\/d\/|\?id=)([a-zA-Z0-9_-]+)/);
+  if (match && match[1]) {
+    return `/api/vouchers/proxy/${match[1]}`;
+  }
+  
+  return url;
+};
+
 interface PrestamoDetalleProps {
   loanId: string;
   onBack: () => void;
@@ -847,7 +860,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                         <div className="flex items-center gap-2">
                           {pago.comprobante_url ? (
                             <a
-                              href={pago.comprobante_url}
+                              href={resolveVoucherUrl(pago.comprobante_url)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-indigo-500/20 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors"
@@ -895,7 +908,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                       <div className="flex items-center gap-2 mt-1.5">
                         {pago.comprobante_url ? (
                           <a
-                            href={pago.comprobante_url}
+                            href={resolveVoucherUrl(pago.comprobante_url)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-indigo-500/20 rounded-lg font-bold text-[9px] uppercase tracking-wider transition-colors"

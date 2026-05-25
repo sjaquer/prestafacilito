@@ -3,6 +3,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import { GoogleGenAI } from "@google/genai";
+import { JWT } from "google-auth-library";
 import { supabase } from "./src/lib/supabase.js";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
@@ -15,6 +16,136 @@ function getEnv(name: string) {
 const getJwtSecret = () => getEnv("JWT_SECRET") || "fallback-secret-para-evitar-crashes-500";
 const getAdminUser = () => getEnv("ADMIN_USER");
 const getAdminPass = () => getEnv("ADMIN_PASS");
+const getDriveFolderId = () => getEnv("GOOGLE_DRIVE_FOLDER_ID");
+
+const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
+
+function getGoogleDriveCredentials() {
+  const rawPrivateKey = getEnv("GOOGLE_PRIVATE_KEY");
+
+  if (rawPrivateKey.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(rawPrivateKey);
+      if (parsed?.client_email && parsed?.private_key) {
+        return {
+          clientEmail: String(parsed.client_email),
+          privateKey: String(parsed.private_key).replace(/\\n/g, "\n")
+        };
+      }
+    } catch (error) {
+      console.warn("No se pudo interpretar GOOGLE_PRIVATE_KEY como JSON. Se intentará con variables separadas.");
+    }
+  }
+
+  const clientEmail = getEnv("GOOGLE_SERVICE_ACCOUNT_EMAIL");
+  const privateKey = rawPrivateKey.replace(/\\n/g, "\n");
+
+  if (!clientEmail || !privateKey) {
+    return null;
+  }
+
+  return {
+    clientEmail,
+    privateKey
+  };
+}
+
+async function getGoogleDriveAccessToken() {
+  const credentials = getGoogleDriveCredentials();
+  if (!credentials) {
+    throw new Error("Faltan credenciales de Google Drive. Revisa GOOGLE_SERVICE_ACCOUNT_EMAIL y GOOGLE_PRIVATE_KEY.");
+  }
+
+  const auth = new JWT({
+    email: credentials.clientEmail,
+    key: credentials.privateKey,
+    scopes: [GOOGLE_DRIVE_SCOPE]
+  });
+
+  const tokens = await auth.authorize();
+  if (!tokens.access_token) {
+    throw new Error("No se pudo obtener un access token para Google Drive.");
+  }
+
+  return tokens.access_token;
+}
+
+async function makeVoucherPublic(fileId: string, accessToken: string) {
+  const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      type: "anyone",
+      role: "reader"
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`No se pudo publicar el archivo de Drive: ${errorText}`);
+  }
+}
+
+async function uploadVoucherToDrive(fileName: string, mimeType: string, buffer: Buffer) {
+  const accessToken = await getGoogleDriveAccessToken();
+  const folderId = getDriveFolderId();
+  const uniqueName = `${Date.now()}-${fileName}`;
+  const boundary = `----prestafacilito-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const metadata: Record<string, unknown> = {
+    name: uniqueName
+  };
+
+  if (folderId) {
+    metadata.parents = [folderId];
+  }
+
+  const multipartPrefix = Buffer.from([
+    `--${boundary}`,
+    "Content-Type: application/json; charset=UTF-8",
+    "",
+    JSON.stringify(metadata),
+    `--${boundary}`,
+    `Content-Type: ${mimeType}`,
+    "",
+    ""
+  ].join("\r\n"), "utf8");
+
+  const multipartSuffix = Buffer.from(`\r\n--${boundary}--`, "utf8");
+  const multipartBody = Buffer.concat([multipartPrefix, buffer, multipartSuffix]);
+
+  const uploadResponse = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink,mimeType",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": `multipart/related; boundary=${boundary}`
+      },
+      body: multipartBody
+    }
+  );
+
+  if (!uploadResponse.ok) {
+    const errorText = await uploadResponse.text();
+    throw new Error(`No se pudo subir el archivo a Google Drive: ${errorText}`);
+  }
+
+  const uploadedFile = await uploadResponse.json();
+  await makeVoucherPublic(uploadedFile.id, accessToken);
+
+  return {
+    fileId: uploadedFile.id as string,
+    fileName: uploadedFile.name as string,
+    webViewLink: uploadedFile.webViewLink as string | undefined,
+    webContentLink: uploadedFile.webContentLink as string | undefined,
+    publicUrl: `/api/vouchers/proxy/${uploadedFile.id}`,
+    directUrl: `https://drive.google.com/uc?export=view&id=${uploadedFile.id}`,
+    folderId: folderId || ""
+  };
+}
 
 // Helper para auditoría de acciones (Logs) en Supabase
 async function logAction(usuario: string, accion: string, detalles: string) {
@@ -636,7 +767,40 @@ app.get("/api/amortizaciones", requireAuth, async (req, res) => {
   }
 });
 
-// 7. Carga de Comprobante en Supabase Storage
+// Endpoint proxy seguro para visualizar vouchers almacenados en Google Drive de forma privada y sin problemas de CORS/CSP
+app.get("/api/vouchers/proxy/:fileId", requireAuth, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const accessToken = await getGoogleDriveAccessToken();
+
+    const driveRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    if (!driveRes.ok) {
+      const errText = await driveRes.text();
+      console.error(`Error de Google Drive API al traer archivo ${fileId}: ${errText}`);
+      res.status(driveRes.status).send(`No se pudo cargar el archivo desde Google Drive.`);
+      return;
+    }
+
+    const contentType = driveRes.headers.get("content-type") || "image/jpeg";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=86400"); // Cache de 1 día
+    
+    // Obtener los datos del buffer de respuesta y enviarlos
+    const arrayBuffer = await driveRes.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    res.send(buffer);
+  } catch (err: any) {
+    console.error("Error al intermediar imagen de Google Drive:", err);
+    res.status(500).send(`Error del servidor: ${err.message}`);
+  }
+});
+
+// 7. Carga de Comprobante en Google Drive
 app.post("/api/upload-voucher", requireAuth, async (req, res) => {
   try {
     const { fileName, mimeType, base64Data } = req.body;
@@ -648,30 +812,19 @@ app.post("/api/upload-voucher", requireAuth, async (req, res) => {
     // Decodificar el archivo base64 a Buffer
     const buffer = Buffer.from(base64Data, "base64");
 
-    // Nombre único para el comprobante
-    const uniqueName = `${Date.now()}-${fileName}`;
-
-    // Subir archivo al bucket "vouchers" en Supabase Storage
-    const { data, error } = await supabase.storage
-      .from("vouchers")
-      .upload(uniqueName, buffer, {
-        contentType: mimeType,
-        upsert: true
-      });
-
-    if (error) throw error;
-
-    // Obtener URL pública
-    const { data: publicUrlData } = supabase.storage
-      .from("vouchers")
-      .getPublicUrl(uniqueName);
+    const uploaded = await uploadVoucherToDrive(fileName, mimeType, buffer);
 
     res.json({
       success: true,
-      publicUrl: publicUrlData.publicUrl
+      publicUrl: uploaded.publicUrl,
+      directUrl: uploaded.directUrl,
+      driveFileId: uploaded.fileId,
+      driveWebViewLink: uploaded.webViewLink,
+      driveWebContentLink: uploaded.webContentLink,
+      driveFolderId: uploaded.folderId
     });
   } catch (err: any) {
-    console.error("Error al subir archivo a Supabase Storage:", err);
+    console.error("Error al subir archivo a Google Drive:", err);
     res.status(500).json({ error: "No se pudo subir el comprobante de pago", detail: err.message });
   }
 });
