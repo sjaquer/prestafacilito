@@ -75,7 +75,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
   const [ayudaError, setAyudaError] = useState("");
   
   // Formulario del nuevo ajuste
-  const [ajusteTipo, setAjusteTipo] = useState<'congelar_interes_temporal' | 'congelar_interes_permanente' | 'eliminar_interes_cuota' | 'reducir_mora' | 'eliminar_mora'>("congelar_interes_temporal");
+  const [ajusteTipo, setAjusteTipo] = useState<'congelar_interes_temporal' | 'congelar_interes_permanente' | 'eliminar_interes_cuota' | 'reducir_mora' | 'eliminar_mora'>("eliminar_interes_cuota");
   const [ajusteMontoAfectado, setAjusteMontoAfectado] = useState("");
   const [ajusteMontoAntes, setAjusteMontoAntes] = useState("");
   const [ajusteMontoDespues, setAjusteMontoDespues] = useState("");
@@ -122,7 +122,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
       if (res.ok) {
         setShowAyudaModal(false);
         // Reset form
-        setAjusteTipo("congelar_interes_temporal");
+        setAjusteTipo("eliminar_interes_cuota");
         setAjusteMontoAfectado("");
         setAjusteMontoAntes("");
         setAjusteMontoDespues("");
@@ -933,7 +933,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
             <button
               onClick={() => {
                 setIsQuickAjuste(false);
-                setAjusteTipo("congelar_interes_temporal");
+                setAjusteTipo("eliminar_interes_cuota");
                 setAjusteCuotaNumero("");
                 setAjusteFechaInicio(new Date().toISOString().split("T")[0]);
                 setAjusteFechaFin("");
@@ -1112,26 +1112,10 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                             <button
                               type="button"
                               onClick={() => handleQuickAjuste(cuota.numero, 'eliminar_interes_cuota')}
-                              title="Quitar interes de esta cuota (auditoría/apoyo)"
+                              title="Quitar interés de esta cuota (auditoría/apoyo)"
                               className="flex items-center justify-center w-7 h-7 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 transition cursor-pointer"
                             >
                               <Scissors size={12} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleQuickAjuste(cuota.numero, 'congelar_interes_temporal')}
-                              title="Congelar interes temporalmente"
-                              className="flex items-center justify-center w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 hover:bg-sky-500/20 transition cursor-pointer"
-                            >
-                              <Snowflake size={12} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleQuickAjuste(cuota.numero, 'reducir_mora')}
-                              title="Aplicar ajuste / reducir mora"
-                              className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 transition cursor-pointer"
-                            >
-                              <Pencil size={12} />
                             </button>
                             {cuota.estado === "Saldada" && (
                               <span title="Cuota completamente saldada" className="text-emerald-500 shrink-0 ml-1">
@@ -1232,26 +1216,10 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                       <button
                         type="button"
                         onClick={() => handleQuickAjuste(cuota.numero, 'eliminar_interes_cuota')}
-                        className="flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[9px] font-extrabold uppercase hover:bg-rose-500/20 transition cursor-pointer"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-extrabold uppercase hover:bg-rose-500/20 transition cursor-pointer"
                       >
-                        <Scissors size={10} />
-                        Quitar Int.
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleQuickAjuste(cuota.numero, 'congelar_interes_temporal')}
-                        className="flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[9px] font-extrabold uppercase hover:bg-sky-500/20 transition cursor-pointer"
-                      >
-                        <Snowflake size={10} />
-                        Congelar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleQuickAjuste(cuota.numero, 'reducir_mora')}
-                        className="flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-extrabold uppercase hover:bg-amber-500/20 transition cursor-pointer"
-                      >
-                        <Pencil size={10} />
-                        Ajustar
+                        <Scissors size={12} />
+                        Condonar Interés de Cuota
                       </button>
                     </div>
                   </div>
@@ -1523,7 +1491,91 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                 </button>
               </div>
 
+              <form onSubmit={handleCreateAjuste} className="space-y-4">
+                {ayudaError && (
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl font-semibold flex items-center gap-2">
+                    <AlertCircle size={14} />
+                    {ayudaError}
+                  </div>
+                )}
+                
+                <div className="space-y-4">
+                  {/* Tipo de Ayuda/Ajuste - Fijo ya que es la única opción */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Tipo de Ayuda/Ajuste</label>
+                    <div className="w-full bg-slate-950/40 border border-white/5 rounded-xl px-4 py-2.5 text-white text-sm font-semibold flex items-center gap-2">
+                      <Scissors size={14} className="text-rose-450" />
+                      <span className="text-slate-100 font-bold">Eliminar Interés de una Cuota</span>
+                    </div>
+                  </div>
 
+                  {/* N° de Cuota a afectar */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">N° de Cuota a Afectar *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={ajusteCuotaNumero}
+                      onChange={(e) => setAjusteCuotaNumero(e.target.value)}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition outline-none font-mono"
+                      placeholder="Ej. 3"
+                      required
+                    />
+                  </div>
+
+                  {/* Motivo / Justificación */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Motivo / Justificación (Obligatorio) *</label>
+                    <input
+                      type="text"
+                      value={ajusteMotivo}
+                      onChange={(e) => setAjusteMotivo(e.target.value)}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition outline-none"
+                      placeholder="Ej: Cliente con problemas de salud, acuerdo especial, etc."
+                      required
+                    />
+                  </div>
+                  
+                  {/* Detalles Adicionales */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Detalles Adicionales (Opcional)</label>
+                    <textarea
+                      value={ajusteDescripcion}
+                      onChange={(e) => setAjusteDescripcion(e.target.value)}
+                      rows={3}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition outline-none resize-none"
+                      placeholder="Agrega notas o detalles sobre el acuerdo..."
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-white/5 flex gap-3 mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAyudaModal(false)}
+                    className="flex-1 py-3 px-4 rounded-xl font-bold text-xs bg-white/5 hover:bg-white/10 text-white transition cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={ayudaSubmitting}
+                    className="flex-[2] py-3 px-4 rounded-xl font-bold text-xs bg-rose-500 hover:bg-rose-600 text-white transition shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                  >
+                    {ayudaSubmitting ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        Procesando...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 size={14} />
+                        Aplicar Facilidad
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

@@ -24,6 +24,109 @@ const resolveVoucherUrl = (url: string) => {
   return url;
 };
 
+const mapLogAction = (accion: string) => {
+  switch (accion) {
+    case "INICIAR_SESION":
+      return { 
+        title: "Acceso", 
+        icon: "🔐", 
+        badgeClass: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20", 
+        borderClass: "border-emerald-500/20 bg-emerald-500/5 text-emerald-400" 
+      };
+    case "CERRAR_SESION":
+      return { 
+        title: "Salida", 
+        icon: "🚪", 
+        badgeClass: "bg-slate-500/10 text-slate-450 border border-slate-500/20", 
+        borderClass: "border-slate-500/20 bg-slate-500/5 text-slate-450" 
+      };
+    case "CREAR_CLIENTE":
+      return { 
+        title: "Registro", 
+        icon: "👤", 
+        badgeClass: "bg-blue-500/10 text-blue-400 border border-blue-500/20", 
+        borderClass: "border-blue-500/20 bg-blue-500/5 text-blue-400" 
+      };
+    case "EDITAR_CLIENTE":
+      return { 
+        title: "Edición", 
+        icon: "✍️", 
+        badgeClass: "bg-amber-500/10 text-amber-400 border border-amber-500/20", 
+        borderClass: "border-amber-500/20 bg-amber-500/5 text-amber-400" 
+      };
+    case "REGISTRAR_PRESTAMO":
+      return { 
+        title: "Préstamo", 
+        icon: "💸", 
+        badgeClass: "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20", 
+        borderClass: "border-indigo-500/20 bg-indigo-500/5 text-indigo-400" 
+      };
+    case "EDITAR_PRESTAMO":
+      return { 
+        title: "Modificado", 
+        icon: "📅", 
+        badgeClass: "bg-amber-500/10 text-amber-400 border border-amber-500/20", 
+        borderClass: "border-amber-500/20 bg-amber-500/5 text-amber-400" 
+      };
+    case "REGISTRAR_PAGO":
+      return { 
+        title: "Cobro", 
+        icon: "💰", 
+        badgeClass: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20", 
+        borderClass: "border-emerald-500/20 bg-emerald-500/5 text-emerald-400" 
+      };
+    case "ACTUALIZAR_VOUCHER":
+      return { 
+        title: "Voucher", 
+        icon: "📎", 
+        badgeClass: "bg-sky-500/10 text-sky-400 border border-sky-500/20", 
+        borderClass: "border-sky-500/20 bg-sky-500/5 text-sky-400" 
+      };
+    case "CREAR_AJUSTE_PRESTAMO":
+      return { 
+        title: "Ayuda", 
+        icon: "✨", 
+        badgeClass: "bg-purple-500/10 text-purple-400 border border-purple-500/20", 
+        borderClass: "border-purple-500/20 bg-purple-500/5 text-purple-400" 
+      };
+    case "ACTIVAR_AJUSTE_PRESTAMO":
+      return { 
+        title: "Activado", 
+        icon: "✔️", 
+        badgeClass: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20", 
+        borderClass: "border-emerald-500/20 bg-emerald-500/5 text-emerald-400" 
+      };
+    case "DESACTIVAR_AJUSTE_PRESTAMO":
+      return { 
+        title: "Desactivado", 
+        icon: "❌", 
+        badgeClass: "bg-rose-500/10 text-rose-400 border border-rose-500/20", 
+        borderClass: "border-rose-500/20 bg-rose-500/5 text-rose-400" 
+      };
+    case "SEMBRAR_DATOS":
+      return { 
+        title: "Siembra", 
+        icon: "🌱", 
+        badgeClass: "bg-violet-500/10 text-violet-400 border border-violet-500/20", 
+        borderClass: "border-violet-500/20 bg-violet-500/5 text-violet-400" 
+      };
+    case "CONECTAR_SUPABASE":
+      return { 
+        title: "Prueba BD", 
+        icon: "⚡", 
+        badgeClass: "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20", 
+        borderClass: "border-cyan-500/20 bg-cyan-500/5 text-cyan-400" 
+      };
+    default:
+      return { 
+        title: accion.replace(/_/g, " "), 
+        icon: "⚙️", 
+        badgeClass: "bg-slate-500/10 text-slate-450 border border-slate-500/20", 
+        borderClass: "border-slate-500/20 bg-white/5 text-slate-400" 
+      };
+  }
+};
+
 interface DashboardProps {
   onSelectLoan: (id: string) => void;
   onNavigateToClients: () => void;
@@ -1340,30 +1443,33 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               </div>
             ) : (
               logs.slice(0, 10).map((log) => {
-                const isDanger = log.accion.includes("ELIMINAR") || log.accion.includes("FALLO") || log.accion.includes("RECHAZAR");
-                const isSuccess = log.accion.includes("PAGO") || log.accion.includes("CREAR") || log.accion.includes("CONECTAR") || log.accion.includes("SEMBRAR") || log.accion.includes("EDITAR");
+                const actionMeta = mapLogAction(log.accion);
+                const humanizedDetails = log.detalles.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, (match: string) => '#' + match.substring(0, 6).toUpperCase());
                 
                 return (
                   <div 
                     key={log.id} 
-                    className="p-2.5 rounded-xl bg-white/[0.04] border border-white/3 flex items-start justify-between gap-3 text-[11px]"
+                    className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 flex items-start gap-3 text-[11px] hover:bg-white/[0.03] transition-all duration-200"
                   >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[8.5px] font-black uppercase px-1.5 py-0.5 rounded ${
-                          isDanger ? "bg-rose-500/10 text-red-400 border border-rose-500/20" :
-                          isSuccess ? "bg-emerald-500/10 text-green-400 border border-emerald-500/20" :
-                          "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                        }`}>
-                          {log.accion}
-                        </span>
-                        <span className="text-[9.5px] text-gray-400 font-bold font-mono">@{log.usuario}</span>
-                      </div>
-                      <p className="text-slate-350 font-semibold leading-normal">{log.detalles}</p>
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${actionMeta.borderClass || 'border-white/5 bg-white/5'}`}>
+                      <span className="text-sm">{actionMeta.icon}</span>
                     </div>
-                    <span className="text-[9.5px] text-gray-500 font-mono shrink-0 whitespace-nowrap pt-0.5">
-                      {new Date(log.fecha_hora).toLocaleTimeString("es-PE", { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                    </span>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className={`text-[8.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${actionMeta.badgeClass}`}>
+                            {actionMeta.title}
+                          </span>
+                          <span className="text-[10px] text-gray-400 font-bold font-mono truncate">@{log.usuario}</span>
+                        </div>
+                        <span className="text-[9.5px] text-gray-500 font-mono shrink-0">
+                          {new Date(log.fecha_hora).toLocaleTimeString("es-PE", { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </span>
+                      </div>
+                      <p className="text-slate-300 font-semibold leading-normal break-words text-[10.5px]">
+                        {humanizedDetails}
+                      </p>
+                    </div>
                   </div>
                 );
               })
