@@ -13,11 +13,19 @@ import {
   X,
   Image,
   ExternalLink,
-  UploadCloud
+  UploadCloud,
+  Calendar,
+  Scissors,
+  Snowflake,
+  Pencil,
+  WifiOff,
+  ServerCrash
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 import { buildPaymentSchedule } from "../lib/loanLogic";
+import { AjustePrestamo, PlanAyudaCliente } from "../types";
+import { METODOS_PAGO } from "../lib/constants";
 
 const resolveVoucherUrl = (url: string) => {
   if (!url) return "";
@@ -44,7 +52,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
 
   // Formulario de Pago / Amortización
   const [monto, setMonto] = useState("");
-  const [metodoPago, setMetodoPago] = useState("Transferencia");
+  const [metodoPago, setMetodoPago] = useState("Yape");
   const [fechaPago, setFechaPago] = useState(new Date().toISOString().split("T")[0]);
   const [submitting, setSubmitting] = useState(false);
   const [pagoSuccess, setPagoSuccess] = useState("");
@@ -57,14 +65,111 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
   const [voucherUpdatingId, setVoucherUpdatingId] = useState<string | null>(null);
   const [voucherUpdateError, setVoucherUpdateError] = useState("");
   const voucherInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [activePastePagoId, setActivePastePagoId] = useState<string | null>(null);
 
-  // Subida de Voucher a Google Drive
-  const handleVoucherUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Plan de Ayuda al Cliente - Estados
+  const [showAyudaModal, setShowAyudaModal] = useState(false);
+  const [isQuickAjuste, setIsQuickAjuste] = useState(false);
+  const [showHistorialModal, setShowHistorialModal] = useState(false);
+  const [ayudaSubmitting, setAyudaSubmitting] = useState(false);
+  const [ayudaError, setAyudaError] = useState("");
+  
+  // Formulario del nuevo ajuste
+  const [ajusteTipo, setAjusteTipo] = useState<'congelar_interes_temporal' | 'congelar_interes_permanente' | 'eliminar_interes_cuota' | 'reducir_mora' | 'eliminar_mora'>("congelar_interes_temporal");
+  const [ajusteMontoAfectado, setAjusteMontoAfectado] = useState("");
+  const [ajusteMontoAntes, setAjusteMontoAntes] = useState("");
+  const [ajusteMontoDespues, setAjusteMontoDespues] = useState("");
+  const [ajusteCuotaNumero, setAjusteCuotaNumero] = useState("");
+  const [ajusteFechaInicio, setAjusteFechaInicio] = useState(new Date().toISOString().split("T")[0]);
+  const [ajusteFechaFin, setAjusteFechaFin] = useState("");
+  const [ajustePeriodoGraciaDias, setAjustePeriodoGraciaDias] = useState("7");
+  const [ajusteDescripcion, setAjusteDescripcion] = useState("");
+  const [ajusteMotivo, setAjusteMotivo] = useState("");
+  // Cuota seleccionada para accion rapida desde el cronograma
+  const [quickAjusteCuotaLocked, setQuickAjusteCuotaLocked] = useState(false);
 
+  const handleCreateAjuste = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ajusteMotivo.trim()) {
+      setAyudaError("El motivo del ajuste es obligatorio.");
+      return;
+    }
+
+    try {
+      setAyudaSubmitting(true);
+      setAyudaError("");
+
+      const body = {
+        tipo: ajusteTipo,
+        monto_afectado: parseFloat(ajusteMontoAfectado) || 0,
+        monto_antes: parseFloat(ajusteMontoAntes) || 0,
+        monto_despues: parseFloat(ajusteMontoDespues) || 0,
+        cuota_numero: ajusteCuotaNumero ? parseInt(ajusteCuotaNumero) : null,
+        fecha_inicio: ajusteFechaInicio,
+        fecha_fin: ajusteFechaFin || null,
+        periodo_gracia_dias: parseInt(ajustePeriodoGraciaDias) || 0,
+        descripcion: ajusteDescripcion,
+        motivo: ajusteMotivo
+      };
+
+      const res = await fetch(`/api/prestamos/${loanId}/ajustes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        setShowAyudaModal(false);
+        // Reset form
+        setAjusteTipo("congelar_interes_temporal");
+        setAjusteMontoAfectado("");
+        setAjusteMontoAntes("");
+        setAjusteMontoDespues("");
+        setAjusteCuotaNumero("");
+        setAjusteFechaInicio(new Date().toISOString().split("T")[0]);
+        setAjusteFechaFin("");
+        setAjustePeriodoGraciaDias("7");
+        setAjusteDescripcion("");
+        setAjusteMotivo("");
+        // Reload details
+        await fetchLoanDetails();
+      } else {
+        setAyudaError(result.error || "No se pudo aplicar el ajuste.");
+      }
+    } catch (err) {
+      setAyudaError("Error de red al aplicar el ajuste.");
+    } finally {
+      setAyudaSubmitting(false);
+    }
+  };
+
+  const handleToggleAjuste = async (ajusteId: string, currentActive: boolean) => {
+    if (!confirm(`¿Estás seguro de que deseas ${currentActive ? 'desactivar' : 'activar'} este ajuste?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/prestamos/${loanId}/ajustes/${ajusteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activo: !currentActive })
+      });
+
+      if (res.ok) {
+        await fetchLoanDetails();
+      } else {
+        const result = await res.json();
+        alert(result.error || "No se pudo cambiar el estado del ajuste.");
+      }
+    } catch (err) {
+      alert("Error de red al cambiar el estado del ajuste.");
+    }
+  };
+
+  // Subida de Voucher a Google Drive (Core)
+  const uploadVoucherFile = async (file: File) => {
     setUploadStatus("uploading");
-    setComprobanteName(file.name);
+    setComprobanteName(file.name || "voucher_pasted.png");
     setComprobanteUrl("");
     setVoucherError("");
 
@@ -76,30 +181,37 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            fileName: file.name,
-            mimeType: file.type,
+            fileName: file.name || "voucher_pasted.png",
+            mimeType: file.type || "image/png",
             base64Data
           })
         });
 
+        const errData = await uploadRes.json().catch(() => ({}));
+
         if (uploadRes.ok) {
-          const uploadResult = await uploadRes.json();
-          if (uploadResult?.publicUrl) {
-            setComprobanteUrl(uploadResult.publicUrl);
+          if (errData?.publicUrl) {
+            setComprobanteUrl(errData.publicUrl);
             setUploadStatus("done");
           } else {
-            setVoucherError("La subida se completó, pero no se recibió la URL del voucher.");
+            setVoucherError("La subida se completo, pero no se recibio la URL del voucher.");
             setUploadStatus("error");
           }
+        } else if (uploadRes.status === 503) {
+          // Drive no configurado
+          setVoucherError("Google Drive no esta configurado en el servidor. Registra el pago sin voucher y adjuntalo luego.");
+          setUploadStatus("error");
+        } else if (uploadRes.status === 502) {
+          // Drive fallo al subir
+          setVoucherError("No se pudo conectar a Google Drive. Registra el pago sin voucher y adjuntalo luego.");
+          setUploadStatus("error");
         } else {
-          const errData = await uploadRes.json().catch(() => ({}));
-          console.error("Error en respuesta de subida del voucher:", errData);
-          setVoucherError("No se pudo subir el voucher. Puedes registrar el pago sin él.");
+          setVoucherError(errData?.error || "No se pudo subir el voucher. Puedes registrar el pago sin el.");
           setUploadStatus("error");
         }
       } catch (uploadErr) {
         console.error("Error de red al subir el voucher:", uploadErr);
-        setVoucherError("Error de red al subir el voucher. Puedes registrar el pago sin él.");
+        setVoucherError("Error de red al subir el voucher. Puedes registrar el pago sin el.");
         setUploadStatus("error");
       }
     };
@@ -108,6 +220,13 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
       setUploadStatus("error");
     };
     reader.readAsDataURL(file);
+  };
+
+  // Subida de Voucher desde selector clásico
+  const handleVoucherUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await uploadVoucherFile(file);
   };
 
   // Estados para el Asistente de Cobro por IA (Gemini)
@@ -199,11 +318,16 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
           })
         });
 
+        const errData = await res.json().catch(() => ({}));
+
         if (res.ok) {
           await fetchLoanDetails();
+        } else if (res.status === 503) {
+          setVoucherUpdateError("Google Drive no esta configurado. Consulta al administrador del sistema.");
+        } else if (res.status === 502) {
+          setVoucherUpdateError("No se pudo conectar a Google Drive. Intenta nuevamente en unos minutos.");
         } else {
-          const errData = await res.json().catch(() => ({}));
-          setVoucherUpdateError(errData.error || "No se pudo adjuntar el voucher.");
+          setVoucherUpdateError(errData?.error || "No se pudo adjuntar el voucher.");
         }
       } catch (err) {
         console.error("Error al adjuntar voucher:", err);
@@ -220,6 +344,52 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
 
     reader.readAsDataURL(file);
   };
+
+  // Abrir modal de ajuste rapido pre-completado desde una cuota del cronograma
+  const handleQuickAjuste = (
+    cuotaNumero: number,
+    tipo: 'eliminar_interes_cuota' | 'congelar_interes_temporal' | 'congelar_interes_permanente' | 'reducir_mora' | 'eliminar_mora'
+  ) => {
+    setIsQuickAjuste(true);
+    setAjusteTipo(tipo);
+    setAjusteCuotaNumero(tipo === 'eliminar_interes_cuota' || tipo === 'reducir_mora' ? String(cuotaNumero) : "");
+    setAjusteFechaInicio(new Date().toISOString().split("T")[0]);
+    setAjusteFechaFin("");
+    setAjusteMontoAfectado(tipo === 'reducir_mora' ? "100" : "");
+    setAjusteMontoAntes("");
+    setAjusteMontoDespues("");
+    setAjusteDescripcion(
+      tipo === 'eliminar_interes_cuota'
+        ? `Condonación interés Cuota #${cuotaNumero}`
+        : tipo === 'congelar_interes_temporal'
+        ? `Congelar interés desde Cuota #${cuotaNumero}`
+        : `Reducir mora Cuota #${cuotaNumero}`
+    );
+    setAjusteMotivo("");
+    setAyudaError("");
+    setShowAyudaModal(true);
+  };
+
+  // Escuchar pegado de voucher desde portapapeles
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      const items = Array.from(event.clipboardData?.items || []);
+      const imageItem = items.find((item) => item.kind === "file" && item.type.startsWith("image/"));
+      const file = imageItem?.getAsFile() || event.clipboardData?.files?.[0] || null;
+
+      if (file && file.type.startsWith("image/")) {
+        event.preventDefault();
+        if (activePastePagoId) {
+          handleVoucherUpdate(activePastePagoId, file);
+        } else {
+          uploadVoucherFile(file);
+        }
+      }
+    };
+
+    window.addEventListener("paste", onPaste as unknown as EventListener);
+    return () => window.removeEventListener("paste", onPaste as unknown as EventListener);
+  }, [activePastePagoId]);
 
   // Generador de Mensaje de Cobro con Gemini
   const handleGenerateAiMessage = async () => {
@@ -375,13 +545,13 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
     );
   }
 
-  const { prestamo, pagosRealizados } = data;
-  const debtState = buildPaymentSchedule(prestamo, pagosRealizados, new Date());
+  const { prestamo, pagosRealizados, ajustes = [], planAyuda } = data;
+  const debtState = buildPaymentSchedule(prestamo, pagosRealizados, ajustes, new Date());
   const resumenDeuda = debtState.resumen;
   const cuotaSiguiente = debtState.cuotaSiguiente;
   const progressPercent = Math.min(100, resumenDeuda.totalExigible > 0 ? (resumenDeuda.totalPagado / resumenDeuda.totalExigible) * 100 : 0);
   const deudaTotalActual = resumenDeuda.totalExigible || prestamo.total_exigible_actual || prestamo.total_a_pagar;
-  const cuotaRapida = cuotaSiguiente ? Math.min(resumenDeuda.saldoPendiente, cuotaSiguiente.montoExigible || cuotaSiguiente.montoCuotaBase || 0) : resumenDeuda.saldoPendiente;
+  const cuotaRapida = cuotaSiguiente ? Math.min(resumenDeuda.saldoPendiente, cuotaSiguiente.montoExigible) : resumenDeuda.saldoPendiente;
   const interesMensual = (prestamo.monto_capital * prestamo.tasa_interes_porcentaje) / 100;
 
   return (
@@ -589,10 +759,9 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                   onChange={(e) => setMetodoPago(e.target.value)}
                   className="w-full glass-input rounded-2xl p-3 bg-[#0A0A0C] text-xs font-bold text-slate-200 cursor-pointer"
                 >
-                  <option value="Transferencia">Transferencia Bancaria</option>
-                  <option value="Efectivo">Efectivo</option>
-                  <option value="Yape/Plin">Yape / Plin</option>
-                  <option value="Depósito">Depósito Directo</option>
+                  {METODOS_PAGO.map((m) => (
+                    <option key={m} value={m} className="bg-[#0f172a]">{m}</option>
+                  ))}
                 </select>
               </div>
 
@@ -657,7 +826,9 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                   />
                   <label
                     htmlFor="voucher-upload-input"
-                    className={`flex flex-col items-center justify-center p-3.5 border border-dashed rounded-2xl cursor-pointer transition select-none min-h-[85px] ${
+                    tabIndex={0}
+                    onFocus={() => setActivePastePagoId(null)}
+                    className={`flex flex-col items-center justify-center p-3.5 border border-dashed rounded-2xl cursor-pointer transition select-none min-h-[85px] focus:outline-none focus:border-indigo-500 focus:bg-indigo-500/[0.02] ${
                       uploadStatus === "uploading"
                         ? "bg-white/[0.02] border-indigo-500/30 text-blue-400 cursor-not-allowed"
                         : uploadStatus === "done" || comprobanteUrl
@@ -682,7 +853,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                           <p className="text-[9px] text-slate-400 font-bold truncate max-w-[170px]">
                             {comprobanteName}
                           </p>
-                          <p className="text-[9px] text-gray-500 font-semibold mt-0.5">Clic para cambiar</p>
+                          <p className="text-[9px] text-gray-500 font-semibold mt-0.5">Clic o Ctrl+V para cambiar</p>
                         </div>
                       </div>
                     ) : (
@@ -691,7 +862,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                         <div>
                           <p className="font-extrabold text-xs text-slate-300">Subir imagen de voucher</p>
                           <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">
-                            JPG, PNG o WEBP · Opcional
+                            JPG, PNG o WEBP · Ctrl+V para pegar
                           </p>
                         </div>
                       </div>
@@ -728,6 +899,367 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
             </form>
           )}
         </div>
+      </div>
+
+      {/* Sección Plan de Ayuda al Cliente */}
+      <div id="plan-ayuda-section" className="bento-card p-6 rounded-3xl relative overflow-hidden bg-gradient-to-br from-slate-900 via-indigo-950/20 to-slate-900 border border-white/5 shadow-xl">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-4 border-b border-white/5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex items-center justify-center text-indigo-400">
+              <Sparkles size={20} className="animate-pulse" />
+            </div>
+            <div>
+              <h2 className="font-extrabold text-white text-lg tracking-tight flex items-center gap-2">
+                Plan de Ayuda al Cliente
+                <span className="text-[10px] bg-indigo-500/20 text-indigo-300 font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Recuperación de Cartera
+                </span>
+              </h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Facilidades y herramientas excepcionales para regularizar la situación de deuda del cliente
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setShowHistorialModal(true)}
+              className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 backdrop-blur-md rounded-xl text-xs font-bold text-slate-200 transition cursor-pointer flex items-center gap-2"
+            >
+              <Coins size={14} />
+              <span>Ver Historial ({ajustes.length})</span>
+            </button>
+            <button
+              onClick={() => {
+                setIsQuickAjuste(false);
+                setAjusteTipo("congelar_interes_temporal");
+                setAjusteCuotaNumero("");
+                setAjusteFechaInicio(new Date().toISOString().split("T")[0]);
+                setAjusteFechaFin("");
+                setAjusteMontoAfectado("");
+                setAjusteMontoAntes("");
+                setAjusteMontoDespues("");
+                setAjusteDescripcion("");
+                setAjusteMotivo("");
+                setAyudaError("");
+                setShowAyudaModal(true);
+              }}
+              className="px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-lg shadow-indigo-500/20 flex items-center gap-2"
+            >
+              <HandCoins size={14} />
+              <span>Aplicar Nueva Facilidad</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Resumen del Plan de Ayuda */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+          <div className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Beneficio Total Aplicado</span>
+            <span className="text-xl font-black text-indigo-400 font-mono">
+              {formatCurrency(planAyuda?.totalBeneficioAplicado || 0)}
+            </span>
+            <span className="text-[9px] text-gray-500 block mt-0.5">Ahorro real generado al cliente</span>
+          </div>
+
+          <div className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Interés Congelado</span>
+            <span className={`text-xl font-black ${planAyuda?.interesCongelado ? "text-emerald-400" : "text-slate-400"}`}>
+              {planAyuda?.interesCongelado ? "Sí (Activo)" : "No"}
+            </span>
+            <span className="text-[9px] text-gray-500 block mt-0.5">
+              {planAyuda?.fechaCongelamientoHasta 
+                ? `Hasta: ${planAyuda.fechaCongelamientoHasta}` 
+                : "Sin congelamientos vigentes"}
+            </span>
+          </div>
+
+          <div className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Mora Eliminada / Reducida</span>
+            <span className={`text-xl font-black ${planAyuda?.moraEliminada ? "text-emerald-400" : "text-slate-400"}`}>
+              {planAyuda?.moraEliminada ? "Sí (Activo)" : "No"}
+            </span>
+            <span className="text-[9px] text-gray-500 block mt-0.5">Exoneración de penalidades</span>
+          </div>
+
+          <div className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Facilidades Activas</span>
+            <span className="text-xl font-black text-slate-200 font-mono">
+              {ajustes.filter((a: AjustePrestamo) => a.activo).length}
+            </span>
+            <span className="text-[9px] text-gray-500 block mt-0.5">Ajustes manuales vigentes</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Cronograma de Cuotas (Diseño Dual) */}
+      <div id="payment-schedule-card" className="bento-card rounded-3xl overflow-hidden">
+        <div className="p-5 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400">
+              <Calendar size={16} />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-white text-base tracking-tight">Cronograma de Cuotas</h3>
+              <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">Calendario planificado de vencimientos</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/20 text-green-400 font-bold px-3 py-1 rounded-lg font-mono">
+              Pagadas: {debtState.cuotas.filter((c: any) => c.estado === "Saldada").length}
+            </span>
+            <span className="text-[10px] bg-rose-500/10 border border-rose-500/20 text-rose-400 font-bold px-3 py-1 rounded-lg font-mono">
+              Vencidas: {debtState.cuotas.filter((c: any) => c.estado === "Vencida").length}
+            </span>
+          </div>
+        </div>
+
+        {debtState.cuotas.length === 0 ? (
+          <div className="text-center py-12 text-gray-400 bg-black/10">
+            <Calendar className="mx-auto text-slate-600 mb-3" size={36} />
+            <p className="font-extrabold text-sm text-gray-300">No hay cuotas programadas</p>
+          </div>
+        ) : (
+          <>
+            {/* VISTA ESCRITORIO */}
+            <div className="hidden sm:block overflow-x-auto text-xs md:text-sm">
+              <table className="w-full text-left font-sans">
+                <thead>
+                  <tr className="bg-white/[0.02] text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-white/5 select-none">
+                    <th className="px-6 py-4.5">N° Cuota</th>
+                    <th className="px-6 py-4.5">Fecha Vencimiento</th>
+                    <th className="px-6 py-4.5">Monto Cuota (Interés)</th>
+                    <th className="px-6 py-4.5">Mora Calculada</th>
+                    <th className="px-6 py-4.5">Total Pagado</th>
+                    <th className="px-6 py-4.5">Saldo Restante</th>
+                    <th className="px-6 py-4.5 text-right">Estado</th>
+                    <th className="px-4 py-4.5 text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 text-gray-300">
+                  {debtState.cuotas.map((cuota: any) => {
+                    const readableDate = new Date(`${cuota.fechaVencimiento}T00:00:00`).toLocaleDateString("es-ES", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric"
+                    });
+                    
+                    return (
+                      <tr key={cuota.numero} className="hover:bg-white/[0.02] transition group">
+                        <td className="px-6 py-4 font-mono font-bold text-slate-400">
+                          Cuota #{cuota.numero}
+                        </td>
+                        <td className="px-6 py-4 font-bold text-slate-200">
+                          {readableDate}
+                        </td>
+                        <td className="px-6 py-4 font-mono font-semibold">
+                          {cuota.congelada ? (
+                            <div className="flex flex-col gap-0.5">
+                              <span className="line-through text-rose-500/60 text-[10px]">{formatCurrency(cuota.montoCuotaBase)}</span>
+                              <span className="text-emerald-400 font-extrabold">{formatCurrency(cuota.interesPendiente)}</span>
+                              <span className="inline-flex items-center gap-1 text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-md font-black uppercase tracking-wide w-fit">
+                                <CheckCircle2 size={9} /> Ajuste
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-slate-200">{formatCurrency(cuota.montoCuotaBase)}</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 font-mono">
+                          {cuota.moraPendiente > 0 ? (
+                            <span className="text-orange-400 font-extrabold">{formatCurrency(cuota.moraPendiente)}</span>
+                          ) : (
+                            <span className="text-slate-650">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 font-mono">
+                          {cuota.pagado > 0 || cuota.capitalAmortizado > 0 ? (
+                            <div className="flex flex-col">
+                              <span className="text-green-400 font-bold">
+                                {formatCurrency(cuota.pagado + (cuota.capitalAmortizado || 0))}
+                              </span>
+                              {cuota.capitalAmortizado > 0 && (
+                                <span className="text-[10px] text-gray-400 font-semibold mt-0.5 font-sans">
+                                  -{formatCurrency(cuota.capitalAmortizado)} Capital
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-slate-655">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 font-mono text-blue-400">
+                          {cuota.saldoPendiente > 0 ? formatCurrency(cuota.saldoPendiente) : <span className="text-slate-650">-</span>}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                              cuota.estado === "Saldada"
+                                ? "bg-emerald-500/10 text-green-400 border border-emerald-500/20"
+                                : cuota.estado === "Vencida"
+                                ? "bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse"
+                                : cuota.estado === "Parcial"
+                                ? "bg-orange-500/10 text-orange-400 border border-orange-500/20"
+                                : "bg-slate-800 text-slate-400 border border-slate-700"
+                            }`}
+                          >
+                            {cuota.estado} {cuota.diasVencidos > 0 && `(${cuota.diasVencidos}d vencida)`}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity justify-center">
+                            <button
+                              type="button"
+                              onClick={() => handleQuickAjuste(cuota.numero, 'eliminar_interes_cuota')}
+                              title="Quitar interes de esta cuota (auditoría/apoyo)"
+                              className="flex items-center justify-center w-7 h-7 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 transition cursor-pointer"
+                            >
+                              <Scissors size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleQuickAjuste(cuota.numero, 'congelar_interes_temporal')}
+                              title="Congelar interes temporalmente"
+                              className="flex items-center justify-center w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 hover:bg-sky-500/20 transition cursor-pointer"
+                            >
+                              <Snowflake size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleQuickAjuste(cuota.numero, 'reducir_mora')}
+                              title="Aplicar ajuste / reducir mora"
+                              className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 transition cursor-pointer"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                            {cuota.estado === "Saldada" && (
+                              <span title="Cuota completamente saldada" className="text-emerald-500 shrink-0 ml-1">
+                                <CheckCircle2 size={13} />
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* VISTA CELULAR */}
+            <div className="sm:hidden p-4 space-y-3 bg-white/[0.02]">
+              {debtState.cuotas.map((cuota: any) => {
+                const readableDate = new Date(`${cuota.fechaVencimiento}T00:00:00`).toLocaleDateString("es-ES", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric"
+                });
+
+                return (
+                  <div key={cuota.numero} className="bg-[#0A0A0C]/60 p-4 rounded-2xl border border-white/5 space-y-3">
+                    <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                      <span className="text-[10px] font-mono font-black text-indigo-400">CUOTA #{cuota.numero}</span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
+                          cuota.estado === "Saldada"
+                            ? "bg-emerald-500/10 text-green-400 border border-emerald-500/20"
+                            : cuota.estado === "Vencida"
+                            ? "bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse"
+                            : cuota.estado === "Parcial"
+                            ? "bg-orange-500/10 text-orange-400 border border-orange-500/20"
+                            : "bg-slate-800 text-slate-400 border border-slate-700"
+                        }`}
+                      >
+                        {cuota.estado}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                      <div>
+                        <span className="text-gray-500 block">Vencimiento:</span>
+                        <span className="font-bold text-slate-200">{readableDate}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 block">Cuota Base:</span>
+                        {cuota.congelada ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="line-through text-rose-500/60 text-[9px] font-mono">{formatCurrency(cuota.montoCuotaBase)}</span>
+                            <span className="font-mono font-extrabold text-emerald-400">{formatCurrency(cuota.interesPendiente)} <span className="text-[8px] normal-case">ajustado</span></span>
+                          </div>
+                        ) : (
+                          <span className="font-mono font-bold text-slate-300">{formatCurrency(cuota.montoCuotaBase)}</span>
+                        )}
+                      </div>
+                      {cuota.moraPendiente > 0 && (
+                        <div>
+                          <span className="text-gray-500 block">Mora:</span>
+                          <span className="font-mono font-extrabold text-orange-400">{formatCurrency(cuota.moraPendiente)}</span>
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-gray-500 block">Saldo Restante:</span>
+                        <span className="font-mono font-bold text-blue-400">{formatCurrency(cuota.saldoPendiente)}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-505 block">Total Pagado:</span>
+                        {cuota.pagado > 0 || cuota.capitalAmortizado > 0 ? (
+                          <div className="flex flex-col font-mono">
+                            <span className="text-green-400 font-bold">
+                              {formatCurrency(cuota.pagado + (cuota.capitalAmortizado || 0))}
+                            </span>
+                            {cuota.capitalAmortizado > 0 && (
+                              <span className="text-[9px] text-gray-400 font-semibold font-sans mt-0.5 block">
+                                -{formatCurrency(cuota.capitalAmortizado)} Capital
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-655 font-mono">-</span>
+                        )}
+                      </div>
+                      {cuota.diasVencidos > 0 && (
+                        <div className="col-span-2">
+                          <span className="inline-flex items-center gap-1 text-rose-400/90 font-extrabold font-mono uppercase text-[8px] tracking-wider">
+                            <AlertCircle size={10} /> {cuota.diasVencidos} dias de retraso acumulados
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ACCIONES RAPIDAS MOBILE */}
+                    <div className="flex gap-2 pt-2 border-t border-white/5">
+                      <button
+                        type="button"
+                        onClick={() => handleQuickAjuste(cuota.numero, 'eliminar_interes_cuota')}
+                        className="flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[9px] font-extrabold uppercase hover:bg-rose-500/20 transition cursor-pointer"
+                      >
+                        <Scissors size={10} />
+                        Quitar Int.
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleQuickAjuste(cuota.numero, 'congelar_interes_temporal')}
+                        className="flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[9px] font-extrabold uppercase hover:bg-sky-500/20 transition cursor-pointer"
+                      >
+                        <Snowflake size={10} />
+                        Congelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleQuickAjuste(cuota.numero, 'reducir_mora')}
+                        className="flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-extrabold uppercase hover:bg-amber-500/20 transition cursor-pointer"
+                      >
+                        <Pencil size={10} />
+                        Ajustar
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Historial de Pagos (Diseño Dual) */}
@@ -791,7 +1323,20 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
+                        <div 
+                          tabIndex={0}
+                          onFocus={() => setActivePastePagoId(pago.id)}
+                          onBlur={() => {
+                            setTimeout(() => {
+                              setActivePastePagoId((curr) => (curr === pago.id ? null : curr));
+                            }, 120);
+                          }}
+                          className={`flex items-center gap-2 p-1.5 rounded-xl border transition-all duration-200 focus:outline-none ${
+                            activePastePagoId === pago.id
+                              ? "border-indigo-500 bg-indigo-500/5 ring-2 ring-indigo-500/20"
+                              : "border-transparent"
+                          }`}
+                        >
                           <input
                             type="file"
                             accept="image/*"
@@ -819,15 +1364,24 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                               <ExternalLink size={10} className="opacity-60" />
                             </a>
                           ) : (
-                            <span className="text-slate-600 font-bold text-[10px] uppercase tracking-wider">- Sin Voucher -</span>
+                            <span className="text-slate-555 font-bold text-[10px] uppercase tracking-wider pl-1.5">- Sin Voucher -</span>
                           )}
                           <button
                             type="button"
                             onClick={() => voucherInputRefs.current[pago.id]?.click()}
                             disabled={voucherUpdatingId === pago.id}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/70 border border-slate-700 text-slate-300 hover:bg-slate-700 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-60"
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 border rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all duration-250 cursor-pointer disabled:opacity-60 ${
+                              activePastePagoId === pago.id
+                                ? "border-indigo-500 bg-indigo-500/20 text-indigo-300 animate-pulse"
+                                : "border-slate-700 bg-slate-800/70 text-slate-300 hover:bg-slate-700"
+                            }`}
                           >
-                            {voucherUpdatingId === pago.id ? "Subiendo..." : (pago.comprobante_url ? "Actualizar Voucher" : "Adjuntar Voucher")}
+                            {voucherUpdatingId === pago.id 
+                              ? "Subiendo..." 
+                              : activePastePagoId === pago.id
+                              ? "Pegar (Ctrl+V)"
+                              : (pago.comprobante_url ? "Actualizar Voucher" : "Adjuntar Voucher")
+                            }
                           </button>
                           <button
                             onClick={() => handleShareReceipt(pago)}
@@ -850,7 +1404,21 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
             {/* HISTORIAL TARJETAS: Celular */}
             <div className="sm:hidden p-4 space-y-3 bg-white/[0.02]">
               {pagosRealizados.map((pago: any) => (
-                <div key={pago.id} className="bg-[#0A0A0C]/60 p-4 rounded-2xl border border-white/5 space-y-3 shadow-sm">
+                <div 
+                  key={pago.id} 
+                  tabIndex={0}
+                  onFocus={() => setActivePastePagoId(pago.id)}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      setActivePastePagoId((curr) => (curr === pago.id ? null : curr));
+                    }, 120);
+                  }}
+                  className={`p-4 rounded-2xl border space-y-3 shadow-sm transition-all duration-250 focus:outline-none ${
+                    activePastePagoId === pago.id
+                      ? "bg-indigo-950/20 border-indigo-500 ring-2 ring-indigo-500/25 scale-[1.01]"
+                      : "bg-[#0A0A0C]/60 border-white/5"
+                  }`}
+                >
                   <div className="flex justify-between items-center">
                     <span className="text-[9px] font-mono text-gray-500">ID: {pago.id.substring(0, 8)}...</span>
                     <span className="text-[10px] text-gray-400 font-bold font-mono">{pago.fecha_pago}</span>
@@ -891,9 +1459,18 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                         <button
                           onClick={() => voucherInputRefs.current[pago.id]?.click()}
                           disabled={voucherUpdatingId === pago.id}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-slate-800/60 border border-slate-700 text-slate-300 rounded-md text-[9px] font-bold cursor-pointer disabled:opacity-60"
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-bold cursor-pointer disabled:opacity-60 border transition-all duration-250 ${
+                            activePastePagoId === pago.id
+                              ? "border-indigo-500 bg-indigo-500/20 text-indigo-300 animate-pulse"
+                              : "bg-slate-800/60 border-slate-700 text-slate-300 hover:bg-slate-700"
+                          }`}
                         >
-                          {voucherUpdatingId === pago.id ? "Subiendo..." : (pago.comprobante_url ? "Actualizar" : "Adjuntar")}
+                          {voucherUpdatingId === pago.id 
+                            ? "Subiendo..." 
+                            : activePastePagoId === pago.id
+                            ? "Pegar (Ctrl+V)"
+                            : (pago.comprobante_url ? "Actualizar" : "Adjuntar")
+                          }
                         </button>
                         <button
                           onClick={() => handleShareReceipt(pago)}
@@ -917,6 +1494,183 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
           </>
         )}
       </div>
+
+      {/* Modal: Aplicar Nueva Facilidad */}
+      <AnimatePresence>
+        {showAyudaModal && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-slate-900 border border-white/10 rounded-3xl w-full max-w-lg p-6 shadow-2xl relative overflow-hidden"
+            >
+              <div className="flex justify-between items-center pb-4 border-b border-white/5 mb-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400">
+                    <Sparkles size={16} />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-white text-base">Aplicar Nueva Facilidad</h3>
+                    <p className="text-[10px] text-gray-400">Selecciona y configura el plan de apoyo manual</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowAyudaModal(false)}
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center transition cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal: Historial de Ajustes */}
+      <AnimatePresence>
+        {showHistorialModal && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-slate-900 border border-white/10 rounded-3xl w-full max-w-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh] font-sans text-left"
+            >
+              <div className="flex justify-between items-center pb-4 border-b border-white/5 mb-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400">
+                    <Coins size={16} />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-white text-base">Historial de Facilidades de Pago</h3>
+                    <p className="text-[10px] text-gray-400">Registro histórico de modificaciones y apoyos al préstamo</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowHistorialModal(false)}
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center transition cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {ajustes.length === 0 ? (
+                <div className="text-center py-12 space-y-3">
+                  <p className="text-xs text-gray-400">No hay ajustes o facilidades de pago registradas para este préstamo.</p>
+                </div>
+              ) : (
+                <div className="overflow-y-auto pr-1 flex-1 space-y-4">
+                  {ajustes.map((ajuste: AjustePrestamo) => {
+                    let tipoBadge = "";
+                    let tipoTexto = "";
+
+                    switch (ajuste.tipo) {
+                      case "congelar_interes_temporal":
+                        tipoBadge = "bg-blue-500/10 text-blue-400 border-blue-500/20";
+                        tipoTexto = "Congelar Interés Temporal";
+                        break;
+                      case "congelar_interes_permanente":
+                        tipoBadge = "bg-sky-500/10 text-sky-400 border-sky-500/20";
+                        tipoTexto = "Congelar Interés Permanente";
+                        break;
+                      case "eliminar_interes_cuota":
+                        tipoBadge = "bg-amber-500/10 text-amber-400 border-amber-500/20";
+                        tipoTexto = `Eliminar Interés Cuota ${ajuste.cuota_numero}`;
+                        break;
+                      case "reducir_mora":
+                        tipoBadge = "bg-indigo-500/10 text-indigo-400 border-indigo-500/20";
+                        tipoTexto = `Reducir Mora (${ajuste.monto_afectado}%)`;
+                        break;
+                      case "eliminar_mora":
+                        tipoBadge = "bg-rose-500/10 text-rose-400 border-rose-500/20";
+                        tipoTexto = "Eliminar Mora";
+                        break;
+                      case "periodo_gracia":
+                        tipoBadge = "bg-purple-500/10 text-purple-400 border-purple-500/20";
+                        tipoTexto = `Período de Gracia (${ajuste.periodo_gracia_dias} días)`;
+                        break;
+                      default:
+                        tipoBadge = "bg-slate-500/10 text-slate-400 border-slate-500/20";
+                        tipoTexto = ajuste.tipo;
+                    }
+
+                    return (
+                      <div
+                        key={ajuste.id}
+                        className={`p-4 rounded-2xl border transition-all ${
+                          ajuste.activo
+                            ? "bg-white/[0.02] border-white/5"
+                            : "bg-white/[0.01] border-white/[0.02] opacity-60"
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`text-[9px] px-2 py-0.5 rounded-md font-extrabold uppercase tracking-wide border ${tipoBadge}`}>
+                              {tipoTexto}
+                            </span>
+                            {!ajuste.activo && (
+                              <span className="text-[9px] bg-slate-800 text-gray-400 font-bold px-2 py-0.5 rounded-md uppercase border border-slate-700">
+                                Inactivo
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-gray-500 font-mono">
+                            {new Date(ajuste.fecha_registro).toLocaleString("es-PE")}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-4 bg-black/10 p-3 rounded-xl border border-white/5">
+                          <div>
+                            <span className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Registrado por</span>
+                            <p className="text-xs text-slate-300 font-semibold">{ajuste.usuario}</p>
+                          </div>
+                          <div>
+                            <span className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Vigencia</span>
+                            <p className="text-xs text-slate-300 font-semibold font-mono">
+                              {ajuste.fecha_fin 
+                                ? `Del ${ajuste.fecha_inicio} al ${ajuste.fecha_fin}` 
+                                : `Desde ${ajuste.fecha_inicio}`}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-3">
+                          <span className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Motivo justificado</span>
+                          <p className="text-xs text-slate-200 mt-0.5 italic">"{ajuste.motivo}"</p>
+                        </div>
+
+                        {ajuste.descripcion && (
+                          <div className="mt-2">
+                            <span className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Detalles adicionales</span>
+                            <p className="text-xs text-gray-300 mt-0.5">{ajuste.descripcion}</p>
+                          </div>
+                        )}
+
+                        {/* Toggle de activación del ajuste */}
+                        <div className="mt-4 pt-3 border-t border-white/5 flex justify-end">
+                          <button
+                            onClick={() => handleToggleAjuste(ajuste.id, ajuste.activo)}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition cursor-pointer border ${
+                              ajuste.activo
+                                ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/20"
+                                : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20"
+                            }`}
+                          >
+                            {ajuste.activo ? "❌ Desactivar Ajuste" : "✅ Activar Ajuste"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

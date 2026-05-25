@@ -72,81 +72,44 @@ async function getGoogleDriveAccessToken() {
 }
 
 async function makeVoucherPublic(fileId: string, accessToken: string) {
-  const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      type: "anyone",
-      role: "reader"
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`⚠️  Error al publicar archivo ${fileId} en Drive:`, errorText);
-    throw new Error(`No se pudo publicar el archivo de Drive: ${errorText}`);
-  }
+  // Obsoleto: Supabase Storage ya es público
 }
 
 async function uploadVoucherToDrive(fileName: string, mimeType: string, buffer: Buffer) {
-  const accessToken = await getGoogleDriveAccessToken();
-  const folderId = getDriveFolderId();
-  const uniqueName = `${Date.now()}-${fileName}`;
-  const boundary = `----prestafacilito-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const metadata: Record<string, unknown> = {
-    name: uniqueName
-  };
+  // Usamos Supabase Storage en lugar de Google Drive debido a las restricciones 
+  // recientes de Google sobre Service Accounts y cuotas de almacenamiento.
+  const uniqueName = `${Date.now()}-${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+  
+  const { error } = await supabase.storage
+    .from("vouchers")
+    .upload(uniqueName, buffer, {
+      contentType: mimeType,
+      upsert: false
+    });
 
-  if (folderId) {
-    metadata.parents = [folderId];
+  if (error) {
+    throw new Error(`No se pudo subir el archivo a Supabase Storage: ${error.message}`);
   }
 
-  const multipartPrefix = Buffer.from([
-    `--${boundary}`,
-    "Content-Type: application/json; charset=UTF-8",
-    "",
-    JSON.stringify(metadata),
-    `--${boundary}`,
-    `Content-Type: ${mimeType}`,
-    "",
-    ""
-  ].join("\r\n"), "utf8");
-
-  const multipartSuffix = Buffer.from(`\r\n--${boundary}--`, "utf8");
-  const multipartBody = Buffer.concat([multipartPrefix, buffer, multipartSuffix]);
-
-  const uploadResponse = await fetch(
-    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink,mimeType",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": `multipart/related; boundary=${boundary}`
-      },
-      body: multipartBody
-    }
-  );
-
-  if (!uploadResponse.ok) {
-    const errorText = await uploadResponse.text();
-    throw new Error(`No se pudo subir el archivo a Google Drive: ${errorText}`);
-  }
-
-  const uploadedFile = await uploadResponse.json();
-  await makeVoucherPublic(uploadedFile.id, accessToken);
+  const { data: publicUrlData } = supabase.storage
+    .from("vouchers")
+    .getPublicUrl(uniqueName);
 
   return {
-    fileId: uploadedFile.id as string,
-    fileName: uploadedFile.name as string,
-    webViewLink: uploadedFile.webViewLink as string | undefined,
-    webContentLink: uploadedFile.webContentLink as string | undefined,
-    publicUrl: `/api/vouchers/proxy/${uploadedFile.id}`,
-    directUrl: `https://drive.google.com/uc?export=view&id=${uploadedFile.id}`,
-    folderId: folderId || ""
+    fileId: uniqueName,
+    fileName: fileName,
+    webViewLink: publicUrlData.publicUrl,
+    webContentLink: publicUrlData.publicUrl,
+    publicUrl: publicUrlData.publicUrl,
+    directUrl: publicUrlData.publicUrl,
+    folderId: "supabase-storage"
   };
+}
+
+/** Verifica si Drive está correctamente configurado sin lanzar error */
+function isDriveConfigured(): boolean {
+  const creds = getGoogleDriveCredentials();
+  return creds !== null;
 }
 
 // Helper para auditoría de acciones (Logs) en Supabase
@@ -585,15 +548,17 @@ app.get("/api/prestamos/:id", requireAuth, async (req, res) => {
 
     if (pErr) throw pErr;
 
-    const [cRes, aRes] = await Promise.all([
+    const [cRes, aRes, ajRes] = await Promise.all([
       supabase.from("clientes").select("*").eq("id", prestamo.cliente_id).single(),
-      supabase.from("amortizaciones").select("*").eq("prestamo_id", prestamoId)
+      supabase.from("amortizaciones").select("*").eq("prestamo_id", prestamoId),
+      supabase.from("ajustes_prestamo").select("*").eq("prestamo_id", prestamoId)
     ]);
 
     const cliente = cRes.data;
     const pagosRealizados = aRes.data || [];
+    const ajustes = ajRes.data || [];
 
-    const debtState = buildPaymentSchedule(prestamo, pagosRealizados, new Date());
+    const debtState = buildPaymentSchedule(prestamo, pagosRealizados, ajustes, new Date());
     const capital = toNumber(prestamo.monto_capital);
     const tasaInteres = toNumber(prestamo.tasa_interes_porcentaje);
     const totalBaseExigible = capital * (1 + tasaInteres / 100);
@@ -618,6 +583,8 @@ app.get("/api/prestamos/:id", requireAuth, async (req, res) => {
         cliente_telefono: cliente ? cliente.telefono : ""
       },
       pagosRealizados,
+      ajustes,
+      planAyuda: debtState.planAyuda,
       deuda: debtState.resumen,
       cuotas: debtState.cuotas,
       cuota_siguiente: debtState.cuotaSiguiente,
@@ -689,16 +656,18 @@ app.post("/api/prestamos/:id/pagos", requireAuth, async (req, res) => {
 
     if (pErr) throw pErr;
 
-    // Obtener pagos previos
-    const { data: pagosPrevios, error: aErr } = await supabase
-      .from("amortizaciones")
-      .select("*")
-      .eq("prestamo_id", prestamoId);
+    // Obtener pagos previos y ajustes
+    const [aRes, ajRes] = await Promise.all([
+      supabase.from("amortizaciones").select("*").eq("prestamo_id", prestamoId),
+      supabase.from("ajustes_prestamo").select("*").eq("prestamo_id", prestamoId)
+    ]);
 
-    if (aErr) throw aErr;
+    if (aRes.error) throw aRes.error;
+    if (ajRes.error) throw ajRes.error;
 
-    const pagosAnteriores = pagosPrevios || [];
-    const deudaAntes = buildPaymentSchedule(prestamo, pagosAnteriores, new Date(fecha_pago || new Date()));
+    const pagosAnteriores = aRes.data || [];
+    const ajustes = ajRes.data || [];
+    const deudaAntes = buildPaymentSchedule(prestamo, pagosAnteriores, ajustes, new Date(fecha_pago || new Date()));
     const clasificacionAutomatica = classifyPayment(montoPago, deudaAntes);
     const excedenteAplicado = Math.max(0, montoPago - deudaAntes.resumen.totalExigible);
 
@@ -721,7 +690,7 @@ app.post("/api/prestamos/:id/pagos", requireAuth, async (req, res) => {
     if (insertErr) throw insertErr;
 
     const pagosActualizados = [...pagosAnteriores, insertedAmort];
-    const deudaDespues = buildPaymentSchedule(prestamo, pagosActualizados, new Date(fecha_pago || new Date()));
+    const deudaDespues = buildPaymentSchedule(prestamo, pagosActualizados, ajustes, new Date(fecha_pago || new Date()));
     let nuevoEstado = prestamo.estado;
 
     if (deudaDespues.resumen.saldoPendiente <= 0.01) {
@@ -768,19 +737,23 @@ app.post("/api/prestamos/autoseleccionar", requireAuth, async (req, res) => {
     }
 
     const montoPago = toNumber(monto);
-    const [prestamosRes, amortRes] = await Promise.all([
+    const [prestamosRes, amortRes, ajustesRes] = await Promise.all([
       supabase.from("prestamos").select("*").eq("cliente_id", cliente_id).eq("estado", "activo"),
-      supabase.from("amortizaciones").select("*")
+      supabase.from("amortizaciones").select("*"),
+      supabase.from("ajustes_prestamo").select("*")
     ]);
 
     if (prestamosRes.error) throw prestamosRes.error;
     if (amortRes.error) throw amortRes.error;
+    if (ajustesRes.error) throw ajustesRes.error;
 
     const prestamosActivos = prestamosRes.data || [];
     const amortizaciones = amortRes.data || [];
+    const todosAjustes = ajustesRes.data || [];
     const candidatos = prestamosActivos.map((prestamo) => {
       const pagosDelPrestamo = amortizaciones.filter((pago) => pago.prestamo_id === prestamo.id);
-      const debtState = buildPaymentSchedule(prestamo, pagosDelPrestamo, new Date(fecha_pago || new Date()));
+      const ajustesDelPrestamo = todosAjustes.filter((aj) => aj.prestamo_id === prestamo.id);
+      const debtState = buildPaymentSchedule(prestamo, pagosDelPrestamo, ajustesDelPrestamo, new Date(fecha_pago || new Date()));
       const cuotaSiguiente = debtState.cuotaSiguiente;
       const diferenciaCuota = cuotaSiguiente ? Math.abs(montoPago - cuotaSiguiente.montoExigible) : Math.abs(montoPago - debtState.resumen.totalExigible);
       const scoreBase = Math.max(0, 100 - Math.round(diferenciaCuota));
@@ -855,7 +828,17 @@ app.post("/api/amortizaciones/:id/voucher", requireAuth, async (req, res) => {
     const { fileName, mimeType, base64Data } = req.body;
 
     if (!fileName || !mimeType || !base64Data) {
-      res.status(400).json({ error: "Datos del comprobante incompletos" });
+      res.status(400).json({ error: "Datos del comprobante incompletos. Se requieren fileName, mimeType y base64Data." });
+      return;
+    }
+
+    // Verificar configuracion de Drive antes de proceder
+    if (!isDriveConfigured()) {
+      res.status(503).json({
+        error: "El almacenamiento de comprobantes (Google Drive) no esta configurado en este servidor.",
+        detail: "Configura GOOGLE_SERVICE_ACCOUNT_EMAIL y GOOGLE_PRIVATE_KEY en el archivo .env para habilitar la subida de vouchers.",
+        driveConfigured: false
+      });
       return;
     }
 
@@ -870,8 +853,27 @@ app.post("/api/amortizaciones/:id/voucher", requireAuth, async (req, res) => {
       return;
     }
 
-    const buffer = Buffer.from(base64Data, "base64");
-    const uploaded = await uploadVoucherToDrive(fileName, mimeType, buffer);
+    let buffer: Buffer;
+    try {
+      buffer = Buffer.from(base64Data, "base64");
+      if (buffer.length === 0) throw new Error("Buffer vacio");
+    } catch {
+      res.status(400).json({ error: "El contenido base64 del comprobante es invalido o esta vacio." });
+      return;
+    }
+
+    let uploaded;
+    try {
+      uploaded = await uploadVoucherToDrive(fileName, mimeType, buffer);
+    } catch (driveErr: any) {
+      console.error("Error al subir voucher a Google Drive:", driveErr.message);
+      res.status(502).json({
+        error: "No se pudo subir el comprobante a Google Drive. El pago ya fue registrado; puedes adjuntar el voucher nuevamente mas tarde.",
+        detail: driveErr.message,
+        driveConfigured: true
+      });
+      return;
+    }
 
     const { data: updated, error: updateErr } = await supabase
       .from("amortizaciones")
@@ -884,16 +886,21 @@ app.post("/api/amortizaciones/:id/voucher", requireAuth, async (req, res) => {
       .single();
 
     if (updateErr) {
-      // El archivo se subió a Drive pero no se guardó en BD — registrar para auditoría
-      console.error(`⚠️  Voucher subido a Drive (${uploaded.fileId}) pero no se guardó en BD para amortizacion ${amortizacionId}:`, updateErr);
-      throw updateErr;
+      console.error(`Voucher subido a Drive (${uploaded.fileId}) pero no se guardo en BD para amortizacion ${amortizacionId}:`, updateErr);
+      res.status(500).json({
+        error: "El comprobante se subio a Drive pero no se pudo guardar la referencia en la base de datos.",
+        detail: updateErr.message,
+        driveFileId: uploaded.fileId,
+        driveUrl: uploaded.publicUrl
+      });
+      return;
     }
 
     const username = (req as any).user.username;
     await logAction(
       username,
       "ACTUALIZAR_VOUCHER",
-      `Actualizo voucher de amortizacion ${amortizacionId} (prestamo ${amortizacion.prestamo_id}).`
+      `Adjunto voucher a amortizacion ${amortizacionId} (prestamo ${amortizacion.prestamo_id}).`
     );
 
     res.json({
@@ -908,8 +915,8 @@ app.post("/api/amortizaciones/:id/voucher", requireAuth, async (req, res) => {
       }
     });
   } catch (err: any) {
-    console.error("Error al adjuntar voucher en amortizacion:", err);
-    res.status(500).json({ error: "No se pudo adjuntar el voucher", detail: err.message });
+    console.error("Error inesperado al adjuntar voucher:", err);
+    res.status(500).json({ error: "Error interno al adjuntar el voucher", detail: err.message });
   }
 });
 
@@ -951,14 +958,41 @@ app.post("/api/upload-voucher", requireAuth, async (req, res) => {
   try {
     const { fileName, mimeType, base64Data } = req.body;
     if (!fileName || !mimeType || !base64Data) {
-      res.status(400).json({ error: "Datos del comprobante incompletos" });
+      res.status(400).json({ error: "Datos del comprobante incompletos. Se requieren fileName, mimeType y base64Data." });
       return;
     }
 
-    // Decodificar el archivo base64 a Buffer
-    const buffer = Buffer.from(base64Data, "base64");
+    // Verificar configuracion de Drive antes de proceder
+    if (!isDriveConfigured()) {
+      res.status(503).json({
+        error: "El almacenamiento de comprobantes (Google Drive) no esta configurado en este servidor.",
+        detail: "Configura GOOGLE_SERVICE_ACCOUNT_EMAIL y GOOGLE_PRIVATE_KEY en el archivo .env.",
+        driveConfigured: false
+      });
+      return;
+    }
 
-    const uploaded = await uploadVoucherToDrive(fileName, mimeType, buffer);
+    let buffer: Buffer;
+    try {
+      buffer = Buffer.from(base64Data, "base64");
+      if (buffer.length === 0) throw new Error("Buffer vacio");
+    } catch {
+      res.status(400).json({ error: "El contenido base64 del comprobante es invalido o esta vacio." });
+      return;
+    }
+
+    let uploaded;
+    try {
+      uploaded = await uploadVoucherToDrive(fileName, mimeType, buffer);
+    } catch (driveErr: any) {
+      console.error("Error al subir voucher a Google Drive:", driveErr.message);
+      res.status(502).json({
+        error: "No se pudo subir el comprobante a Google Drive. Puedes registrar el pago sin imagen y adjuntar el voucher despues.",
+        detail: driveErr.message,
+        driveConfigured: true
+      });
+      return;
+    }
 
     res.json({
       success: true,
@@ -970,9 +1004,22 @@ app.post("/api/upload-voucher", requireAuth, async (req, res) => {
       driveFolderId: uploaded.folderId
     });
   } catch (err: any) {
-    console.error("Error al subir archivo a Google Drive:", err);
-    res.status(500).json({ error: "No se pudo subir el comprobante de pago", detail: err.message });
+    console.error("Error inesperado al subir voucher:", err);
+    res.status(500).json({ error: "Error interno al subir el comprobante", detail: err.message });
   }
+});
+
+// Estado de configuracion de Google Drive
+app.get("/api/drive/status", requireAuth, (_req, res) => {
+  const configured = isDriveConfigured();
+  const folderId = getDriveFolderId();
+  res.json({
+    configured,
+    folderConfigured: !!folderId,
+    message: configured
+      ? "Google Drive esta configurado correctamente."
+      : "Faltan credenciales de Google Drive. Configura GOOGLE_SERVICE_ACCOUNT_EMAIL y GOOGLE_PRIVATE_KEY en .env."
+  });
 });
 
 // AI Gemini Weekly Executive Financial Report endpoint (Token Optimized, On-Demand)
@@ -1213,6 +1260,126 @@ app.post("/api/ai/mensaje-cobro", requireAuth, async (req, res) => {
   } catch (err: any) {
     console.error("Error en mensaje-cobro:", err);
     res.status(500).json({ error: "Error al generar mensaje de cobro", detail: err.message });
+  }
+});
+
+// ========================================================
+// ENDPOINTS PARA PLAN DE AYUDA AL CLIENTE (AJUSTES)
+// ========================================================
+
+app.get("/api/prestamos/:id/ajustes", requireAuth, async (req, res) => {
+  try {
+    const prestamoId = req.params.id;
+    const { data, error } = await supabase
+      .from("ajustes_prestamo")
+      .select("*")
+      .eq("prestamo_id", prestamoId)
+      .order("fecha_registro", { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err: any) {
+    console.error("Error al obtener ajustes:", err);
+    res.status(500).json({ error: "Error al obtener ajustes", detail: err.message });
+  }
+});
+
+app.post("/api/prestamos/:id/ajustes", requireAuth, async (req, res) => {
+  try {
+    const prestamoId = req.params.id;
+    const {
+      tipo,
+      monto_afectado,
+      monto_antes,
+      monto_despues,
+      cuota_numero,
+      fecha_inicio,
+      fecha_fin,
+      periodo_gracia_dias,
+      descripcion,
+      motivo
+    } = req.body;
+
+    const username = (req as any).user.username;
+
+    const { data: newAdj, error } = await supabase
+      .from("ajustes_prestamo")
+      .insert({
+        prestamo_id: prestamoId,
+        tipo,
+        monto_afectado: toNumber(monto_afectado),
+        monto_antes: toNumber(monto_antes),
+        monto_despues: toNumber(monto_despues),
+        cuota_numero: cuota_numero ? parseInt(cuota_numero) : null,
+        fecha_inicio: fecha_inicio || new Date().toISOString().split("T")[0],
+        fecha_fin: fecha_fin || null,
+        periodo_gracia_dias: periodo_gracia_dias ? parseInt(periodo_gracia_dias) : 0,
+        descripcion: descripcion || "",
+        usuario: username,
+        motivo: motivo || ""
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Obtener cliente y info del préstamo para logs
+    const { data: prestamo } = await supabase
+      .from("prestamos")
+      .select("cliente_id, monto_capital")
+      .eq("id", prestamoId)
+      .single();
+
+    let clienteNombre = prestamoId;
+    if (prestamo) {
+      const { data: cliente } = await supabase
+        .from("clientes")
+        .select("nombre_completo")
+        .eq("id", prestamo.cliente_id)
+        .single();
+      if (cliente) {
+        clienteNombre = cliente.nombre_completo;
+      }
+    }
+
+    await logAction(
+      username,
+      "CREAR_AJUSTE_PRESTAMO",
+      `Aplicó ajuste de tipo ${tipo} al préstamo de ${clienteNombre}. Motivo: ${motivo}`
+    );
+
+    res.status(201).json(newAdj);
+  } catch (err: any) {
+    console.error("Error al crear ajuste:", err);
+    res.status(500).json({ error: "Error al aplicar el ajuste", detail: err.message });
+  }
+});
+
+app.patch("/api/prestamos/:id/ajustes/:ajusteId", requireAuth, async (req, res) => {
+  try {
+    const { ajusteId } = req.params;
+    const { activo } = req.body;
+    const username = (req as any).user.username;
+
+    const { data: updatedAdj, error } = await supabase
+      .from("ajustes_prestamo")
+      .update({ activo })
+      .eq("id", ajusteId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await logAction(
+      username,
+      activo ? "ACTIVAR_AJUSTE_PRESTAMO" : "DESACTIVAR_AJUSTE_PRESTAMO",
+      `${activo ? "Activó" : "Desactivó"} el ajuste ${ajusteId} del préstamo ${updatedAdj.prestamo_id}.`
+    );
+
+    res.json(updatedAdj);
+  } catch (err: any) {
+    console.error("Error al actualizar ajuste:", err);
+    res.status(500).json({ error: "Error al modificar el estado del ajuste", detail: err.message });
   }
 });
 

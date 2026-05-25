@@ -3,11 +3,13 @@ import {
   TrendingUp, CreditCard, Users, PlusCircle, ArrowUpRight, Coins, Loader2, 
   Wallet, Landmark, Activity, X, ShieldAlert, CheckCircle, Terminal, 
   UploadCloud, FileImage, Clock3, CalendarDays, Gauge, Target, Phone, MessageSquare,
-  Edit3, Image, Download, Eye, ExternalLink, FileText, AlertCircle, Search
+  Edit3, Image, Download, Eye, ExternalLink, FileText, AlertCircle, Search,
+  Building2, Banknote
 } from "lucide-react";
 
 import { Cliente } from "../types";
 import { motion, AnimatePresence } from "motion/react";
+import { METODOS_PAGO, BANCO_GRUPOS, getBancoForMetodo } from "../lib/constants";
 
 const resolveVoucherUrl = (url: string) => {
   if (!url) return "";
@@ -410,8 +412,6 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
   };
 
   useEffect(() => {
-    if (!showVoucherModal) return;
-
     const onPaste = (event: ClipboardEvent) => {
       const items = Array.from(event.clipboardData?.items || []);
       const imageItem = items.find((item) => item.kind === "file" && item.type.startsWith("image/"));
@@ -425,7 +425,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
     window.addEventListener("paste", onPaste as unknown as EventListener);
     return () => window.removeEventListener("paste", onPaste as unknown as EventListener);
-  }, [showVoucherModal]);
+  }, []);
 
   const resetVoucherModal = () => {
     setShowVoucherModal(false);
@@ -929,13 +929,14 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                   <span className="text-[11px] font-black text-slate-200 block truncate leading-tight">{voucher.cliente_nombre}</span>
                   <div className="flex items-center justify-between gap-1.5 mt-1.5">
                     <span className="text-[11px] font-bold text-emerald-450 font-mono">{formatCurrency(parseFloat(voucher.monto))}</span>
-                    <span className={`text-[8.5px] font-extrabold px-1.5 py-0.5 rounded uppercase ${
-                      voucher.metodo_pago.includes("Yape") ? "bg-pink-500/10 text-pink-400 border border-pink-500/10" :
-                      voucher.metodo_pago.includes("Plin") ? "bg-teal-500/10 text-teal-400 border border-teal-500/10" :
-                      "bg-blue-500/10 text-blue-400 border border-indigo-500/10"
-                    }`}>
-                      {voucher.metodo_pago.split(" ")[0]}
-                    </span>
+                    {(() => {
+                      const banco = getBancoForMetodo(voucher.metodo_pago);
+                      return (
+                        <span className={`text-[8.5px] font-extrabold px-1.5 py-0.5 rounded uppercase ${banco ? banco.badgeClass : "bg-slate-700 text-slate-300 border border-slate-600"}`}>
+                          {voucher.metodo_pago.split(" ")[0]}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -944,7 +945,123 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
         )}
       </div>
 
-      {/* 6. CARTERA DE PRÉSTAMOS CON EDICIÓN Y BORRADO DE DEUDAS (Nivel 6) */}
+      {/* 6. DASHBOARD FINANCIERO POR ENTIDAD BANCARIA */}
+      {(() => {
+        // Calcular distribucion de ingresos por banco desde las amortizaciones
+        const totalIngresos = amortizaciones.reduce((sum, a) => sum + (parseFloat(a.monto) || 0), 0);
+        const bancoDist = BANCO_GRUPOS.map((banco) => {
+          const pagosBanco = amortizaciones.filter(a => banco.metodos.includes(a.metodo_pago));
+          const totalBanco = pagosBanco.reduce((sum, a) => sum + (parseFloat(a.monto) || 0), 0);
+          const pct = totalIngresos > 0 ? (totalBanco / totalIngresos) * 100 : 0;
+          const ultimoPago = pagosBanco.sort((a, b) => new Date(b.fecha_pago).getTime() - new Date(a.fecha_pago).getTime())[0];
+          return { ...banco, total: totalBanco, pct, ultimoPago, count: pagosBanco.length };
+        }).filter(b => b.total > 0 || amortizaciones.length === 0);
+
+        if (amortizaciones.length === 0) return null;
+        const anyHasData = bancoDist.some(b => b.total > 0);
+        if (!anyHasData) return null;
+
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base sm:text-lg font-black text-white tracking-tight leading-none">Distribucion por Entidad Bancaria</h2>
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mt-1.5">Saldo esperado por cuenta segun pagos registrados</p>
+              </div>
+              <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500">
+                <Building2 size={14} className="text-slate-500" />
+                <span>{bancoDist.filter(b => b.total > 0).length} entidades activas</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+              {bancoDist.filter(b => b.total > 0).map((banco) => (
+                <div
+                  key={banco.nombre}
+                  className={`bg-white/[0.02] backdrop-blur-xl border ${banco.borderClass} rounded-3xl p-5 relative overflow-hidden group hover:bg-white/[0.03] transition-all duration-300`}
+                >
+                  {/* Barra lateral de color del banco */}
+                  <div className={`absolute top-0 left-0 w-1 h-full ${banco.colorClass} opacity-80`} />
+
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center border ${banco.borderClass}`} style={{ background: 'rgba(255,255,255,0.03)' }}>
+                      <Landmark size={14} className={banco.textClass} />
+                    </div>
+                    <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${banco.badgeClass}`}>
+                      {banco.count} pago{banco.count !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  <div className="mb-3">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-0.5">{banco.nombre}</span>
+                    <span className={`text-xl font-black font-mono tracking-tight ${banco.textClass}`}>
+                      {formatCurrency(banco.total)}
+                    </span>
+                  </div>
+
+                  {/* Barra de proporcion */}
+                  <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${banco.colorClass} rounded-full transition-all duration-700`}
+                      style={{ width: `${Math.min(100, banco.pct)}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between mt-1.5">
+                    <span className={`text-[9px] font-extrabold ${banco.textClass}`}>{banco.pct.toFixed(1)}%</span>
+                    {banco.ultimoPago && (
+                      <span className="text-[8px] text-gray-600 font-bold">
+                        Ultimo: {new Date(`${banco.ultimoPago.fecha_pago}T00:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Metodos incluidos */}
+                  <div className="mt-2.5 flex flex-wrap gap-1">
+                    {banco.metodos.map(m => (
+                      <span key={m} className="text-[7px] font-bold text-gray-600 bg-white/[0.03] border border-white/5 px-1.5 py-0.5 rounded-md uppercase tracking-wide">
+                        {m}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Resumen total como barra bicolor proporcional */}
+            {totalIngresos > 0 && (
+              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <Banknote size={12} className="text-emerald-400" />
+                    Distribucion total de ingresos
+                  </span>
+                  <span className="text-[11px] font-black text-white font-mono">{formatCurrency(totalIngresos)}</span>
+                </div>
+                <div className="w-full h-3 bg-black/60 rounded-full overflow-hidden flex gap-0.5 p-0.5">
+                  {bancoDist.filter(b => b.total > 0).map((banco) => (
+                    <div
+                      key={banco.nombre}
+                      title={`${banco.nombre}: ${formatCurrency(banco.total)} (${banco.pct.toFixed(1)}%)`}
+                      className={`h-full ${banco.colorClass} rounded-full transition-all duration-700 cursor-default`}
+                      style={{ width: `${banco.pct}%`, minWidth: banco.pct > 0 ? '4px' : '0' }}
+                    />
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-3 mt-2">
+                  {bancoDist.filter(b => b.total > 0).map((banco) => (
+                    <span key={banco.nombre} className={`flex items-center gap-1.5 text-[9px] font-bold ${banco.textClass}`}>
+                      <span className={`w-2.5 h-2.5 rounded-full ${banco.colorClass}`} />
+                      {banco.nombre}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* 7. CARTERA DE PRÉSTAMOS CON EDICIÓN Y BORRADO DE DEUDAS (Nivel 6) */}
       <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-xl flex flex-col">
         <div className="p-6 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -2050,12 +2167,9 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                       className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
                       required
                     >
-                      <option value="Yape" className="bg-[#0f172a]">Yape</option>
-                      <option value="Plin" className="bg-[#0f172a]">Plin</option>
-                      <option value="Transferencia BCP" className="bg-[#0f172a]">Transferencia BCP</option>
-                      <option value="Transferencia BBVA" className="bg-[#0f172a]">Transferencia BBVA</option>
-                      <option value="Transferencia Interbank" className="bg-[#0f172a]">Transferencia Interbank</option>
-                      <option value="Efectivo" className="bg-[#0f172a]">Efectivo</option>
+                      {METODOS_PAGO.map((m) => (
+                        <option key={m} value={m} className="bg-[#0f172a]">{m}</option>
+                      ))}
                     </select>
                   </div>
 
