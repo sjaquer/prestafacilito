@@ -153,7 +153,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
           {/* Pie de Página del Login */}
           <div id="login-footer" className="text-center mt-8 pt-6 border-t border-white/5">
             <p className="text-[11px] text-gray-500 font-medium uppercase tracking-wider">
-              Acceso Restringido a Personal Autorizado 🇵🇪
+              Acceso Restringido a Personal Autorizado
             </p>
           </div>
         </div>

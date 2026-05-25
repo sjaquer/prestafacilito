@@ -547,6 +547,124 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
           </div>
         </div>
 
+        {/* Control de Alquiler Mensual en caso sea tipo Alquiler de Casa */}
+        {prestamo.tipo_prestamo === "Alquiler de Casa" && (() => {
+          const getMonthsCount = (start: string, end: string) => {
+            if (!start || !end) return 6;
+            const d1 = new Date(start + "T00:00:00");
+            const d2 = new Date(end + "T00:00:00");
+            let months = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
+            return Math.max(1, Math.round(months));
+          };
+
+          const totalMonths = getMonthsCount(prestamo.fecha_emision, prestamo.fecha_vencimiento);
+          const rentPerMonth = prestamo.monto_capital / totalMonths;
+          const totalPaid = prestamo.total_pagado || 0;
+          
+          const monthsList = [];
+          const startDate = new Date(prestamo.fecha_emision + "T12:00:00");
+          for (let i = 0; i < totalMonths; i++) {
+            const currentMonthDate = new Date(startDate);
+            currentMonthDate.setMonth(startDate.getMonth() + i);
+            const monthName = currentMonthDate.toLocaleString("es-ES", { month: "long", year: "numeric" });
+            
+            const monthIndex = i + 1;
+            const thresholdPaid = rentPerMonth * monthIndex;
+            const previousThreshold = rentPerMonth * i;
+            
+            let status: "paid" | "amortized" | "pending" = "pending";
+            let amountPaidThisMonth = 0;
+            let pendingThisMonth = rentPerMonth;
+            
+            if (totalPaid >= thresholdPaid) {
+              status = "paid";
+              amountPaidThisMonth = rentPerMonth;
+              pendingThisMonth = 0;
+            } else if (totalPaid > previousThreshold) {
+              status = "amortized";
+              amountPaidThisMonth = totalPaid - previousThreshold;
+              pendingThisMonth = rentPerMonth - amountPaidThisMonth;
+            }
+            
+            monthsList.push({
+              index: monthIndex,
+              name: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+              amount: rentPerMonth,
+              status,
+              paid: amountPaidThisMonth,
+              pending: pendingThisMonth,
+            });
+          }
+
+          return (
+            <div className="bento-card p-6 rounded-3xl space-y-4 lg:col-span-2 select-none">
+              <div className="flex items-center gap-2 pb-3 border-b border-white/5">
+                <div className="w-8 h-8 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center text-blue-400">
+                  <Calendar size={16} />
+                </div>
+                <h2 className="font-extrabold text-white text-base tracking-tight">
+                  Control de Alquiler Mensual (Contrato)
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+                {monthsList.map(m => {
+                  let statusBadge = null;
+                  if (m.status === "paid") {
+                    statusBadge = (
+                      <span className="text-[10px] px-2.5 py-0.5 rounded-full font-black bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 size={10} /> PAGADO
+                      </span>
+                    );
+                  } else if (m.status === "amortized") {
+                    statusBadge = (
+                      <span className="text-[10px] px-2.5 py-0.5 rounded-full font-black bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center gap-1">
+                        <AlertCircle size={10} /> AMORTIZADO
+                      </span>
+                    );
+                  } else {
+                    statusBadge = (
+                      <span className="text-[10px] px-2.5 py-0.5 rounded-full font-black bg-slate-800 border border-slate-700 text-gray-400 flex items-center gap-1">
+                        <Clock size={10} /> PENDIENTE
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <div 
+                      key={m.index} 
+                      className={`p-3 rounded-2xl border transition ${
+                        m.status === "paid" 
+                          ? "bg-emerald-500/[0.02] border-emerald-500/10" 
+                          : m.status === "amortized"
+                          ? "bg-amber-500/[0.02] border-amber-500/10"
+                          : "bg-white/[0.02] border-white/5"
+                      }`}
+                    >
+                      <div className="flex justify-between items-center gap-2">
+                        <div>
+                          <span className="text-[9px] text-gray-500 uppercase tracking-widest block font-bold">Mes {m.index}</span>
+                          <span className="font-extrabold text-white text-xs">{m.name}</span>
+                        </div>
+                        {statusBadge}
+                      </div>
+
+                      <div className="mt-2.5 pt-2 border-t border-white/5 text-[10px] flex justify-between text-slate-400 font-semibold">
+                        <span>Mensualidad: <strong className="text-slate-200 font-mono">{formatCurrency(m.amount)}</strong></span>
+                        {m.status === "amortized" && (
+                          <span className="text-amber-400 font-mono font-bold">
+                            Abonado: {formatCurrency(m.paid)} / Falta: {formatCurrency(m.pending)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Formulario Registrar Pago - Columna 1/3 */}
         <div id="payment-form-card" className="bento-card p-6 rounded-3xl h-fit">
           <div className="flex items-center gap-2 mb-4">

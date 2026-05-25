@@ -554,10 +554,10 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                         <div className={`w-full mt-4 p-3 rounded-2xl border ${risk.bg} text-center`}>
                           <p className="text-[10.5px] font-semibold text-slate-350 leading-relaxed">
                             {tasaMorosidad > 15 
-                              ? "⚠️ Alta incidencia de mora. Prioriza congelar colocaciones nuevas y activar visitas domiciliarias."
+                              ? "Alta incidencia de mora. Prioriza congelar colocaciones nuevas y activar visitas domiciliarias."
                               : tasaMorosidad > 5
-                              ? "⚡ Riesgo intermedio. Monitorea los plazos de la semana de inmediato."
-                              : "✅ Cartera saludable y sólida. Bajos niveles de morosidad permiten recolocación fluida."
+                              ? "Riesgo intermedio. Monitorea los plazos de la semana de inmediato."
+                              : "Cartera saludable y sólida. Bajos niveles de morosidad permiten recolocación fluida."
                             }
                           </p>
                         </div>

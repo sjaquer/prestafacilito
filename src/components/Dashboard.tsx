@@ -3,7 +3,7 @@ import {
   TrendingUp, CreditCard, Users, PlusCircle, ArrowUpRight, Coins, Loader2, 
   Wallet, Landmark, Activity, X, ShieldAlert, CheckCircle, Terminal, 
   UploadCloud, FileImage, Clock3, CalendarDays, Gauge, Target, Phone, MessageSquare,
-  Trash2, Edit3, Image, Download, Eye, ExternalLink
+  Trash2, Edit3, Image, Download, Eye, ExternalLink, FileText, AlertCircle, Search
 } from "lucide-react";
 import Tesseract from "tesseract.js";
 import { Cliente } from "../types";
@@ -77,11 +77,67 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
   const [showModal, setShowModal] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState("");
   const [monto, setMonto] = useState("");
-  const [tasa, setTasa] = useState("0"); // Default 0%
+  const [tasa, setTasa] = useState("10"); // Default 10%
   const [tipo, setTipo] = useState("Personal");
   const [fechaEmision, setFechaEmision] = useState(new Date().toISOString().split("T")[0]);
   const [fechaVencimiento, setFechaVencimiento] = useState("");
   const [creating, setCreating] = useState(false);
+
+  // Nuevos estados para el modo Alquiler de Casa y Otros
+  const [montoMensual, setMontoMensual] = useState("");
+  const [duracionMeses, setDuracionMeses] = useState("6");
+  const [customTipo, setCustomTipo] = useState("");
+
+  const getClientRiskAssessment = (cliente: Cliente) => {
+    const activeLoans = cliente.prestamos_activos || 0;
+    const totalLoans = cliente.total_prestamos || 0;
+    const exigible = Number(cliente.total_exigible) || 0;
+    const amortizado = Number(cliente.total_amortizado) || 0;
+    const outstanding = Math.max(0, exigible - amortizado);
+    
+    let level: "Excelente" | "Bajo" | "Medio" | "Alto" = "Bajo";
+    let score = 100;
+    let rationale = "";
+    let recommendations: string[] = [];
+
+    if (activeLoans > 1 || outstanding > 1500) {
+      level = "Alto";
+      score = activeLoans > 2 ? 25 : 45;
+      rationale = `El prestatario tiene un nivel de endeudamiento elevado con ${activeLoans} deudas activas y un saldo pendiente de S/. ${outstanding.toLocaleString('es-PE', { minimumFractionDigits: 2 })}.`;
+      recommendations = [
+        "Rechazar preventivamente nuevos préstamos hasta liquidar deudas vigentes.",
+        "Priorizar visitas y llamadas en el canal de cobros.",
+        "Solicitar un codeudor solidario o aval para futuras deudas."
+      ];
+    } else if (activeLoans === 1 || outstanding > 0) {
+      level = "Medio";
+      score = 70;
+      rationale = `El cliente cuenta con una deuda vigente y un saldo pendiente de S/. ${outstanding.toLocaleString('es-PE', { minimumFractionDigits: 2 })}. Comportamiento regular.`;
+      recommendations = [
+        "Limitar nuevas deudas o ampliaciones de capital por el momento.",
+        "Monitorear la puntualidad de sus cuotas actuales.",
+        "Enviar recordatorios amistosos 2 días antes de la fecha de cobro."
+      ];
+    } else if (totalLoans > 0) {
+      level = "Excelente";
+      score = 98;
+      rationale = `¡Excelente historial! Cuenta con ${totalLoans} deuda(s) totalmente cancelada(s) y sin atrasos.`;
+      recommendations = [
+        "Aprobar ampliaciones de crédito de forma rápida y preferente.",
+        "Ofrecer incentivos de fidelidad o flexibilizar plazos."
+      ];
+    } else {
+      level = "Bajo";
+      score = 90;
+      rationale = `Cliente nuevo sin historial de deudas registrado en la plataforma.`;
+      recommendations = [
+        "Comenzar con montos prudentes (menores a S/. 500) para medir puntualidad.",
+        "Evaluar estabilidad residencial y referencias personales básicas."
+      ];
+    }
+
+    return { level, score, rationale, recommendations };
+  };
 
   // Estados de Búsqueda Rápida Autocomplete y Filtros de Dashboard (UI/UX)
   const [clientSearch, setClientSearch] = useState("");
@@ -207,14 +263,40 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     }
   }, [vcrSelectedClienteId, clientes]);
 
-  // Auto-calcular fecha de vencimiento a 30 días si cambia la de emisión
+  // Auto-calcular fecha de vencimiento y tasa de interés al cambiar parámetros
   useEffect(() => {
-    if (fechaEmision) {
-      const d = new Date(fechaEmision + "T12:00:00");
-      d.setDate(d.getDate() + 30);
-      setFechaVencimiento(d.toISOString().split("T")[0]);
+    if (tipo === "Alquiler de Casa") {
+      setTasa("0");
+      if (fechaEmision) {
+        const d = new Date(fechaEmision + "T12:00:00");
+        d.setMonth(d.getMonth() + parseInt(duracionMeses || "6"));
+        setFechaVencimiento(d.toISOString().split("T")[0]);
+      }
+    } else {
+      if (fechaEmision) {
+        const d = new Date(fechaEmision + "T12:00:00");
+        d.setDate(d.getDate() + 30);
+        setFechaVencimiento(d.toISOString().split("T")[0]);
+      }
     }
-  }, [fechaEmision]);
+  }, [fechaEmision, tipo, duracionMeses]);
+
+  // Si cambia el tipo a Personal o Negocio, establecer tasa por defecto a 10%
+  useEffect(() => {
+    if (tipo === "Personal" || tipo === "Negocio") {
+      setTasa("10");
+    } else if (tipo === "Alquiler de Casa") {
+      setTasa("0");
+    }
+  }, [tipo]);
+
+  // Auto-calcular el capital total en modo Alquiler de Casa
+  useEffect(() => {
+    if (tipo === "Alquiler de Casa") {
+      const calcCapital = (parseFloat(montoMensual) || 0) * parseInt(duracionMeses || "6");
+      setMonto(calcCapital > 0 ? calcCapital.toString() : "");
+    }
+  }, [montoMensual, duracionMeses, tipo]);
 
   const handleCreateLoan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -222,6 +304,9 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
       alert("Por favor completa los campos obligatorios.");
       return;
     }
+
+    // Determinar etiqueta de tipo: si se seleccionó Otros, usar la razón personalizada
+    const finalTipo = tipo === "Otros" ? (customTipo.trim() || "Otros") : tipo;
 
     setCreating(true);
     try {
@@ -234,7 +319,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
           tasa_interes_porcentaje: parseFloat(tasa),
           fecha_emision: fechaEmision,
           fecha_vencimiento: fechaVencimiento,
-          tipo_prestamo: tipo
+          tipo_prestamo: finalTipo
         })
       });
 
@@ -244,8 +329,11 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
         setClientSearch("");
         setShowClientDropdown(false);
         setMonto("");
-        setTasa("0");
+        setTasa("10"); // Default 10%
         setTipo("Personal");
+        setMontoMensual("");
+        setDuracionMeses("6");
+        setCustomTipo("");
         setFechaEmision(new Date().toISOString().split("T")[0]);
         setFechaVencimiento("");
         fetchDashboardData();
@@ -943,12 +1031,13 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
           </div>
           
           <div className="relative w-full sm:w-64">
+            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="🔍 Buscar por prestatario o tipo..."
+              placeholder="Buscar por prestatario o tipo..."
               value={loanSearchQuery}
               onChange={(e) => setLoanSearchQuery(e.target.value)}
-              className="w-full pl-3.5 pr-8 py-2.5 glass-input rounded-xl text-xs font-semibold"
+              className="w-full pl-9 pr-8 py-2.5 glass-input rounded-xl text-xs font-semibold"
             />
             {loanSearchQuery && (
               <button
@@ -1255,10 +1344,13 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="bg-[#0f172a] rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-white/5 font-sans"
+              className="bg-[#0f172a] rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden border border-white/5 font-sans"
             >
               <div className="p-5 border-b border-white/5 flex justify-between items-center bg-[#070a13]/40">
-                <h3 className="font-black text-white text-base">Registrar Nuevo Préstamo</h3>
+                <div className="flex items-center gap-2 text-indigo-400">
+                  <Coins size={20} />
+                  <h3 className="font-black text-white text-base">Registrar Nueva Deuda / Préstamo</h3>
+                </div>
                 <button
                   onClick={() => setShowModal(false)}
                   className="text-slate-455 hover:text-slate-200 p-1.5 rounded-xl hover:bg-white/5 transition cursor-pointer"
@@ -1267,11 +1359,14 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                 </button>
               </div>
 
-              <form onSubmit={handleCreateLoan} className="p-6 space-y-4">
+              <form onSubmit={handleCreateLoan} className="p-6 space-y-5">
                 {clientes.length === 0 ? (
                   <div className="p-4 bg-amber-500/10 text-amber-300 rounded-2xl text-xs space-y-2 border border-amber-500/20">
-                    <p className="font-bold">No hay clientes registrados</p>
-                    <p>Antes de poder otorgar un préstamo, debes registrar al menos un cliente en el directorio.</p>
+                    <p className="font-bold flex items-center gap-1.5">
+                      <AlertCircle size={14} />
+                      No hay clientes registrados
+                    </p>
+                    <p>Antes de poder otorgar un préstamo o registrar un contrato, debes registrar al menos un cliente en el directorio.</p>
                     <button
                       type="button"
                       onClick={() => {
@@ -1285,19 +1380,21 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                   </div>
                 ) : (
                   <>
+                    {/* Campo: Prestatario */}
                     <div className="space-y-1.5 relative">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Prestatario *</label>
                       <div className="relative">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                           type="text"
-                          placeholder="🔍 Escribe para buscar cliente..."
+                          placeholder="Escribe para buscar cliente..."
                           value={clientSearch}
                           onChange={(e) => {
                             setClientSearch(e.target.value);
                             setShowClientDropdown(true);
                           }}
                           onFocus={() => setShowClientDropdown(true)}
-                          className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none pr-10 font-semibold"
+                          className="w-full glass-input rounded-xl p-2.5 pl-9 text-xs text-slate-200 outline-none pr-10 font-semibold"
                           required={!selectedCliente}
                         />
                         {selectedCliente && (
@@ -1337,11 +1434,17 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                                     setClientSearch(c.nombre_completo);
                                     setShowClientDropdown(false);
                                   }}
-                                  className={`w-full text-left p-2.5 px-3.5 hover:bg-blue-500/10 text-xs transition flex items-center justify-between cursor-pointer ${
+                                  className={`w-full text-left p-2.5 px-3.5 hover:bg-blue-500/10 text-xs transition flex flex-col items-start gap-1 cursor-pointer ${
                                     selectedCliente === c.id ? "bg-indigo-500/20 text-indigo-300 font-extrabold" : "text-slate-200 font-semibold"
                                   }`}
                                 >
-                                  <span>{c.nombre_completo}</span>
+                                  <span className="font-bold text-white">{c.nombre_completo}</span>
+                                  {c.observaciones && (
+                                    <span className="text-[10px] text-slate-400 italic truncate w-full flex items-center gap-1">
+                                      <FileText size={10} className="shrink-0" />
+                                      {c.observaciones}
+                                    </span>
+                                  )}
                                 </button>
                               ))
                             )}
@@ -1350,87 +1453,304 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Capital (S/.) *</label>
-                        <input
-                          type="number"
-                          min="1"
-                          step="any"
-                          placeholder="Ej. 1500"
-                          value={monto}
-                          onChange={(e) => setMonto(e.target.value)}
-                          className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold font-mono"
-                          required
-                        />
-                      </div>
+                    {/* Ficha de Información Rápida del Cliente Seleccionado */}
+                    {selectedCliente && (() => {
+                      const selClient = clientes.find(c => c.id === selectedCliente);
+                      if (!selClient) return null;
                       
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tasa (%) *</label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="any"
-                          placeholder="Ej: 10"
-                          value={tasa}
-                          onChange={(e) => setTasa(e.target.value)}
-                          className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold font-mono"
-                          required
-                        />
-                      </div>
-                    </div>
+                      const assessment = getClientRiskAssessment(selClient);
+                      const activeLoansCount = selClient.prestamos_activos || 0;
+                      const exigible = Number(selClient.total_exigible) || 0;
+                      const amortizado = Number(selClient.total_amortizado) || 0;
+                      const balanceOutstanding = Math.max(0, exigible - amortizado);
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tipo Deuda</label>
-                        <select
-                          value={tipo}
-                          onChange={(e) => setTipo(e.target.value)}
-                          className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
-                        >
-                          <option value="Personal" className="bg-[#0f172a]">Personal</option>
-                          <option value="Negocio" className="bg-[#0f172a]">Negocio</option>
-                          <option value="Alquiler de Casa" className="bg-[#0f172a]">Alquiler de Casa</option>
-                          <option value="Servicios" className="bg-[#0f172a]">Servicios</option>
-                          <option value="Otros" className="bg-[#0f172a]">Otros</option>
-                        </select>
-                      </div>
-                      
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">F. Emisión</label>
-                        <input
-                          type="date"
-                          value={fechaEmision}
-                          onChange={(e) => setFechaEmision(e.target.value)}
-                          className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
-                        />
-                      </div>
-                    </div>
+                      let riskColorClass = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+                      if (assessment.level === "Bajo") riskColorClass = "text-blue-400 bg-blue-500/10 border-blue-500/20";
+                      if (assessment.level === "Medio") riskColorClass = "text-amber-400 bg-amber-500/10 border-amber-500/20";
+                      if (assessment.level === "Alto") riskColorClass = "text-rose-400 bg-rose-500/10 border-rose-500/20";
 
+                      return (
+                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl space-y-3 shadow-inner backdrop-blur-md animate-fadeIn">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <span className="text-[9.5px] font-black text-indigo-300 uppercase tracking-widest block mb-0.5">Ficha del Prestatario</span>
+                              <h4 className="font-extrabold text-white text-sm">{selClient.nombre_completo}</h4>
+                              {selClient.telefono && (
+                                <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-0.5">
+                                  <Phone size={10} />
+                                  <span>{selClient.telefono.startsWith("'") ? selClient.telefono.substring(1) : selClient.telefono}</span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black border uppercase tracking-wider ${riskColorClass}`}>
+                              Riesgo {assessment.level}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 pt-2 text-[11px]">
+                            <div className="bg-black/20 p-2 rounded-xl border border-white/5">
+                              <span className="text-gray-400 block text-[9px] uppercase tracking-wider">Deudas Activas</span>
+                              <span className="font-extrabold text-white font-mono text-xs">{activeLoansCount}</span>
+                            </div>
+                            <div className="bg-black/20 p-2 rounded-xl border border-white/5">
+                              <span className="text-gray-400 block text-[9px] uppercase tracking-wider">Saldo Pendiente</span>
+                              <span className="font-extrabold text-indigo-300 font-mono text-xs">
+                                {formatCurrency(balanceOutstanding)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {selClient.observaciones && (
+                            <div className="bg-black/10 p-2.5 rounded-xl border border-white/5 text-[10px] text-slate-350 leading-relaxed font-medium">
+                              <div className="flex items-center gap-1.5 text-indigo-300 font-bold mb-1">
+                                <FileText size={10} />
+                                <span className="uppercase tracking-wider text-[8.5px]">Notas/Observaciones:</span>
+                              </div>
+                              {selClient.observaciones}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Selector de Tipo de Deuda */}
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Fecha Vencimiento</label>
-                      <input
-                        type="date"
-                        value={fechaVencimiento}
-                        onChange={(e) => setFechaVencimiento(e.target.value)}
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tipo de Deuda / Préstamo</label>
+                      <select
+                        value={tipo}
+                        onChange={(e) => setTipo(e.target.value)}
                         className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
-                      />
+                      >
+                        <option value="Personal" className="bg-[#0f172a]">Personal</option>
+                        <option value="Negocio" className="bg-[#0f172a]">Negocio</option>
+                        <option value="Alquiler de Casa" className="bg-[#0f172a]">Alquiler de Casa (Contrato Mensual)</option>
+                        <option value="Servicios" className="bg-[#0f172a]">Servicios</option>
+                        <option value="Otros" className="bg-[#0f172a]">Otros (Especificar Razón)</option>
+                      </select>
                     </div>
 
-                    {parseFloat(monto) > 0 && (
+                    {/* Inputs Condicionales: Modo Alquiler de Casa */}
+                    {tipo === "Alquiler de Casa" && (
+                      <div className="space-y-4 p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl animate-fadeIn">
+                        <span className="text-[9.5px] font-black text-blue-400 uppercase tracking-widest block">Configuración de Contrato de Alquiler</span>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Monto Mensual (S/.) *</label>
+                            <input
+                              type="number"
+                              min="1"
+                              step="any"
+                              placeholder="Ej. 1200"
+                              value={montoMensual}
+                              onChange={(e) => setMontoMensual(e.target.value)}
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold font-mono"
+                              required
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Duración (Meses) *</label>
+                            <select
+                              value={duracionMeses}
+                              onChange={(e) => setDuracionMeses(e.target.value)}
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
+                            >
+                              {[1,2,3,4,5,6,7,8,9,10,11,12,18,24].map(m => (
+                                <option key={m} value={m} className="bg-[#0f172a]">{m} {m === 1 ? 'Mes' : 'Meses'}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Fecha de Inicio *</label>
+                            <input
+                              type="date"
+                              value={fechaEmision}
+                              onChange={(e) => setFechaEmision(e.target.value)}
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-slate-200 font-semibold"
+                              required
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Vencimiento (Auto)</label>
+                            <input
+                              type="date"
+                              value={fechaVencimiento}
+                              disabled
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-400 outline-none font-semibold opacity-60 font-mono"
+                            />
+                          </div>
+                        </div>
+
+                        {parseFloat(montoMensual) > 0 && (
+                          <div className="bg-black/20 p-3 rounded-xl border border-white/5 text-[11px] text-slate-350 space-y-1.5 font-semibold leading-relaxed">
+                            <div className="flex justify-between">
+                              <span>Período de contrato:</span>
+                              <span className="text-white">{fechaEmision} al {fechaVencimiento}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Mensualidad:</span>
+                              <span className="text-white font-mono">{formatCurrency(parseFloat(montoMensual))}</span>
+                            </div>
+                            <div className="flex justify-between border-t border-white/5 pt-1.5 mt-1 font-black text-sm text-white">
+                              <span className="text-blue-400">Capital Total (Deuda):</span>
+                              <span className="font-mono">{formatCurrency(parseFloat(montoMensual) * parseInt(duracionMeses))}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Inputs Condicionales: Modo Otros (Especificar Razón) */}
+                    {tipo === "Otros" && (
+                      <div className="space-y-4 p-4 bg-violet-500/5 border border-violet-500/10 rounded-2xl animate-fadeIn">
+                        <span className="text-[9.5px] font-black text-violet-400 uppercase tracking-widest block">Especificación de Nueva Deuda</span>
+                        
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Especificar Razón / Tipo *</label>
+                          <input
+                            type="text"
+                            placeholder="Ej. Emergencia Médica, Compra de Mercadería"
+                            value={customTipo}
+                            onChange={(e) => setCustomTipo(e.target.value)}
+                            className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
+                            required
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Capital (S/.) *</label>
+                            <input
+                              type="number"
+                              min="1"
+                              step="any"
+                              placeholder="Ej. 1500"
+                              value={monto}
+                              onChange={(e) => setMonto(e.target.value)}
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold font-mono"
+                              required
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tasa Interés (%) *</label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              placeholder="Ej. 10"
+                              value={tasa}
+                              onChange={(e) => setTasa(e.target.value)}
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold font-mono"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">F. Emisión</label>
+                            <input
+                              type="date"
+                              value={fechaEmision}
+                              onChange={(e) => setFechaEmision(e.target.value)}
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Fecha Vencimiento</label>
+                            <input
+                              type="date"
+                              value={fechaVencimiento}
+                              onChange={(e) => setFechaVencimiento(e.target.value)}
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Inputs Condicionales: Modos Estándar (Personal, Negocio, Servicios, etc.) */}
+                    {tipo !== "Alquiler de Casa" && tipo !== "Otros" && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Capital (S/.) *</label>
+                            <input
+                              type="number"
+                              min="1"
+                              step="any"
+                              placeholder="Ej. 1500"
+                              value={monto}
+                              onChange={(e) => setMonto(e.target.value)}
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold font-mono"
+                              required
+                            />
+                          </div>
+                          
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tasa (%) *</label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              placeholder="Ej: 10"
+                              value={tasa}
+                              onChange={(e) => setTasa(e.target.value)}
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold font-mono"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">F. Emisión</label>
+                            <input
+                              type="date"
+                              value={fechaEmision}
+                              onChange={(e) => setFechaEmision(e.target.value)}
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-slate-200 font-semibold"
+                            />
+                          </div>
+                          
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Fecha Vencimiento</label>
+                            <input
+                              type="date"
+                              value={fechaVencimiento}
+                              onChange={(e) => setFechaVencimiento(e.target.value)}
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-slate-200 font-semibold"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Estimación de Deuda Total (Para no-alquileres) */}
+                    {tipo !== "Alquiler de Casa" && parseFloat(monto) > 0 && (
                       <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl space-y-2.5 text-xs font-semibold">
                         <span className="text-[9.5px] font-black text-indigo-300 uppercase tracking-widest block">Balance Estimado</span>
                         <div className="flex justify-between items-center text-slate-350">
                           <span>Capital original:</span>
                           <span className="font-mono">{formatCurrency(parseFloat(monto) || 0)}</span>
                         </div>
-                        <div className="flex justify-between items-center text-slate-350">
-                          <span>Interés (+{tasa}%):</span>
-                          <span className="font-mono text-indigo-350">+{formatCurrency((parseFloat(monto) || 0) * (parseFloat(tasa) / 100))}</span>
-                        </div>
+                        {parseFloat(tasa) > 0 && (
+                          <div className="flex justify-between items-center text-slate-350">
+                            <span>Interés (+{tasa}%):</span>
+                            <span className="font-mono text-indigo-350">+{formatCurrency((parseFloat(monto) || 0) * (parseFloat(tasa) / 100))}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between items-center text-sm font-black text-white pt-2.5 border-t border-white/5">
                           <span className="text-blue-400">Deuda Total:</span>
-                          <span className="font-mono">{formatCurrency((parseFloat(monto) || 0) * (1 + parseFloat(tasa) / 100))}</span>
+                          <span className="font-mono">{formatCurrency((parseFloat(monto) || 0) * (1 + (parseFloat(tasa) || 0) / 100))}</span>
                         </div>
                       </div>
                     )}
@@ -1448,7 +1768,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                         disabled={creating}
                         className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-indigo-500 to-violet-600 cursor-pointer"
                       >
-                        {creating ? "Registrando..." : "Registrar Crédito"}
+                        {creating ? "Registrando..." : "Registrar Deuda"}
                       </button>
                     </div>
                   </>
@@ -1733,16 +2053,17 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                   <div className="space-y-1.5 relative">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Asociar a Prestatario *</label>
                     <div className="relative">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                       <input
                         type="text"
-                        placeholder="🔍 Escribe para buscar cliente..."
+                        placeholder="Escribe para buscar cliente..."
                         value={vcrClienteSearch}
                         onChange={(e) => {
                           setVcrClienteSearch(e.target.value);
                           setShowVcrClienteDropdown(true);
                         }}
                         onFocus={() => setShowVcrClienteDropdown(true)}
-                        className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none pr-10 font-semibold"
+                        className="w-full glass-input rounded-xl p-2.5 pl-9 text-xs text-slate-200 outline-none pr-10 font-semibold"
                         required
                       />
                       {vcrSelectedClienteId && (
@@ -1783,17 +2104,37 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                                   setVcrClienteSearch(c.nombre_completo);
                                   setShowVcrClienteDropdown(false);
                                 }}
-                                className={`w-full text-left p-2.5 px-3.5 hover:bg-blue-500/10 text-xs transition flex items-center justify-between cursor-pointer ${
+                                className={`w-full text-left p-2.5 px-3.5 hover:bg-blue-500/10 text-xs transition flex flex-col items-start gap-1 cursor-pointer ${
                                   vcrSelectedClienteId === c.id ? "bg-indigo-500/20 text-indigo-300 font-extrabold" : "text-slate-200 font-semibold"
                                 }`}
                               >
-                                <span>{c.nombre_completo}</span>
+                                <span className="font-bold text-white">{c.nombre_completo}</span>
+                                {c.observaciones && (
+                                  <span className="text-[10px] text-slate-400 italic truncate w-full flex items-center gap-1">
+                                    <FileText size={10} className="shrink-0" />
+                                    {c.observaciones}
+                                  </span>
+                                )}
                               </button>
                             ))
                           )}
                         </div>
                       </>
                     )}
+                    
+                    {vcrSelectedClienteId && (() => {
+                      const selClient = clientes.find(c => c.id === vcrSelectedClienteId);
+                      if (!selClient || !selClient.observaciones) return null;
+                      return (
+                        <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl text-[11px] text-slate-350 leading-relaxed font-semibold mt-2.5 flex gap-2 items-start">
+                          <FileText size={14} className="text-indigo-400 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="text-[9px] font-black text-indigo-300 uppercase tracking-widest block mb-0.5 select-none">Nota Importante del Cliente</span>
+                            {selClient.observaciones}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Préstamo Destino */}
