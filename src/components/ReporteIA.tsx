@@ -25,7 +25,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 
 interface ReporteIAProps {
-  onBack: () => void;
+  onBack?: () => void;
 }
 
 type TabType = "cockpit" | "diagnostico" | "estrategias" | "alertas";
@@ -271,12 +271,14 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
       {/* Cabecera Premium */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/5 pb-5">
         <div className="flex items-center gap-3.5">
+          {onBack && (
           <button
             onClick={onBack}
             className="p-3 bg-[#0f172a]/80 hover:bg-white/5 border border-white/5 text-slate-400 hover:text-white rounded-2xl transition duration-150 cursor-pointer shadow-sm"
           >
             <ArrowLeft size={16} />
           </button>
+          )}
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-black text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2.5 py-0.5 rounded-md tracking-wider flex items-center gap-1 font-mono uppercase">

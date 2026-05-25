@@ -5,7 +5,7 @@ import {
   UploadCloud, FileImage, Clock3, CalendarDays, Gauge, Target, Phone, MessageSquare,
   Edit3, Image, Download, Eye, ExternalLink, FileText, AlertCircle, Search
 } from "lucide-react";
-import Tesseract from "tesseract.js";
+
 import { Cliente } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -48,16 +48,13 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
   const [updatingLoan, setUpdatingLoan] = useState(false);
 
 
-  // Estados para Carga de Voucher Exprés & OCR local
+  // Estados para Carga de Voucher Exprés (sin OCR)
   const [showVoucherModal, setShowVoucherModal] = useState(false);
   const [vcrFile, setVcrFile] = useState<File | null>(null);
   const [vcrBase64, setVcrBase64] = useState("");
   const [vcrFileName, setVcrFileName] = useState("");
   const [vcrMimeType, setVcrMimeType] = useState("");
-  const [vcrOcrLoading, setVcrOcrLoading] = useState(false);
-  const [ocrProgress, setOcrProgress] = useState("");
-  const [ocrRawText, setOcrRawText] = useState("");
-  const [showOcrDebug, setShowOcrDebug] = useState(false);
+  const [vcrUploading, setVcrUploading] = useState(false);
   const [vcrMonto, setVcrMonto] = useState("");
   const [vcrMetodoPago, setVcrMetodoPago] = useState("Yape");
   const [vcrFechaPago, setVcrFechaPago] = useState(new Date().toISOString().split("T")[0]);
@@ -396,14 +393,11 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     }
   };
 
-  // Motor Inteligente Ultra-Preciso OCR para vouchers de bancos Peruanos (Yape, Plin, BCP, etc.)
-  const handleOcrProcess = async (file: File) => {
+  // Carga directa de voucher (sin OCR)
+  const handleVoucherFileSelect = async (file: File) => {
     setVcrFile(file);
     setVcrFileName(file.name);
     setVcrMimeType(file.type);
-    setVcrOcrLoading(true);
-    setOcrProgress("Preparando lector...");
-    setOcrRawText("");
     setShowVoucherModal(true);
 
     const reader = new FileReader();
@@ -413,104 +407,6 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
       }
     };
     reader.readAsDataURL(file);
-
-    try {
-      const worker = await Tesseract.createWorker("spa", 1, {
-        logger: m => {
-          if (m.status === "recognizing text") {
-            setOcrProgress(`Analizando: ${Math.round(m.progress * 100)}%`);
-          }
-        }
-      });
-      
-      const { data: { text } } = await worker.recognize(file);
-      await worker.terminate();
-
-      setOcrRawText(text);
-
-      // Pre-limpieza y normalización de textos OCR (Corrige errores comunes de lectura)
-      // Reemplaza símbolos parecidos como 5/, $/, §/ por S/ para el motor de expresiones regulares.
-      let normalizedText = text
-        .replace(/[§$\xc2\xa2]/g, "S/")
-        .replace(/5\/\.?/g, "S/")
-        .replace(/s\/\.?/gi, "S/")
-        .replace(/[\u201c\u201d\u2018\u2019"]/g, ""); // Quitar comillas raras
-
-      // ESTRATEGIA 1: Buscar monto con prefijo S/ (Estilo Yape/Plin/BCP tradicional)
-      let monto = "";
-      const yapeRegex = /S\/\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)/i;
-      const matchYape = normalizedText.match(yapeRegex);
-      if (matchYape) {
-        monto = matchYape[1].replace(/,/g, "");
-      } else {
-        // ESTRATEGIA 2: Buscar monto tras palabras claves como "Monto", "Importe", "Total", "Monto de pago"
-        const keywordRegex = /(?:monto|importe|total|pago|yapeo|yapeaste|recibiste|enviaste)\s*(?:exigible|de)?\s*(?:s\/)?\s*(\d{1,3}(?:[.,]\d{3})*(?:\.\d{2}))/i;
-        const matchKeyword = normalizedText.match(keywordRegex);
-        if (matchKeyword) {
-          monto = matchKeyword[1].replace(/,/g, "");
-        } else {
-          // ESTRATEGIA 3: Buscar cualquier decimal que parezca un importe razonable de dinero (ej. 100.00, 1500.00)
-          const decimalRegex = /\b(\d{2,5}(?:\.\d{2}))\b/;
-          const matchDecimal = normalizedText.match(decimalRegex);
-          if (matchDecimal) {
-            monto = matchDecimal[1];
-          }
-        }
-      }
-      setVcrMonto(monto);
-
-      // EXTRAER FECHA DE OPERACIÓN
-      const dateRegex = /(\d{2})[/-](\d{2})[/-](\d{4})/;
-      const matchDate = normalizedText.match(dateRegex);
-      if (matchDate) {
-        setVcrFechaPago(`${matchDate[3]}-${matchDate[2]}-${matchDate[1]}`);
-      } else {
-        // Extraer formato textual "24 Mayo 2026"
-        const textLower = normalizedText.toLowerCase();
-        const meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-        let foundDate = false;
-        for (let i = 0; i < meses.length; i++) {
-          if (textLower.includes(meses[i])) {
-            const dayRegex = new RegExp(`(\\d{1,2})\\s*(?:de)?\\s*${meses[i]}`);
-            const matchDay = textLower.match(dayRegex);
-            if (matchDay) {
-              const dd = matchDay[1].padStart(2, "0");
-              const mm = String(i + 1).padStart(2, "0");
-              const yyyy = new Date().getFullYear();
-              setVcrFechaPago(`${yyyy}-${mm}-${dd}`);
-              foundDate = true;
-              break;
-            }
-          }
-        }
-        if (!foundDate) {
-          setVcrFechaPago(new Date().toISOString().split("T")[0]);
-        }
-      }
-
-      // DETERMINAR BANCO / MEDIO DE COBRO
-      const textLower = normalizedText.toLowerCase();
-      if (textLower.includes("yape")) {
-        setVcrMetodoPago("Yape");
-      } else if (textLower.includes("plin")) {
-        setVcrMetodoPago("Plin");
-      } else if (textLower.includes("bcp") || textLower.includes("banca móvil")) {
-        setVcrMetodoPago("Transferencia BCP");
-      } else if (textLower.includes("bbva") || textLower.includes("continental")) {
-        setVcrMetodoPago("Transferencia BBVA");
-      } else if (textLower.includes("interbank")) {
-        setVcrMetodoPago("Transferencia Interbank");
-      } else {
-        setVcrMetodoPago("Yape");
-      }
-
-      setOcrProgress("Lectura Completada");
-    } catch (err) {
-      console.error("Error en OCR:", err);
-      setOcrProgress("Error de lectura");
-    } finally {
-      setVcrOcrLoading(false);
-    }
   };
 
   useEffect(() => {
@@ -523,7 +419,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
       if (file && file.type.startsWith("image/")) {
         event.preventDefault();
-        handleOcrProcess(file);
+        handleVoucherFileSelect(file);
       }
     };
 
@@ -531,7 +427,22 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     return () => window.removeEventListener("paste", onPaste as unknown as EventListener);
   }, [showVoucherModal]);
 
-  // Registrar abono de voucher
+  const resetVoucherModal = () => {
+    setShowVoucherModal(false);
+    setVcrFile(null);
+    setVcrBase64("");
+    setVcrFileName("");
+    setVcrMimeType("");
+    setVcrMonto("");
+    setVcrMetodoPago("Yape");
+    setVcrFechaPago(new Date().toISOString().split("T")[0]);
+    setVcrSelectedClienteId("");
+    setVcrClienteSearch("");
+    setShowVcrClienteDropdown(false);
+    setVcrSelectedLoanId("");
+  };
+
+  // Registrar abono de voucher (sin OCR)
   const handleVoucherRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!vcrSelectedClienteId || !vcrMonto || !vcrFechaPago) {
@@ -545,6 +456,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
       let matchedLoanId = vcrSelectedLoanId;
 
       if (vcrBase64) {
+        setVcrUploading(true);
         const uploadRes = await fetch("/api/upload-voucher", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -554,10 +466,13 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
             base64Data: vcrBase64
           })
         });
+        setVcrUploading(false);
 
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json();
           uploadedUrl = uploadData.publicUrl;
+        } else {
+          console.warn("Voucher upload failed, registering payment without voucher");
         }
       }
 
@@ -593,17 +508,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
       });
 
       if (paymentRes.ok) {
-        setShowVoucherModal(false);
-        setVcrFile(null);
-        setVcrBase64("");
-        setVcrFileName("");
-        setVcrMimeType("");
-        setVcrMonto("");
-        setVcrMetodoPago("Yape");
-        setVcrFechaPago(new Date().toISOString().split("T")[0]);
-        setVcrSelectedClienteId("");
-        setVcrClienteSearch("");
-        setVcrSelectedLoanId("");
+        resetVoucherModal();
         fetchDashboardData();
       } else {
         const errData = await paymentRes.json();
@@ -614,6 +519,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
       alert("Fallo al registrar la amortización.");
     } finally {
       setVcrRegistering(false);
+      setVcrUploading(false);
     }
   };
 
@@ -835,10 +741,10 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
           <button
             id="btn-upload-voucher-quick"
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl border border-white/5 hover:border-white/20 bg-white/[0.03] hover:bg-white/[0.06] text-xs font-black uppercase tracking-wider text-slate-200 transition-all duration-200 cursor-pointer transform active:scale-98 min-h-[48px]"
+            className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl border border-white/[0.08] hover:border-emerald-500/30 bg-white/[0.03] hover:bg-emerald-500/5 text-xs font-black uppercase tracking-wider text-slate-300 hover:text-emerald-300 transition-all duration-200 cursor-pointer min-h-[44px]"
           >
-            <UploadCloud size={16} className="text-green-400" />
-            <span>Escanear Voucher</span>
+            <UploadCloud size={15} className="text-emerald-400" />
+            <span>Registrar Pago Rápido</span>
           </button>
           
           <button
@@ -966,8 +872,12 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
         </div>
 
         {activeLoansSortedByDueDate.length === 0 ? (
-          <div className="p-8 rounded-3xl border border-dashed border-white/5 bg-[#0A0A0C]/10 text-center text-gray-500 text-xs font-semibold">
-            No existen créditos activos con vencimientos vigentes.
+          <div className="p-10 rounded-3xl border border-dashed border-white/[0.06] bg-white/[0.01] text-center">
+            <div className="w-12 h-12 bg-white/[0.03] border border-white/[0.06] rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <Gauge size={22} className="text-slate-600" />
+            </div>
+            <p className="text-sm font-bold text-slate-400 mb-1">Sin préstamos activos</p>
+            <p className="text-xs text-slate-600">No hay créditos con vencimientos vigentes en este momento.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -988,8 +898,12 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
         </div>
 
         {registeredVouchers.length === 0 ? (
-          <div className="p-8 rounded-3xl border border-dashed border-white/5 bg-[#0A0A0C]/10 text-center text-gray-500 text-xs font-semibold">
-            No se han registrado vouchers de pago en el sistema todavía.
+          <div className="p-10 rounded-3xl border border-dashed border-white/[0.06] bg-white/[0.01] text-center">
+            <div className="w-12 h-12 bg-white/[0.03] border border-white/[0.06] rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <FileImage size={22} className="text-slate-600" />
+            </div>
+            <p className="text-sm font-bold text-slate-400 mb-1">Sin comprobantes</p>
+            <p className="text-xs text-slate-600">Los vouchers registrados aparecerán aquí.</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -1061,9 +975,12 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
         <div className="flex-1 flex flex-col justify-between">
           {filteredPrestamos.length === 0 ? (
-            <div className="text-center py-16 text-gray-500">
-              <Coins className="mx-auto text-slate-700 mb-3" size={32} />
-              <p className="text-sm font-bold text-slate-350">No se encontraron deudas</p>
+            <div className="text-center py-16">
+              <div className="w-14 h-14 bg-white/[0.03] border border-white/[0.06] rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <Coins size={24} className="text-slate-600" />
+              </div>
+              <p className="text-sm font-bold text-slate-400 mb-1">Sin resultados</p>
+              <p className="text-xs text-slate-600">Ajusta la búsqueda o registra un nuevo préstamo</p>
             </div>
           ) : (
             <>
@@ -1244,38 +1161,41 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
         </div>
       </div>
 
-      {/* 7. HERRAMIENTAS Y AUDITORÍA (Verticalidad Nivel 7 - Bento Grid Responsivo) */}
+      {/* 7. HERRAMIENTAS Y AUDITORÍA */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Lector OCR manual */}
-        <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 p-6 rounded-3xl flex flex-col space-y-4 justify-between min-h-[300px]">
-          <div className="flex items-center gap-2 border-b border-white/5 pb-3">
-            <div className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-green-400">
-              <UploadCloud size={16} />
+        {/* Registro rápido de pago */}
+        <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] p-6 rounded-3xl flex flex-col space-y-4 min-h-[280px]">
+          <div className="flex items-center gap-3 border-b border-white/[0.06] pb-4">
+            <div className="w-9 h-9 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center">
+              <UploadCloud size={16} className="text-emerald-400" />
             </div>
             <div>
-              <h3 className="font-extrabold text-white text-sm tracking-tight">Escanear Voucher manual</h3>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide">Carga Rápida de Comprobante</p>
+              <h3 className="font-black text-white text-sm">Registrar Pago Rápido</h3>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide mt-0.5">Con o sin comprobante</p>
             </div>
           </div>
 
-          <p className="text-xs text-gray-400 leading-normal font-semibold">
-            Sube un comprobante para que el lector OCR intente descifrar los datos automáticamente, rellenando el abono en un instante.
+          <p className="text-xs text-slate-400 leading-relaxed font-medium flex-1">
+            Sube un comprobante o registra manualmente un pago. El sistema lo asociará automáticamente al préstamo activo del cliente.
           </p>
 
-          <div 
+          <div
             onClick={() => fileInputRef.current?.click()}
-            className="border border-dashed border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/[0.01] hover:bg-emerald-500/[0.03] p-5 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center"
+            className="border-2 border-dashed border-white/[0.06] hover:border-emerald-500/30 bg-transparent hover:bg-emerald-500/[0.02] p-5 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-all duration-200 text-center group"
           >
-            <FileImage className="text-green-400" size={24} />
-            <span className="text-[11px] font-extrabold text-gray-300 block">Subir comprobante de pago</span>
-            <span className="text-[9px] text-gray-500 block">JPEG o PNG</span>
+            <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform">
+              <FileImage className="text-emerald-400" size={18} />
+            </div>
+            <span className="text-xs font-bold text-slate-300">Adjuntar voucher (opcional)</span>
+            <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider">JPG, PNG · Pegar con Ctrl+V</span>
           </div>
 
           <button
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full text-white py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-gradient-to-r from-emerald-500 to-teal-600 transition cursor-pointer min-h-[38px] shadow-lg shadow-emerald-500/10 transform active:scale-95"
+            onClick={() => { setShowVoucherModal(true); }}
+            className="w-full btn-primary py-2.5 rounded-xl text-xs cursor-pointer min-h-[40px] flex items-center justify-center gap-2"
           >
-            Elegir Archivo
+            <UploadCloud size={14} />
+            Registrar Pago Manual
           </button>
         </div>
 
@@ -1908,7 +1828,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
         accept="image/*"
         onChange={(e) => {
           if (e.target.files && e.target.files[0]) {
-            handleOcrProcess(e.target.files[0]);
+            handleVoucherFileSelect(e.target.files[0]);
           }
         }}
       />
@@ -1924,69 +1844,61 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               transition={{ duration: 0.15 }}
               className="bg-[#0f172a] rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden border border-white/5 flex flex-col md:flex-row font-sans"
             >
-              {/* Left Column: Voucher image */}
-              <div className="w-full md:w-1/2 bg-[#070a13]/30 p-6 flex flex-col justify-between items-center border-b md:border-b-0 md:border-r border-white/5">
-                <div className="w-full">
-                  <span className="text-[10px] font-black text-emerald-450 uppercase tracking-widest block mb-1 pl-0.5">Captura del Abono</span>
-                </div>
+              {/* Left Column: Vista previa del voucher */}
+              <div className="w-full md:w-[45%] bg-black/20 p-5 flex flex-col gap-3 border-b md:border-b-0 md:border-r border-white/[0.06]">
+                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Comprobante Adjunto</span>
 
-                <div className="w-full flex-1 flex items-center justify-center min-h-[220px] max-h-[300px] bg-slate-955/50 rounded-2xl p-3 border border-white/5 relative overflow-hidden">
-                  {vcrOcrLoading && (
-                    <div className="absolute inset-0 bg-[#070a13]/90 backdrop-blur-sm flex flex-col items-center justify-center text-center p-4 z-10">
-                      <Loader2 className="animate-spin text-emerald-450 mb-3" size={28} />
-                      <span className="text-xs font-black text-white tracking-wide">{ocrProgress}</span>
-                      <span className="text-[10px] text-gray-500 mt-1.5 block">Leyendo campos financieros del voucher...</span>
-                    </div>
-                  )}
-
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex-1 flex items-center justify-center min-h-[200px] max-h-[280px] bg-black/30 rounded-2xl border border-dashed border-white/[0.08] hover:border-emerald-500/30 overflow-hidden relative cursor-pointer transition-all group"
+                >
                   {vcrBase64 ? (
-                    <img 
-                      src={`data:${vcrMimeType || "image/jpeg"};base64,${vcrBase64}`} 
-                      alt="Voucher de Pago" 
-                      className="max-w-full max-h-[240px] object-contain rounded-2xl"
-                    />
+                    <>
+                      <img
+                        src={`data:${vcrMimeType || "image/jpeg"};base64,${vcrBase64}`}
+                        alt="Voucher de Pago"
+                        className="max-w-full max-h-[260px] object-contain rounded-xl"
+                      />
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-xs font-bold text-white">
+                        <UploadCloud size={14} />
+                        <span>Cambiar imagen</span>
+                      </div>
+                    </>
                   ) : (
-                    <div className="text-center text-slate-600 text-xs">
-                      Ningún voucher cargado.
+                    <div className="flex flex-col items-center gap-2 text-center p-4">
+                      <div className="w-10 h-10 bg-white/[0.04] border border-white/[0.08] rounded-xl flex items-center justify-center">
+                        <FileImage size={18} className="text-slate-500" />
+                      </div>
+                      <p className="text-xs font-bold text-slate-400">Sin imagen adjunta</p>
+                      <p className="text-[10px] text-slate-600 font-semibold">Clic para adjuntar · Ctrl+V para pegar</p>
                     </div>
                   )}
                 </div>
-                
+
                 {vcrFileName && (
-                  <div className="w-full text-center mt-4 p-2.5 bg-white/[0.01] border border-white/5 rounded-xl truncate text-[10px] text-gray-500 font-mono">
-                    {vcrFileName}
-                  </div>
+                  <p className="text-[10px] text-slate-500 font-mono truncate">{vcrFileName}</p>
                 )}
               </div>
 
               {/* Right Column: Form */}
-              <div className="w-full md:w-1/2 p-6 flex flex-col justify-between overflow-y-auto max-h-[85vh] md:max-h-none">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center border-b border-white/5 pb-3">
-                    <div>
-                      <h3 className="font-extrabold text-white text-sm md:text-base">Registrar Abono por OCR</h3>
-                      <p className="text-[10px] text-green-400 uppercase tracking-widest font-black">Escaneo de Voucher</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowVoucherModal(false);
-                        setVcrFile(null);
-                        setVcrBase64("");
-                        setVcrFileName("");
-                        setVcrMimeType("");
-                        setVcrMonto("");
-                        setVcrSelectedClienteId("");
-                        setVcrClienteSearch("");
-                        setVcrSelectedLoanId("");
-                        setOcrRawText("");
-                        setShowOcrDebug(false);
-                      }}
-                      className="text-slate-455 hover:text-slate-200 p-1.5 rounded-xl hover:bg-white/5 transition cursor-pointer"
-                    >
-                      <X size={18} />
-                    </button>
+              <div className="w-full md:flex-1 p-5 flex flex-col gap-4 overflow-y-auto max-h-[85vh] md:max-h-none">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-black text-white text-sm">Registrar Abono</h3>
+                    <p className="text-[10px] text-emerald-400/80 font-bold uppercase tracking-widest mt-0.5">Pago Rápido</p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={resetVoucherModal}
+                    className="p-2 rounded-xl hover:bg-white/[0.06] text-slate-400 hover:text-white transition cursor-pointer"
+                  >
+                    <X size={17} />
+                  </button>
+                </div>
+
+                <div className="border-t border-white/[0.06]" />
+
+                <div className="space-y-3.5 flex-1">
 
                   {/* Autocomplete de Clientes */}
                   <div className="space-y-1.5 relative">
@@ -2147,59 +2059,24 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                     </select>
                   </div>
 
-                  {/* Consola OCR Debugging (Para mayor control del usuario) */}
-                  {ocrRawText && (
-                    <div className="space-y-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setShowOcrDebug(!showOcrDebug)}
-                        className="text-[9.5px] font-black text-blue-400 uppercase tracking-wider flex items-center gap-1 hover:text-indigo-350 cursor-pointer"
-                      >
-                        <Terminal size={11} />
-                        <span>{showOcrDebug ? "Ocultar" : "Ver"} Consola OCR (Depuración)</span>
-                      </button>
-                      
-                      {showOcrDebug && (
-                        <pre className="p-3 bg-black/80 border border-white/5 rounded-xl text-[9px] text-gray-400 font-mono overflow-x-auto whitespace-pre-wrap max-h-32 custom-scrollbar">
-                          {ocrRawText}
-                        </pre>
-                      )}
-                    </div>
-                  )}
-
-                  {!vcrMonto && !vcrOcrLoading && (
-                    <p className="text-[9px] text-amber-400 font-bold bg-amber-500/5 p-2.5 rounded-xl leading-normal border border-amber-500/10">
-                      💡 <strong>Aviso:</strong> El lector automático no logró descifrar el monto del voucher debido a la resolución de imagen. Por favor ingresa el monto a mano en la casilla superior para guardar.
-                    </p>
-                  )}
                 </div>
 
-                <div className="pt-5 border-t border-white/5 flex justify-end gap-2.5 shrink-0">
+                <div className="pt-4 border-t border-white/[0.06] flex justify-end gap-2.5">
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowVoucherModal(false);
-                      setVcrFile(null);
-                      setVcrBase64("");
-                      setVcrFileName("");
-                      setVcrMimeType("");
-                      setVcrMonto("");
-                      setVcrSelectedClienteId("");
-                      setVcrClienteSearch("");
-                      setVcrSelectedLoanId("");
-                      setOcrRawText("");
-                      setShowOcrDebug(false);
-                    }}
-                    className="px-4 py-2.5 hover:bg-white/5 rounded-xl text-slate-455 font-bold text-xs cursor-pointer"
+                    onClick={resetVoucherModal}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-white/[0.05] transition cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={handleVoucherRegister}
-                    disabled={vcrRegistering || !vcrSelectedClienteId || !vcrMonto || vcrOcrLoading}
-                    className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 to-teal-600 disabled:opacity-40"
+                    disabled={vcrRegistering || !vcrSelectedClienteId || !vcrMonto}
+                    className="px-5 py-2.5 rounded-xl text-xs btn-primary cursor-pointer flex items-center gap-2 disabled:opacity-50"
                   >
-                    {vcrRegistering ? "Procesando..." : "Confirmar Abono"}
+                    {vcrRegistering || vcrUploading ? (
+                      <><Loader2 className="animate-spin" size={14} /><span>{vcrUploading ? "Subiendo..." : "Procesando..."}</span></>
+                    ) : "Confirmar Abono"}
                   </button>
                 </div>
               </div>
