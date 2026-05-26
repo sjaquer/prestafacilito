@@ -4,7 +4,7 @@ import {
   Wallet, Landmark, Activity, X, ShieldAlert, CheckCircle, Terminal, 
   UploadCloud, FileImage, Clock3, CalendarDays, Gauge, Target, Phone, MessageSquare,
   Edit3, Image, Download, Eye, ExternalLink, FileText, AlertCircle, Search,
-  Building2, Banknote
+  Building2, Banknote, Bell
 } from "lucide-react";
 
 import { Cliente } from "../types";
@@ -654,6 +654,45 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   };
 
+  // Generador de recordatorio formal con mensaje exacto de Sebastián
+  const getRecordatorioLink = (loan: any) => {
+    const cliente = clientes.find(c => c.id === loan.cliente_id);
+    if (!cliente || !cliente.telefono) return null;
+    const phone = cliente.telefono.replace(/\D/g, '').trim();
+    if (!phone) return null;
+
+    // Detectar género por nombre
+    const NOMBRES_FEMENINOS = new Set([
+      'maria','ana','lucia','sofia','elena','carmen','rosa','claudia','andrea','patricia',
+      'laura','diana','gloria','monica','sandra','alejandra','valentina','gabriela','lorena',
+      'jessica','vanessa','adriana','paola','natalia','carolina','fernanda','daniela','sara',
+      'isabel','pilar','julia','alicia','beatriz','cristina','irene','mariana','raquel',
+      'silvia','yolanda','angela','consuelo','esperanza','graciela','luz','mercedes','norma',
+      'olga','rebeca','susana','veronica','wendy','xiomara','yasmin','zoraida','pamela',
+      'karina','brenda','gisela','rocio','miriam','nancy','marisol','milagros','flor',
+      'liliana','estela','cecilia','catalina','evelyn','fabiola','helen','iliana'
+    ]);
+    const primerNombre = loan.cliente_nombre.trim().split(/\s+/)[0].toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const tratamiento = NOMBRES_FEMENINOS.has(primerNombre) ? 'SRA.' : 'SR.';
+
+    const capital = parseFloat(loan.monto_capital) || 0;
+    const interest = parseFloat(loan.tasa_interes_porcentaje) || 0;
+    const totalExigible = capital * (1 + interest / 100);
+    const cuota = formatCurrency(totalExigible);
+    const fecha = loan.fecha_vencimiento;
+    const nombreMayus = loan.cliente_nombre.toUpperCase();
+
+    const mensaje =
+      `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda Sebastián.\n` +
+      `Te escribo para recordarte amablemente tu cuota pendiente a cancelar:\n\n` +
+      `${cuota} con vencimiento el ${fecha} para no generar intereses.\n\n` +
+      `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
+      `Cualquier cosa me lo escribe.`;
+
+    return `https://wa.me/${phone}?text=${encodeURIComponent(mensaje)}`;
+  };
+
   const dayMs = 24 * 60 * 60 * 1000;
   const today = new Date(nowTick);
   today.setHours(0, 0, 0, 0);
@@ -771,7 +810,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
         </div>
 
         {/* Acciones del vencimiento */}
-        <div className="flex flex-col items-end gap-3 shrink-0">
+        <div className="flex flex-col items-end gap-2 shrink-0">
           <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest border ${
             timer.status === "danger" ? "border-rose-500/20 bg-rose-500/10 text-rose-300" :
             timer.status === "urgent" ? "border-amber-500/20 bg-amber-500/10 text-amber-300" :
@@ -792,6 +831,23 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               <span>Cobrar</span>
             </a>
           )}
+
+          {/* Botón Recordar con mensaje formal de Sebastián */}
+          {(() => {
+            const recLink = getRecordatorioLink(loan);
+            return recLink ? (
+              <a
+                href={recLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-recordatorio flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all min-h-[34px]"
+                title="Enviar recordatorio formal de cuota"
+              >
+                <Bell size={11} />
+                <span>Recordar</span>
+              </a>
+            ) : null;
+          })()}
         </div>
       </div>
     );
@@ -1266,6 +1322,17 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                             </td>
                             <td className="px-6 py-4 text-right">
                               <div className="flex items-center justify-end gap-2">
+                                {/* Botón Recordar */}
+                                {(() => {
+                                  const recLink = getRecordatorioLink(prestamo);
+                                  return recLink && prestamo.estado === 'activo' ? (
+                                    <a href={recLink} target="_blank" rel="noopener noreferrer"
+                                      className="btn-recordatorio p-2 rounded-xl flex items-center justify-center cursor-pointer"
+                                      title="Enviar recordatorio de cuota">
+                                      <Bell size={13} />
+                                    </a>
+                                  ) : null;
+                                })()}
                                 <button
                                   onClick={(e) => handleOpenEditModal(prestamo, e)}
                                   className="text-gray-400 hover:text-blue-400 p-2 hover:bg-white/5 rounded-xl transition cursor-pointer"
@@ -1336,7 +1403,18 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                             </span>
                           </div>
                           
-                          <div className="flex items-center gap-2.5">
+                          <div className="flex items-center gap-2">
+                            {/* Botón Recordar en móvil */}
+                            {(() => {
+                              const recLink = getRecordatorioLink(prestamo);
+                              return recLink && prestamo.estado === 'activo' ? (
+                                <a href={recLink} target="_blank" rel="noopener noreferrer"
+                                  className="btn-recordatorio p-3 rounded-xl flex items-center justify-center cursor-pointer"
+                                  title="Enviar recordatorio">
+                                  <Bell size={15} />
+                                </a>
+                              ) : null;
+                            })()}
                             {/* Editar/Eliminar en móvil */}
                             <button
                               onClick={(e) => handleOpenEditModal(prestamo, e)}

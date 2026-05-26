@@ -4,6 +4,13 @@ export interface Cliente {
   telefono: string;
   observaciones: string;
   fecha_registro: string;
+  // Campos ampliados v2
+  direccion?: string;
+  numero_cuenta?: string;
+  banco_cuenta?: string;
+  informacion_adicional?: string;
+  drive_folder_id?: string;
+  // Campos calculados desde la vista
   prestamos_activos?: number;
   total_prestamos?: number;
   capital_total_prestado?: number;
@@ -34,6 +41,7 @@ export interface Amortizacion {
   fecha_pago: string;
   metodo_pago: string;
   comprobante_url?: string | null;
+  voucher_drive_file_id?: string | null;
 }
 
 export interface CuotaPrestamo {
@@ -107,3 +115,34 @@ export interface EstadoDeudaPrestamo {
   planAyuda?: PlanAyudaCliente; // Resumen del plan de ayuda aplicado
 }
 
+// ── Documentos de Cliente (v2) ─────────────────────────────
+export type TipoDocumento = 
+  | 'dni_frontal'
+  | 'dni_reverso'
+  | 'recibo_luz'
+  | 'recibo_agua'
+  | 'foto_cliente'
+  | 'otro';
+
+export interface DocumentoCliente {
+  id: string;
+  cliente_id: string;
+  tipo_documento: TipoDocumento;
+  nombre_archivo: string;
+  drive_file_id: string;
+  drive_url: string;
+  mime_type: string;
+  fecha_subida: string;
+  observacion?: string;
+}
+
+export const TIPOS_DOCUMENTO_CONFIG: Record<TipoDocumento, { label: string; icon: string; accept: string }> = {
+  dni_frontal:   { label: 'DNI Frontal',        icon: '🪪', accept: 'image/*,application/pdf' },
+  dni_reverso:   { label: 'DNI Reverso',         icon: '🪪', accept: 'image/*,application/pdf' },
+  recibo_luz:    { label: 'Recibo de Luz',        icon: '⚡', accept: 'image/*,application/pdf,.doc,.docx' },
+  recibo_agua:   { label: 'Recibo de Agua',       icon: '💧', accept: 'image/*,application/pdf,.doc,.docx' },
+  foto_cliente:  { label: 'Foto del Cliente',     icon: '📷', accept: 'image/*' },
+  otro:          { label: 'Otro Documento',        icon: '📎', accept: 'image/*,application/pdf,.doc,.docx' },
+};
+
+export const ACCEPT_DOCUMENTOS = 'image/jpeg,image/png,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';

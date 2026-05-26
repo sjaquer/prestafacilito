@@ -110,6 +110,363 @@ function isDriveConfigured(): boolean {
   return !!getGoogleClientId() && !!getGoogleClientSecret() && !!getGoogleRefreshToken();
 }
 
+/** Verifica si Google Calendar está correctamente configurado sin lanzar error */
+function isGoogleCalendarConfigured(): boolean {
+  return !!getGoogleClientId() && !!getGoogleClientSecret() && !!getGoogleRefreshToken();
+}
+
+/** Obtiene el token de acceso de Google (reutiliza el flujo de Drive) */
+const getGoogleAccessToken = getGoogleDriveAccessToken;
+
+/**
+ * Crea o actualiza un evento de Google Calendar.
+ * Devuelve el objeto del evento creado/actualizado.
+ */
+async function createOrUpdateGoogleCalendarEvent({
+  eventId,
+  summary,
+  description,
+  dateStr,
+  colorId,
+}: {
+  eventId?: string;
+  summary: string;
+  description: string;
+  dateStr: string;
+  colorId?: string;
+}) {
+  const accessToken = await getGoogleAccessToken();
+  const url = eventId
+    ? `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`
+    : "https://www.googleapis.com/calendar/v3/calendars/primary/events";
+  const method = eventId ? "PUT" : "POST";
+
+  const eventBody = {
+    summary,
+    description,
+    start: {
+      date: dateStr // Evento de todo el día
+    },
+    end: {
+      date: dateStr // Evento de todo el día
+    },
+    ...(colorId ? { colorId } : {})
+  };
+
+  const response = await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(eventBody)
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error(`Error de Google Calendar API (event ${eventId || 'new'}): ${errText}`);
+    throw new Error(`Error en Google Calendar API: ${errText}`);
+  }
+
+  return await response.json();
+}
+
+/** Elimina un evento de Google Calendar. */
+async function deleteGoogleCalendarEvent(eventId: string) {
+  const accessToken = await getGoogleAccessToken();
+  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`;
+
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    }
+  });
+
+  if (!response.ok && response.status !== 404) {
+    const errText = await response.text();
+    console.error(`Error de Google Calendar API al eliminar event ${eventId}: ${errText}`);
+  }
+}
+
+/** Sincroniza el calendario de cuotas de un préstamo con Google Calendar. */
+async function syncLoanScheduleToGoogleCalendar(prestamoId: string) {
+  if (!isGoogleCalendarConfigured()) {
+    console.warn("Google Calendar no está configurado. Omitiendo sincronización.");
+    return;
+  }
+
+  try {
+    const { data: prestamo, error: pErr } = await supabase
+      .from("prestamos")
+      .select("*")
+      .eq("id", prestamoId)
+      .single();
+
+    if (pErr || !prestamo) throw pErr || new Error("Préstamo no encontrado");
+
+    const [cRes, aRes, ajRes] = await Promise.all([
+      supabase.from("clientes").select("*").eq("id", prestamo.cliente_id).single(),
+      supabase.from("amortizaciones").select("*").eq("prestamo_id", prestamoId),
+      supabase.from("ajustes_prestamo").select("*").eq("prestamo_id", prestamoId)
+    ]);
+
+    const cliente = cRes.data;
+    const pagosRealizados = aRes.data || [];
+    const ajustes = ajRes.data || [];
+
+    if (!cliente) throw new Error("Cliente no encontrado para el préstamo");
+
+    // Calcular el calendario de cuotas actual
+    const debtState = buildPaymentSchedule(prestamo, pagosRealizados, ajustes, new Date());
+    const cuotas = debtState.cuotas;
+
+    // Obtener eventos guardados previamente
+    const existingEvents = Array.isArray(prestamo.google_calendar_events)
+      ? prestamo.google_calendar_events
+      : [];
+
+    const updatedEvents = [];
+
+    for (const cuota of cuotas) {
+      const existing = existingEvents.find((e: any) => e.numero === cuota.numero);
+      const eventId = existing?.eventId;
+
+      let colorId = "5"; // Yellow (Banana) - Pendiente por defecto
+      let statusPrefix = "🔔 [PENDIENTE]";
+
+      if (cuota.estado === "Saldada") {
+        colorId = "10"; // Green (Basil)
+        statusPrefix = "✅ [PAGADO]";
+      } else if (cuota.estado === "Parcial") {
+        colorId = "6"; // Orange (Tangerine)
+        statusPrefix = "🔶 [PARCIAL]";
+      } else if (cuota.estado === "Vencida") {
+        colorId = "11"; // Red (Tomato)
+        statusPrefix = "🚨 [VENCIDO]";
+      }
+
+      const summary = `${statusPrefix} Cuota ${cuota.numero} - ${cliente.nombre_completo}`;
+      const description = [
+        `📊 ESTADO DEL CRÉDITO:`,
+        `• Cliente: ${cliente.nombre_completo}`,
+        `• Teléfono: ${cliente.telefono || "No registrado"}`,
+        `• Tipo de Préstamo: ${prestamo.tipo_prestamo || "Personal"}`,
+        `• N° de Cuota: ${cuota.numero} de ${debtState.resumen.totalCuotas}`,
+        `• Monto de la Cuota: S/. ${cuota.montoExigible.toFixed(2)}`,
+        `• Capital de Cuota: S/. ${cuota.capitalPendiente.toFixed(2)}`,
+        `• Interés de Cuota: S/. ${cuota.interesOriginal.toFixed(2)}`,
+        cuota.moraPendiente > 0 ? `• Mora Pendiente: S/. ${cuota.moraPendiente.toFixed(2)}` : null,
+        `• Total Pagado en esta cuota: S/. ${cuota.pagado.toFixed(2)}`,
+        `• Saldo Pendiente: S/. ${cuota.saldoPendiente.toFixed(2)}`,
+        `• Fecha de Vencimiento: ${cuota.fechaVencimiento}`,
+        `• Estado de la Cuota: ${cuota.estado}`,
+        `\n📅 Registro actualizado automáticamente desde PrestaFacilito.`
+      ].filter(Boolean).join("\n");
+
+      try {
+        const calEvent = await createOrUpdateGoogleCalendarEvent({
+          eventId,
+          summary,
+          description,
+          dateStr: cuota.fechaVencimiento,
+          colorId
+        });
+
+        updatedEvents.push({
+          numero: cuota.numero,
+          eventId: calEvent.id,
+          fechaVencimiento: cuota.fechaVencimiento
+        });
+      } catch (calErr: any) {
+        console.error(`Error al registrar cuota ${cuota.numero} en Google Calendar:`, calErr);
+        if (existing) {
+          updatedEvents.push(existing);
+        }
+      }
+    }
+
+    // Eliminar eventos de cuotas obsoletas si las hay (por reprogramaciones)
+    const newCuotasNums = cuotas.map((c: any) => c.numero);
+    const toDelete = existingEvents.filter((e: any) => !newCuotasNums.includes(e.numero));
+    for (const d of toDelete) {
+      if (d.eventId) {
+        await deleteGoogleCalendarEvent(d.eventId).catch(err => 
+          console.error("Error al borrar evento de calendario sobrante:", err)
+        );
+      }
+    }
+
+    // Actualizar préstamo en Supabase con los IDs de eventos
+    await supabase
+      .from("prestamos")
+      .update({ google_calendar_events: updatedEvents })
+      .eq("id", prestamoId);
+
+  } catch (err: any) {
+    console.error("Error en syncLoanScheduleToGoogleCalendar:", err);
+  }
+}
+
+/** Registra una amortización / pago de deuda como un evento de cobro en Google Calendar. */
+async function logPaymentToGoogleCalendar(
+  cliente: any,
+  prestamo: any,
+  monto: number,
+  metodoPago: string,
+  clasificacion: string,
+  fechaPago: string
+) {
+  if (!isGoogleCalendarConfigured()) return;
+
+  try {
+    const summary = `💰 Cobro Recibido: S/. ${monto.toFixed(2)} - ${cliente.nombre_completo}`;
+    const description = [
+      `💰 REGISTRO DE COBRO RECIBIDO:`,
+      `• Cliente: ${cliente.nombre_completo}`,
+      `• Teléfono: ${cliente.telefono || "No registrado"}`,
+      `• Monto Recibido: S/. ${monto.toFixed(2)}`,
+      `• Método de Pago: ${metodoPago}`,
+      `• Tipo de Movimiento: ${clasificacion}`,
+      `• Préstamo de Capital: S/. ${toNumber(prestamo.monto_capital).toFixed(2)}`,
+      `• Fecha del Pago: ${fechaPago}`,
+      `\n📅 Registro creado automáticamente desde PrestaFacilito.`
+    ].join("\n");
+
+    // Color verde suave es '2' (Sage)
+    await createOrUpdateGoogleCalendarEvent({
+      summary,
+      description,
+      dateStr: fechaPago,
+      colorId: "2"
+    });
+  } catch (err: any) {
+    console.error("Error al registrar cobro en Google Calendar:", err);
+  }
+}
+
+// ID de la carpeta raíz en Google Drive para documentos de clientes
+const GOOGLE_DRIVE_CLIENTES_FOLDER_ID = "12xYCUm9UULixGlauvbYdeUHRaEzTNJyq";
+
+/**
+ * Crea una subcarpeta en Google Drive para el cliente.
+ * Devuelve el ID de la subcarpeta creada.
+ */
+async function createDriveSubfolder(clientName: string, parentFolderId: string): Promise<string> {
+  const accessToken = await getGoogleDriveAccessToken();
+  const safeName = clientName.replace(/[^\w\s\-áéíóúñÁÉÍÓÚÑ]/g, '').trim();
+  const folderName = `Documentos - ${safeName}`;
+
+  const metadata = {
+    name: folderName,
+    mimeType: 'application/vnd.google-apps.folder',
+    parents: [parentFolderId]
+  };
+
+  const response = await fetch(
+    'https://www.googleapis.com/drive/v3/files?fields=id,name',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(metadata)
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`No se pudo crear la subcarpeta en Google Drive: ${err}`);
+  }
+
+  const folder = await response.json() as { id: string };
+  return folder.id;
+}
+
+/**
+ * Sube un documento de cliente a su subcarpeta en Google Drive.
+ */
+async function uploadDocumentToDrive(fileName: string, mimeType: string, buffer: Buffer, folderId: string) {
+  const accessToken = await getGoogleDriveAccessToken();
+  const uniqueName = `${Date.now()}-${fileName.replace(/[^a-zA-Z0-9._\-]/g, '_')}`;
+  const boundary = `----prestafacilito-doc-${Date.now()}`;
+
+  const metadata = { name: uniqueName, parents: [folderId] };
+
+  const multipartPrefix = Buffer.from([
+    `--${boundary}`,
+    'Content-Type: application/json; charset=UTF-8',
+    '',
+    JSON.stringify(metadata),
+    `--${boundary}`,
+    `Content-Type: ${mimeType}`,
+    '',
+    ''
+  ].join('\r\n'), 'utf8');
+
+  const multipartSuffix = Buffer.from(`\r\n--${boundary}--`, 'utf8');
+  const body = Buffer.concat([multipartPrefix, buffer, multipartSuffix]);
+
+  const uploadResponse = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': `multipart/related; boundary=${boundary}`
+      },
+      body
+    }
+  );
+
+  if (!uploadResponse.ok) {
+    const err = await uploadResponse.text();
+    throw new Error(`Error al subir documento a Drive: ${err}`);
+  }
+
+  const file = await uploadResponse.json() as { id: string; name: string; webViewLink?: string };
+  return {
+    fileId: file.id,
+    fileName: file.name,
+    publicUrl: `/api/documentos/proxy/${file.id}`
+  };
+}
+
+/**
+ * Detecta el género del cliente por su primer nombre.
+ * Devuelve 'SR.' o 'SRA.' según corresponda.
+ */
+function detectarGenero(nombreCompleto: string): 'SR.' | 'SRA.' {
+  const NOMBRES_FEMENINOS = new Set([
+    'maria','ana','lucia','sofia','elena','carmen','rosa','claudia','andrea','patricia',
+    'laura','diana','gloria','monica','sandra','alejandra','valentina','gabriela','lorena',
+    'jessica','vanessa','adriana','paola','natalia','carolina','fernanda','daniela','sara',
+    'isabel','pilar','julia','alicia','beatriz','cristina','irene','mariana','raquel',
+    'silvia','yolanda','angela','consuelo','esperanza','graciela','luz','mercedes','norma',
+    'olga','rebeca','susana','veronica','wendy','xiomara','yasmin','zoraida','pamela',
+    'karina','brenda','gisela','rocio','miriam','nancy','marisol','milagros','flor',
+    'liliana','estela','rosa','cecilia','catalina','evelyn','fabiola','helen','iliana'
+  ]);
+  
+  const primerNombre = nombreCompleto.trim().split(/\s+/)[0].toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  
+  return NOMBRES_FEMENINOS.has(primerNombre) ? 'SRA.' : 'SR.';
+}
+
+/**
+ * Estandariza el número de teléfono para Perú (+51).
+ * Si el número tiene 9 dígitos y empieza con 9, agrega el prefijo 51.
+ */
+function estandarizarTelefono(tel: string): string {
+  if (!tel) return '';
+  const soloDigitos = tel.replace(/\D/g, '');
+  if (soloDigitos.startsWith('51') && soloDigitos.length === 11) return soloDigitos;
+  if (soloDigitos.length === 9 && soloDigitos.startsWith('9')) return `51${soloDigitos}`;
+  return soloDigitos;
+}
+
 // Helper para auditoría de acciones (Logs) en Supabase
 async function logAction(usuario: string, accion: string, detalles: string) {
   try {
@@ -415,27 +772,42 @@ app.get("/api/clientes", requireAuth, async (req, res) => {
 
 app.post("/api/clientes", requireAuth, async (req, res) => {
   try {
-    const { nombre_completo, telefono, observaciones } = req.body;
+    const { nombre_completo, telefono, observaciones, direccion, numero_cuenta, banco_cuenta, informacion_adicional } = req.body;
     
     if (!nombre_completo) {
       res.status(400).json({ error: "El nombre completo es requerido" });
       return;
     }
 
-    // Sanitizar número de teléfono (removiendo +)
-    const telSanitized = telefono ? telefono.replace(/\+/g, "").trim() : "";
+    // Estandarizar número de teléfono peruano (+51)
+    const telSanitized = estandarizarTelefono(telefono || '');
 
     const { data, error } = await supabase
       .from("clientes")
       .insert({
         nombre_completo,
         telefono: telSanitized,
-        observaciones: observaciones || ""
+        observaciones: observaciones || '',
+        direccion: direccion || '',
+        numero_cuenta: numero_cuenta || '',
+        banco_cuenta: banco_cuenta || '',
+        informacion_adicional: informacion_adicional || ''
       })
       .select()
       .single();
 
     if (error) throw error;
+
+    // Crear subcarpeta en Google Drive si está configurado
+    if (isDriveConfigured()) {
+      try {
+        const folderId = await createDriveSubfolder(nombre_completo, GOOGLE_DRIVE_CLIENTES_FOLDER_ID);
+        await supabase.from('clientes').update({ drive_folder_id: folderId }).eq('id', data.id);
+        data.drive_folder_id = folderId;
+      } catch (driveErr: any) {
+        console.warn('No se pudo crear la carpeta de Drive para el cliente:', driveErr.message);
+      }
+    }
 
     const username = (req as any).user.username;
     await logAction(
@@ -454,23 +826,25 @@ app.post("/api/clientes", requireAuth, async (req, res) => {
 app.put("/api/clientes/:id", requireAuth, async (req, res) => {
   try {
     const clienteId = req.params.id;
-    const { nombre_completo, telefono, observaciones, direccion, informacion_adicional } = req.body;
+    const { nombre_completo, telefono, observaciones, direccion, numero_cuenta, banco_cuenta, informacion_adicional } = req.body;
 
     if (!nombre_completo) {
       res.status(400).json({ error: "El nombre completo es requerido" });
       return;
     }
 
-    const extraNotas = [direccion, informacion_adicional].filter(Boolean).join(" | ");
-    const observacionesFinales = [observaciones || "", extraNotas].filter(Boolean).join(observaciones && extraNotas ? "\n" : "");
-    const telSanitized = telefono ? String(telefono).replace(/\+/g, "").trim() : "";
+    const telSanitized = estandarizarTelefono(telefono || '');
 
     const { data, error } = await supabase
       .from("clientes")
       .update({
         nombre_completo,
         telefono: telSanitized,
-        observaciones: observacionesFinales
+        observaciones: observaciones || '',
+        direccion: direccion || '',
+        numero_cuenta: numero_cuenta || '',
+        banco_cuenta: banco_cuenta || '',
+        informacion_adicional: informacion_adicional || ''
       })
       .eq("id", clienteId)
       .select()
@@ -525,6 +899,11 @@ app.post("/api/prestamos", requireAuth, async (req, res) => {
       "REGISTRAR_PRESTAMO",
       `Otorgó crédito ${tipo_prestamo} de S/. ${monto_capital} al cliente: ${cliente ? cliente.nombre_completo : cliente_id}`
     );
+
+    // Sincronizar cuotas en Google Calendar de forma asíncrona
+    syncLoanScheduleToGoogleCalendar(data.id).catch((calErr) => {
+      console.error("Error al sincronizar préstamo en Google Calendar:", calErr);
+    });
 
     res.status(201).json(data);
   } catch (err: any) {
@@ -620,6 +999,11 @@ app.put("/api/prestamos/:id", requireAuth, async (req, res) => {
       `Actualizó fechas del préstamo ${updated.tipo_prestamo} de S/. ${updated.monto_capital} del cliente: ${cliente ? cliente.nombre_completo : updated.cliente_id}`
     );
 
+    // Sincronizar cuotas reprogramadas en Google Calendar de forma asíncrona
+    syncLoanScheduleToGoogleCalendar(prestamoId).catch((calErr) => {
+      console.error("Error al reprogramar préstamo en Google Calendar:", calErr);
+    });
+
     res.json(updated);
   } catch (err: any) {
     console.error("Error al actualizar préstamo:", err);
@@ -699,8 +1083,8 @@ app.post("/api/prestamos/:id/pagos", requireAuth, async (req, res) => {
         .eq("id", prestamoId);
     }
 
-    // Obtener cliente para logs
-    const { data: cliente } = await supabase.from("clientes").select("nombre_completo").eq("id", prestamo.cliente_id).single();
+    // Obtener cliente para logs y Google Calendar
+    const { data: cliente } = await supabase.from("clientes").select("*").eq("id", prestamo.cliente_id).single();
 
     const username = (req as any).user.username;
     await logAction(
@@ -708,6 +1092,25 @@ app.post("/api/prestamos/:id/pagos", requireAuth, async (req, res) => {
       "REGISTRAR_PAGO",
       `Abonó S/. ${montoPago} (${clasificacionAutomatica}) al préstamo de: ${cliente ? cliente.nombre_completo : prestamo.cliente_id}`
     );
+
+    // Sincronizar cuotas actualizadas en Google Calendar
+    syncLoanScheduleToGoogleCalendar(prestamoId).catch((calErr) => {
+      console.error("Error al sincronizar cuotas tras pago en Google Calendar:", calErr);
+    });
+
+    // Registrar abono recibido en Google Calendar
+    if (cliente) {
+      logPaymentToGoogleCalendar(
+        cliente,
+        prestamo,
+        montoPago,
+        metodo_pago || "Efectivo",
+        clasificacionAutomatica,
+        fecha_pago || new Date().toISOString().split("T")[0]
+      ).catch((calErr) => {
+        console.error("Error al registrar abono en Google Calendar:", calErr);
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -1028,7 +1431,10 @@ app.get("/api/auth/google/login", (req, res) => {
   
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: "offline",
-    scope: ["https://www.googleapis.com/auth/drive"],
+    scope: [
+      "https://www.googleapis.com/auth/drive",
+      "https://www.googleapis.com/auth/calendar"
+    ],
     prompt: "consent"
   });
 
@@ -1491,6 +1897,154 @@ app.patch("/api/prestamos/:id/ajustes/:ajusteId", requireAuth, async (req, res) 
   } catch (err: any) {
     console.error("Error al actualizar ajuste:", err);
     res.status(500).json({ error: "Error al modificar el estado del ajuste", detail: err.message });
+  }
+});
+
+// ========================================================
+// ENDPOINTS DE DOCUMENTOS DE CLIENTES (v2)
+// ========================================================
+
+// Listar documentos de un cliente
+app.get("/api/clientes/:id/documentos", requireAuth, async (req, res) => {
+  try {
+    const clienteId = req.params.id;
+    const { data, error } = await supabase
+      .from('documentos_cliente')
+      .select('*')
+      .eq('cliente_id', clienteId)
+      .order('fecha_subida', { ascending: false });
+
+    if (error) throw error;
+    res.json(data || []);
+  } catch (err: any) {
+    console.error('Error al obtener documentos:', err);
+    res.status(500).json({ error: 'Error al obtener documentos', detail: err.message });
+  }
+});
+
+// Subir documento de cliente a Google Drive
+app.post("/api/clientes/:id/documentos", requireAuth, async (req, res) => {
+  try {
+    const clienteId = req.params.id;
+    const { fileName, mimeType, base64Data, tipo_documento, observacion } = req.body;
+
+    if (!fileName || !mimeType || !base64Data || !tipo_documento) {
+      res.status(400).json({ error: 'Faltan campos requeridos: fileName, mimeType, base64Data, tipo_documento.' });
+      return;
+    }
+
+    if (!isDriveConfigured()) {
+      res.status(503).json({ error: 'Google Drive no está configurado.', driveConfigured: false });
+      return;
+    }
+
+    // Obtener cliente y su carpeta en Drive
+    const { data: cliente, error: clienteErr } = await supabase
+      .from('clientes')
+      .select('nombre_completo, drive_folder_id')
+      .eq('id', clienteId)
+      .single();
+
+    if (clienteErr || !cliente) {
+      res.status(404).json({ error: 'Cliente no encontrado.' });
+      return;
+    }
+
+    // Crear subcarpeta si no existe
+    let folderId = cliente.drive_folder_id;
+    if (!folderId) {
+      try {
+        folderId = await createDriveSubfolder(cliente.nombre_completo, GOOGLE_DRIVE_CLIENTES_FOLDER_ID);
+        await supabase.from('clientes').update({ drive_folder_id: folderId }).eq('id', clienteId);
+      } catch (folderErr: any) {
+        res.status(502).json({ error: 'No se pudo crear la carpeta del cliente en Drive.', detail: folderErr.message });
+        return;
+      }
+    }
+
+    // Subir el archivo
+    const buffer = Buffer.from(base64Data, 'base64');
+    let uploaded;
+    try {
+      uploaded = await uploadDocumentToDrive(fileName, mimeType, buffer, folderId);
+    } catch (uploadErr: any) {
+      res.status(502).json({ error: 'No se pudo subir el documento a Drive.', detail: uploadErr.message });
+      return;
+    }
+
+    // Guardar referencia en la BD
+    const { data: docData, error: docErr } = await supabase
+      .from('documentos_cliente')
+      .insert({
+        cliente_id: clienteId,
+        tipo_documento,
+        nombre_archivo: fileName,
+        drive_file_id: uploaded.fileId,
+        drive_url: uploaded.publicUrl,
+        mime_type: mimeType,
+        observacion: observacion || ''
+      })
+      .select()
+      .single();
+
+    if (docErr) throw docErr;
+
+    const username = (req as any).user.username;
+    await logAction(username, 'SUBIR_DOCUMENTO_CLIENTE', `Subió ${tipo_documento} para cliente ${cliente.nombre_completo}.`);
+
+    res.status(201).json(docData);
+  } catch (err: any) {
+    console.error('Error al subir documento:', err);
+    res.status(500).json({ error: 'Error al subir documento', detail: err.message });
+  }
+});
+
+// Eliminar documento de cliente
+app.delete("/api/clientes/:id/documentos/:docId", requireAuth, async (req, res) => {
+  try {
+    const { docId } = req.params;
+    const { error } = await supabase
+      .from('documentos_cliente')
+      .delete()
+      .eq('id', docId);
+
+    if (error) throw error;
+
+    const username = (req as any).user.username;
+    await logAction(username, 'ELIMINAR_DOCUMENTO_CLIENTE', `Eliminó documento ${docId}.`);
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('Error al eliminar documento:', err);
+    res.status(500).json({ error: 'Error al eliminar documento', detail: err.message });
+  }
+});
+
+// Proxy para visualizar documentos de clientes desde Google Drive
+app.get("/api/documentos/proxy/:fileId", requireAuth, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const accessToken = await getGoogleDriveAccessToken();
+
+    const driveRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+
+    if (!driveRes.ok) {
+      res.status(driveRes.status).send('No se pudo cargar el documento desde Google Drive.');
+      return;
+    }
+
+    const contentType = driveRes.headers.get('content-type') || 'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    
+    const arrayBuffer = await driveRes.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
+  } catch (err: any) {
+    console.error('Error al servir documento:', err);
+    res.status(500).send(`Error: ${err.message}`);
   }
 });
 
