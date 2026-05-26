@@ -255,7 +255,7 @@ async function syncLoanScheduleToGoogleCalendar(prestamoId: string) {
         `• N° de Cuota: ${cuota.numero} de ${debtState.resumen.totalCuotas}`,
         `• Monto de la Cuota: S/. ${cuota.montoExigible.toFixed(2)}`,
         `• Capital de Cuota: S/. ${cuota.capitalPendiente.toFixed(2)}`,
-        `• Interés de Cuota: S/. ${cuota.interesOriginal.toFixed(2)}`,
+        cuota.interesOriginal ? `• Interés de Cuota: S/. ${cuota.interesOriginal.toFixed(2)}` : null,
         cuota.moraPendiente > 0 ? `• Mora Pendiente: S/. ${cuota.moraPendiente.toFixed(2)}` : null,
         `• Total Pagado en esta cuota: S/. ${cuota.pagado.toFixed(2)}`,
         `• Saldo Pendiente: S/. ${cuota.saldoPendiente.toFixed(2)}`,
@@ -2045,6 +2045,241 @@ app.get("/api/documentos/proxy/:fileId", requireAuth, async (req, res) => {
   } catch (err: any) {
     console.error('Error al servir documento:', err);
     res.status(500).send(`Error: ${err.message}`);
+  }
+});
+
+// Helper to calculate timezone-safe YYYY-MM-DD ranges for current and past month
+function getMonthRanges(baseDate: Date = new Date()) {
+  const currentYear = baseDate.getFullYear();
+  const currentMonth = baseDate.getMonth(); // 0-indexed
+
+  const currentMonthStart = new Date(currentYear, currentMonth, 1);
+  const currentMonthEnd = new Date(currentYear, currentMonth + 1, 0);
+
+  const pastMonthStart = new Date(currentYear, currentMonth - 1, 1);
+  const pastMonthEnd = new Date(currentYear, currentMonth, 0);
+
+  const formatDate = (d: Date) => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  return {
+    currentMonth: {
+      start: formatDate(currentMonthStart),
+      end: formatDate(currentMonthEnd),
+      year: currentYear,
+      month: currentMonth + 1
+    },
+    pastMonth: {
+      start: formatDate(pastMonthStart),
+      end: formatDate(pastMonthEnd),
+      year: currentMonth === 0 ? currentYear - 1 : currentYear,
+      month: currentMonth === 0 ? 12 : currentMonth
+    }
+  };
+}
+
+// Endpoint to synchronize Google Calendar events for the current month and clean up the past month
+app.post("/api/calendar/sync-month", requireAuth, async (req, res) => {
+  if (!isGoogleCalendarConfigured()) {
+    res.status(503).json({ error: "Google Calendar no está configurado en las variables de entorno." });
+    return;
+  }
+
+  const username = (req as any).user?.username || "Admin";
+
+  try {
+    const ranges = getMonthRanges();
+    const curStart = ranges.currentMonth.start;
+    const curEnd = ranges.currentMonth.end;
+    const pastStart = ranges.pastMonth.start;
+    const pastEnd = ranges.pastMonth.end;
+
+    console.log(`[CalendarSync] Iniciando sincronización. Mes actual: ${curStart} al ${curEnd}. Mes pasado: ${pastStart} al ${pastEnd}.`);
+
+    const accessToken = await getGoogleAccessToken();
+
+    // 1. Obtener eventos de Google Calendar del mes pasado para depuración
+    const timeMin = `${pastStart}T00:00:00Z`;
+    const timeMax = `${pastEnd}T23:59:59Z`;
+    const listUrl = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true`;
+
+    const listRes = await fetch(listUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    if (!listRes.ok) {
+      const listErrText = await listRes.text();
+      throw new Error(`Error al listar eventos del mes pasado: ${listErrText}`);
+    }
+
+    const calendarData = await listRes.json();
+    const events: any[] = calendarData.items || [];
+
+    // Filtrar estrictamente eventos de PrestaFacilito
+    const loanEventsToDelete = events.filter((event: any) => {
+      const summary = event.summary || "";
+      const description = event.description || "";
+      
+      const hasPrestaFacilitoDesc = description.includes("PrestaFacilito");
+      const hasPrefix = 
+        summary.startsWith("🔔 [PENDIENTE]") ||
+        summary.startsWith("✅ [PAGADO]") ||
+        summary.startsWith("🔶 [PARCIAL]") ||
+        summary.startsWith("🚨 [VENCIDO]") ||
+        summary.startsWith("💰 Cobro Recibido");
+
+      return hasPrestaFacilitoDesc || hasPrefix;
+    });
+
+    console.log(`[CalendarSync] Encontrados ${loanEventsToDelete.length} eventos de préstamos para eliminar del mes pasado.`);
+
+    let deletedCount = 0;
+    for (const event of loanEventsToDelete) {
+      if (event.id) {
+        try {
+          await deleteGoogleCalendarEvent(event.id);
+          deletedCount++;
+        } catch (delErr: any) {
+          console.error(`[CalendarSync] Fallo al eliminar evento ${event.id}:`, delErr.message);
+        }
+      }
+    }
+
+    // 2. Obtener préstamos activos para sincronizar cuotas del mes actual
+    const { data: activeLoans, error: lErr } = await supabase
+      .from("prestamos")
+      .select("*")
+      .eq("estado", "activo");
+
+    if (lErr) throw lErr;
+
+    let syncedCount = 0;
+
+    if (activeLoans && activeLoans.length > 0) {
+      for (const prestamo of activeLoans) {
+        try {
+          const [cRes, aRes, ajRes] = await Promise.all([
+            supabase.from("clientes").select("*").eq("id", prestamo.cliente_id).single(),
+            supabase.from("amortizaciones").select("*").eq("prestamo_id", prestamo.id),
+            supabase.from("ajustes_prestamo").select("*").eq("prestamo_id", prestamo.id)
+          ]);
+
+          const cliente = cRes.data;
+          const pagosRealizados = aRes.data || [];
+          const ajustes = ajRes.data || [];
+
+          if (!cliente) continue;
+
+          // Calcular cronograma
+          const debtState = buildPaymentSchedule(prestamo, pagosRealizados, ajustes, new Date());
+          const cuotas = debtState.cuotas;
+
+          const existingEvents = Array.isArray(prestamo.google_calendar_events)
+            ? prestamo.google_calendar_events
+            : [];
+
+          const updatedEventsList: any[] = [];
+
+          // Procesar todas las cuotas del préstamo
+          for (const cuota of cuotas) {
+            const isCurrentMonth = cuota.fechaVencimiento >= curStart && cuota.fechaVencimiento <= curEnd;
+            const isPastMonth = cuota.fechaVencimiento >= pastStart && cuota.fechaVencimiento <= pastEnd;
+
+            const existing = existingEvents.find((e: any) => e.numero === cuota.numero);
+            
+            if (isCurrentMonth) {
+              // Sincronizar cuota de mes actual
+              let colorId = "5"; // Yellow (Banana) - Pendiente por defecto
+              let statusPrefix = "🔔 [PENDIENTE]";
+
+              if (cuota.estado === "Saldada") {
+                colorId = "10"; // Green (Basil)
+                statusPrefix = "✅ [PAGADO]";
+              } else if (cuota.estado === "Parcial") {
+                colorId = "6"; // Orange (Tangerine)
+                statusPrefix = "🔶 [PARCIAL]";
+              } else if (cuota.estado === "Vencida") {
+                colorId = "11"; // Red (Tomato)
+                statusPrefix = "🚨 [VENCIDO]";
+              }
+
+              const summary = `${statusPrefix} Cuota ${cuota.numero} - ${cliente.nombre_completo}`;
+              const description = [
+                `📊 ESTADO DEL CRÉDITO:`,
+                `• Cliente: ${cliente.nombre_completo}`,
+                `• Teléfono: ${cliente.telefono || "No registrado"}`,
+                `• Tipo de Préstamo: ${prestamo.tipo_prestamo || "Personal"}`,
+                `• N° de Cuota: ${cuota.numero} de ${debtState.resumen.totalCuotas}`,
+                `• Monto de la Cuota: S/. ${cuota.montoExigible.toFixed(2)}`,
+                `• Capital de Cuota: S/. ${cuota.capitalPendiente.toFixed(2)}`,
+                `• Interés de Cuota: S/. ${(cuota.interesOriginal ?? 0).toFixed(2)}`,
+                cuota.moraPendiente > 0 ? `• Mora Pendiente: S/. ${cuota.moraPendiente.toFixed(2)}` : null,
+                `• Total Pagado en esta cuota: S/. ${cuota.pagado.toFixed(2)}`,
+                `• Saldo Pendiente: S/. ${cuota.saldoPendiente.toFixed(2)}`,
+                `• Fecha de Vencimiento: ${cuota.fechaVencimiento}`,
+                `• Estado de la Cuota: ${cuota.estado}`,
+                `\n📅 Registro actualizado automáticamente desde PrestaFacilito.`
+              ].filter(Boolean).join("\n");
+
+              try {
+                const calEvent = await createOrUpdateGoogleCalendarEvent({
+                  eventId: existing?.eventId,
+                  summary,
+                  description,
+                  dateStr: cuota.fechaVencimiento,
+                  colorId
+                });
+
+                updatedEventsList.push({
+                  numero: cuota.numero,
+                  eventId: calEvent.id,
+                  fechaVencimiento: cuota.fechaVencimiento
+                });
+                syncedCount++;
+              } catch (calErr: any) {
+                console.error(`[CalendarSync] Error al sincronizar cuota ${cuota.numero} en Google Calendar:`, calErr.message);
+                if (existing) updatedEventsList.push(existing);
+              }
+            } else if (isPastMonth) {
+              // Si estaba registrado en base de datos para el mes pasado, se descarta del array ya que fue eliminado del calendario
+              console.log(`[CalendarSync] Descartando evento del mes pasado del préstamo ${prestamo.id}, cuota ${cuota.numero}`);
+            } else {
+              // Mantener eventos de otros meses intactos
+              if (existing) {
+                updatedEventsList.push(existing);
+              }
+            }
+          }
+
+          // Actualizar préstamo en Supabase con la nueva lista de eventos
+          await supabase
+            .from("prestamos")
+            .update({ google_calendar_events: updatedEventsList })
+            .eq("id", prestamo.id);
+
+        } catch (loanErr: any) {
+          console.error(`[CalendarSync] Error al procesar préstamo ${prestamo.id}:`, loanErr.message);
+        }
+      }
+    }
+
+    const actionDetails = `Sincronización mensual de calendario ejecutada de forma exitosa. Se actualizaron/sincronizaron ${syncedCount} cuotas del mes actual y se eliminaron ${deletedCount} eventos obsoletos del mes pasado de préstamos en el calendario.`;
+    await logAction(username, "SINCRONIZAR_CALENDARIO_MENSUAL", actionDetails);
+
+    res.json({
+      success: true,
+      syncedCount,
+      deletedCount,
+      message: `¡Sincronización mensual completada! ${syncedCount} cuotas del mes actual sincronizadas/actualizadas y ${deletedCount} eventos antiguos del mes pasado depurados con éxito.`
+    });
+
+  } catch (err: any) {
+    console.error("Error en sincronización mensual de calendario:", err);
+    res.status(500).json({ error: "Error al sincronizar el calendario mensual", detail: err.message });
   }
 });
 

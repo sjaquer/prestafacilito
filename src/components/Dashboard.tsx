@@ -152,6 +152,11 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
   const [editEstado, setEditEstado] = useState("");
   const [updatingLoan, setUpdatingLoan] = useState(false);
 
+  // Estados para sincronización de calendario
+  const [syncingCalendar, setSyncingCalendar] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ success: boolean; message: string } | null>(null);
+
+
 
   // Estados para Carga de Voucher Exprés (sin OCR)
   const [showVoucherModal, setShowVoucherModal] = useState(false);
@@ -321,6 +326,28 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  const handleSyncCalendar = async () => {
+    setSyncingCalendar(true);
+    setSyncResult(null);
+    try {
+      const res = await fetch("/api/calendar/sync-month", {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSyncResult({ success: true, message: data.message });
+        fetchDashboardData();
+      } else {
+        setSyncResult({ success: false, message: data.error || "Ocurrió un error al sincronizar el calendario." });
+      }
+    } catch (err) {
+      setSyncResult({ success: false, message: "Error de comunicación con el servidor." });
+    } finally {
+      setSyncingCalendar(false);
+    }
+  };
+
 
 
 
@@ -898,6 +925,21 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
           <button
+            id="btn-sync-calendar"
+            onClick={handleSyncCalendar}
+            disabled={syncingCalendar}
+            className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl border border-white/[0.08] hover:border-indigo-500/30 bg-white/[0.03] hover:bg-indigo-500/5 text-slate-300 hover:text-indigo-300 text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer min-h-[44px] disabled:opacity-50"
+            title="Sincronizar cuotas del mes actual y limpiar mes pasado"
+          >
+            {syncingCalendar ? (
+              <Loader2 size={15} className="text-indigo-400 animate-spin" />
+            ) : (
+              <CalendarDays size={15} className="text-indigo-400" />
+            )}
+            <span>Sincronizar Calendario</span>
+          </button>
+
+          <button
             id="btn-upload-voucher-quick"
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl border border-white/[0.08] hover:border-emerald-500/30 bg-white/[0.03] hover:bg-emerald-500/5 text-xs font-black uppercase tracking-wider text-slate-300 hover:text-emerald-300 transition-all duration-200 cursor-pointer min-h-[44px]"
@@ -916,6 +958,32 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
           </button>
         </div>
       </div>
+
+      {syncResult && (
+        <div className={`p-4 border rounded-2xl text-xs flex items-start gap-2.5 relative animate-fade-in ${
+          syncResult.success 
+            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" 
+            : "bg-rose-500/10 border-rose-500/20 text-rose-300"
+        }`}>
+          {syncResult.success ? (
+            <CheckCircle className="shrink-0 text-emerald-400 mt-0.5" size={16} />
+          ) : (
+            <ShieldAlert className="shrink-0 text-rose-400 mt-0.5" size={16} />
+          )}
+          <div className="flex-1">
+            <span className="font-bold block text-sm">
+              {syncResult.success ? "Sincronización Completada" : "Error de Sincronización"}
+            </span>
+            <span className="opacity-90 leading-normal mt-0.5 block">{syncResult.message}</span>
+          </div>
+          <button 
+            onClick={() => setSyncResult(null)}
+            className="absolute right-3.5 top-3.5 text-gray-400 hover:text-slate-200 p-0.5 cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-2xl text-xs flex items-start gap-2.5">

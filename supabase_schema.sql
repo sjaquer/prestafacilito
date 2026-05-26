@@ -139,3 +139,14 @@ CREATE OR REPLACE VIEW resumen_financiero_clientes AS
 -- =============================================
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('vouchers', 'vouchers', true)
 -- ON CONFLICT (id) DO NOTHING;
+
+-- =============================================
+-- SEGURIDAD: Habilitar Row Level Security (RLS)
+-- =============================================
+ALTER TABLE clientes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE prestamos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE amortizaciones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ajustes_prestamo ENABLE ROW LEVEL SECURITY;
+ALTER TABLE documentos_cliente ENABLE ROW LEVEL SECURITY;
+ALTER TABLE logs ENABLE ROW LEVEL SECURITY;
+
