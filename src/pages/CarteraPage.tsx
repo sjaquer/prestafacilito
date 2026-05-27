@@ -7,7 +7,7 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { DataTable, ColumnDef } from "../components/ui/DataTable";
-import { formatCurrency, round2 } from "../lib/formatters";
+import { formatCurrency, formatDateWithDay, round2 } from "../lib/formatters";
 import { usePrestamos } from "../hooks/usePrestamos";
 import { useClientes } from "../hooks/useClientes";
 
@@ -72,7 +72,8 @@ export const CarteraPage: React.FC = () => {
     const totalExigible = round2(capital * (1 + interest / 100));
 
     const formattedAmount = formatCurrency(totalExigible);
-    const text = `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} con vencimiento el ${loan.fecha_vencimiento}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
+    const fechaFormato = formatDateWithDay(loan.fecha_vencimiento);
+    const text = `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} con vencimiento el ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
 
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   };
@@ -101,7 +102,7 @@ export const CarteraPage: React.FC = () => {
     const interest = parseFloat(loan.tasa_interes_porcentaje) || 0;
     const totalExigible = round2(capital * (1 + interest / 100));
     const cuota = formatCurrency(totalExigible);
-    const fecha = loan.fecha_vencimiento;
+    const fecha = formatDateWithDay(loan.fecha_vencimiento);
     const nombreMayus = loan.cliente_nombre.toUpperCase();
 
     const mensaje =
@@ -333,8 +334,8 @@ export const CarteraPage: React.FC = () => {
       accessorKey: "fecha_vencimiento",
       sortable: true,
       cell: (loan) => (
-        <span className="text-slate-400 font-mono text-[11px]">
-          {loan.fecha_vencimiento || "No est."}
+        <span className="text-slate-400 text-[11px] whitespace-normal">
+          {loan.fecha_vencimiento ? formatDateWithDay(loan.fecha_vencimiento) : "No est."}
         </span>
       ),
     },
@@ -469,7 +470,7 @@ export const CarteraPage: React.FC = () => {
           <Calendar size={14} className="text-indigo-400 shrink-0" />
           <div>
             <span className="text-slate-500 font-bold block uppercase text-[9px] tracking-wider">Vencimiento Final:</span>
-            <span className="font-extrabold text-white text-xs">{loan.fecha_vencimiento || "No configurado"}</span>
+            <span className="font-extrabold text-white text-xs">{loan.fecha_vencimiento ? formatDateWithDay(loan.fecha_vencimiento) : "No configurado"}</span>
           </div>
         </div>
 

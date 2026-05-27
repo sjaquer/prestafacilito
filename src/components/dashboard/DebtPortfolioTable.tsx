@@ -5,7 +5,7 @@ import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { DataTable, ColumnDef } from "../ui/DataTable";
-import { formatCurrency } from "../../lib/formatters";
+import { formatCurrency, formatDateWithDay } from "../../lib/formatters";
 import { Cliente } from "../../types";
 
 interface DebtPortfolioTableProps {
@@ -38,7 +38,8 @@ export const DebtPortfolioTable: React.FC<DebtPortfolioTableProps> = ({
     const totalExigible = capital * (1 + interest / 100);
 
     const formattedAmount = formatCurrency(totalExigible);
-    const text = `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} con vencimiento el ${loan.fecha_vencimiento}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
+    const fechaFormato = formatDateWithDay(loan.fecha_vencimiento);
+    const text = `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} con vencimiento el ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
     
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   };
@@ -67,7 +68,7 @@ export const DebtPortfolioTable: React.FC<DebtPortfolioTableProps> = ({
     const interest = parseFloat(loan.tasa_interes_porcentaje) || 0;
     const totalExigible = capital * (1 + interest / 100);
     const cuota = formatCurrency(totalExigible);
-    const fecha = loan.fecha_vencimiento;
+    const fecha = formatDateWithDay(loan.fecha_vencimiento);
     const nombreMayus = loan.cliente_nombre.toUpperCase();
 
     const mensaje =
@@ -223,7 +224,7 @@ export const DebtPortfolioTable: React.FC<DebtPortfolioTableProps> = ({
           <Info size={14} className="text-indigo-400 shrink-0" />
           <div>
             <span className="text-slate-400 font-bold block">Fecha Vencimiento Final:</span>
-            <span className="font-extrabold text-white">{loan.fecha_vencimiento ? loan.fecha_vencimiento : "No configurado"}</span>
+            <span className="font-extrabold text-white">{loan.fecha_vencimiento ? formatDateWithDay(loan.fecha_vencimiento) : "No configurado"}</span>
           </div>
         </div>
 

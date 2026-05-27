@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { CalendarDays, MessageSquare, Bell, AlertTriangle, Clock, ArrowUpRight, CheckCircle2 } from "lucide-react";
-import { formatCurrency } from "../../lib/formatters";
+import { formatCurrency, formatDateWithDay } from "../../lib/formatters";
 import { Cliente } from "../../types";
 import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
@@ -39,7 +39,8 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
     const totalExigible = capital * (1 + interest / 100);
 
     const formattedAmount = formatCurrency(totalExigible);
-    const text = `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} con vencimiento el ${loan.fecha_vencimiento}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
+    const fechaFormato = formatDateWithDay(loan.fecha_vencimiento);
+    const text = `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} con vencimiento el ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
     
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   };
@@ -67,7 +68,7 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
     const interest = parseFloat(loan.tasa_interes_porcentaje) || 0;
     const totalExigible = capital * (1 + interest / 100);
     const cuota = formatCurrency(totalExigible);
-    const fecha = loan.fecha_vencimiento;
+    const fecha = formatDateWithDay(loan.fecha_vencimiento);
     const nombreMayus = loan.cliente_nombre.toUpperCase();
 
     const mensaje =
@@ -157,21 +158,15 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
                 </div>
               ) : (
                 loansVencidos.map((loan) => {
-                  const initials = loan.cliente_nombre.split(" ").slice(0, 2).map((n: string) => n[0]).join("").toUpperCase();
                   const absOverdue = Math.abs(loan.remainingDays);
                   
                   return (
                     <div key={loan.id} className="flex items-center justify-between p-3.5 bg-rose-550/[0.015] border border-rose-500/10 rounded-2xl gap-3 hover:border-rose-500/20 transition duration-150">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-red-650 flex items-center justify-center font-black text-xs text-white shadow-md shrink-0">
-                          {initials}
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold text-slate-100 text-xs truncate block leading-tight">{loan.cliente_nombre}</span>
-                          <span className="text-[10px] text-slate-500 font-semibold block mt-1 flex items-center gap-1.5">
-                            <Clock size={10} className="text-rose-500 shrink-0" />
-                            <span>Venció: <strong className="text-slate-400 font-mono font-bold">{loan.fecha_vencimiento}</strong></span>
-                          </span>
+                      <div className="flex flex-col gap-2 min-w-0 flex-1">
+                        <span className="font-bold text-slate-50 text-sm leading-tight">{loan.cliente_nombre}</span>
+                        <div className="flex items-center gap-2">
+                          <Clock size={10} className="text-rose-500 shrink-0" />
+                          <span className="text-[10px] text-slate-500 font-semibold">Venció: <strong className="text-slate-400 font-bold">{formatDateWithDay(loan.fecha_vencimiento)}</strong></span>
                         </div>
                       </div>
 
@@ -260,7 +255,6 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
                 </div>
               ) : (
                 loansProximos.map((loan) => {
-                  const initials = loan.cliente_nombre.split(" ").slice(0, 2).map((n: string) => n[0]).join("").toUpperCase();
                   const remaining = loan.remainingDays;
                   
                   let timerBadgeColor = "bg-white/5 border-white/8 text-slate-400";
@@ -274,16 +268,11 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
 
                   return (
                     <div key={loan.id} className="flex items-center justify-between p-3.5 bg-white/[0.012] border border-white/[0.04] rounded-2xl gap-3 hover:border-white/[0.08] transition duration-150">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-650 flex items-center justify-center font-black text-xs text-white shadow-md shrink-0">
-                          {initials}
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold text-slate-100 text-xs truncate block leading-tight">{loan.cliente_nombre}</span>
-                          <span className="text-[10px] text-slate-500 font-semibold block mt-1 flex items-center gap-1.5">
-                            <Clock size={10} className="text-indigo-400 shrink-0" />
-                            <span>Monto: <strong className="text-slate-350 font-mono font-bold">{formatCurrency(loan.monto_capital)}</strong></span>
-                          </span>
+                      <div className="flex flex-col gap-2 min-w-0 flex-1">
+                        <span className="font-bold text-slate-50 text-sm leading-tight">{loan.cliente_nombre}</span>
+                        <div className="flex items-center gap-2">
+                          <Clock size={10} className="text-indigo-400 shrink-0" />
+                          <span className="text-[10px] text-slate-500 font-semibold">Monto: <strong className="text-slate-350 font-mono font-bold">{formatCurrency(loan.monto_capital)}</strong></span>
                         </div>
                       </div>
 

@@ -10,6 +10,7 @@ import {
 import { Cliente } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import { METODOS_PAGO, BANCO_GRUPOS, getBancoForMetodo } from "../lib/constants";
+import { formatCurrency, formatDateWithDay } from "../lib/formatters";
 
 const resolveVoucherUrl = (url: string) => {
   if (!url) return "";
@@ -676,7 +677,8 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     const totalExigible = capital * (1 + interest / 100);
 
     const formattedAmount = formatCurrency(totalExigible);
-    const text = `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} con vencimiento el ${loan.fecha_vencimiento}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
+    const fechaFormato = formatDateWithDay(loan.fecha_vencimiento);
+    const text = `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} con vencimiento el ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
     
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   };
@@ -707,7 +709,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     const interest = parseFloat(loan.tasa_interes_porcentaje) || 0;
     const totalExigible = capital * (1 + interest / 100);
     const cuota = formatCurrency(totalExigible);
-    const fecha = loan.fecha_vencimiento;
+    const fecha = formatDateWithDay(loan.fecha_vencimiento);
     const nombreMayus = loan.cliente_nombre.toUpperCase();
 
     const mensaje =
@@ -831,7 +833,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
             <p className="text-[11px] text-gray-400 mt-0.5">{loan.tipo_prestamo} · <span className="font-mono text-[12px] font-black text-indigo-300">{formatCurrency(loan.monto_capital)}</span></p>
             <p className="text-[10px] text-gray-500 mt-1 font-bold flex items-center gap-1">
               <CalendarDays size={11} className="text-slate-600" />
-              Vence: {loan.fecha_vencimiento}
+              Vence: {formatDateWithDay(loan.fecha_vencimiento)}
             </p>
           </div>
         </div>

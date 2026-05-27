@@ -24,6 +24,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 
 import { buildPaymentSchedule } from "../lib/loanLogic";
+import { formatDateWithDay } from "../lib/formatters";
 import { AjustePrestamo, PlanAyudaCliente } from "../types";
 import { METODOS_PAGO } from "../lib/constants";
 
@@ -474,8 +475,8 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
       `💰 *Monto Capital:* ${formatCurrency(prestamoObj.monto_capital)}\n` +
       `📈 *Tasa de Interés:* ${prestamoObj.tasa_interes_porcentaje}%\n` +
       `💵 *Total Exigible:* ${formatCurrency(prestamoObj.total_exigible_actual || prestamoObj.total_a_pagar)}\n` +
-      `📅 *Fecha de Emisión:* ${prestamoObj.fecha_emision}\n` +
-      `📅 *Fecha de Vencimiento:* ${prestamoObj.fecha_vencimiento || "No establecida"}\n\n` +
+      `📅 *Fecha de Emisión:* ${formatDateWithDay(prestamoObj.fecha_emision)}\n` +
+      `📅 *Fecha de Vencimiento:* ${prestamoObj.fecha_vencimiento ? formatDateWithDay(prestamoObj.fecha_vencimiento) : "No establecida"}\n\n` +
       `Recuerda que tus pagos se pueden realizar a través de transferencia bancaria o billeteras digitales como Yape o Plin. ¡Estamos para servirte! 🤝`;
     const waUrl = `https://wa.me/${sanitizedPhone}?text=${encodeURIComponent(msg)}`;
     window.open(waUrl, "_blank");
@@ -1039,11 +1040,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                 </thead>
                 <tbody className="divide-y divide-white/5 text-gray-300">
                   {debtState.cuotas.map((cuota: any) => {
-                    const readableDate = new Date(`${cuota.fechaVencimiento}T00:00:00`).toLocaleDateString("es-ES", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric"
-                    });
+                    const readableDate = formatDateWithDay(cuota.fechaVencimiento);
                     
                     return (
                       <tr key={cuota.numero} className="hover:bg-white/[0.02] transition group">
@@ -1134,11 +1131,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
             {/* VISTA CELULAR */}
             <div className="sm:hidden p-4 space-y-3 bg-white/[0.02]">
               {debtState.cuotas.map((cuota: any) => {
-                const readableDate = new Date(`${cuota.fechaVencimiento}T00:00:00`).toLocaleDateString("es-ES", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric"
-                });
+                const readableDate = formatDateWithDay(cuota.fechaVencimiento);
 
                 return (
                   <div key={cuota.numero} className="bg-[#0A0A0C]/60 p-4 rounded-2xl border border-white/5 space-y-3">

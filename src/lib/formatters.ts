@@ -29,6 +29,25 @@ export function formatDate(dateValue: string | Date): string {
 }
 
 /**
+ * Formatea una fecha con el día de la semana (ej: "Viernes 26 de mayo del 2026")
+ */
+export function formatDateWithDay(dateValue: string | Date): string {
+  if (!dateValue) return "";
+  const date = typeof dateValue === "string" ? new Date(`${dateValue}T00:00:00`) : dateValue;
+  if (Number.isNaN(date.getTime())) return "Fecha inválida";
+  
+  const dayName = date.toLocaleDateString("es-PE", { weekday: "long" });
+  const dayCapitalized = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+  const formatted = date.toLocaleDateString("es-PE", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+  
+  return `${dayCapitalized} ${formatted}`;
+}
+
+/**
  * Formatea una fecha a un formato corto (ej: "26/05/2026")
  */
 export function formatDateShort(dateValue: string | Date): string {
