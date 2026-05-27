@@ -5,6 +5,10 @@ const DEFAULT_INSTALLMENTS = 3;
 const DEFAULT_LATE_INTEREST_RATE_DAILY = 0.001;
 const EPSILON = 0.01;
 
+export const round2 = (n: number): number => {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+};
+
 export const toNumber = (value: unknown) => {
   const parsed = typeof value === "number" ? value : Number.parseFloat(String(value ?? 0));
   return Number.isFinite(parsed) ? parsed : 0;
@@ -102,18 +106,12 @@ export const buildPaymentSchedule = (
   const now = normalizeDate(referenceDate);
 
   // La primera cuota SIEMPRE es emisionDate + 1 mes.
-  // fecha_vencimiento es la fecha de la ÚLTIMA cuota, no la primera.
   const firstDueDate = addMonthsClamped(emissionDate, 1);
 
   // Filtrar ajustes activos
   const activeAjustes = (ajustes || []).filter((a) => a.activo);
 
-  // Período de gracia: 7 días global para todos los préstamos
-  const periodoGraciaDias = 7;
-
   // Determinar cuántas cuotas generar.
-  // Si hay fecha_vencimiento, generamos cuotas hasta ahí (o hasta "now" si es posterior).
-  // Si no, generamos cuotas hasta "now".
   const lastDueDate = prestamo.fecha_vencimiento && !Number.isNaN(normalizeDate(prestamo.fecha_vencimiento).getTime())
     ? normalizeDate(prestamo.fecha_vencimiento)
     : null;
@@ -172,7 +170,6 @@ export const buildPaymentSchedule = (
   }
 
   // Ordenar eventos cronológicamente
-  // En caso de misma fecha: la cuota vence primero, luego se aplica el pago.
   events.sort((a, b) => {
     const diff = a.fecha.getTime() - b.fecha.getTime();
     if (diff !== 0) return diff;
@@ -199,7 +196,7 @@ export const buildPaymentSchedule = (
       const fechaVencimiento = event.fechaStr;
 
       // Calcular interés mensual base basado en el capital pendiente actual
-      const originalInterest = currentCapital * (tasaInteres / 100);
+      const originalInterest = round2(currentCapital * (tasaInteres / 100));
       let monthlyInterest = originalInterest;
 
       // Evaluar ajustes de interés activos sobre esta cuota
@@ -244,7 +241,7 @@ export const buildPaymentSchedule = (
       }
 
       if (isCongelada) {
-        totalBeneficioAplicado += originalInterest;
+        totalBeneficioAplicado = round2(totalBeneficioAplicado + originalInterest);
       }
 
       const initCapitalAmortizado = numero === 1 ? accumulatedCapitalAmortizado : 0;
@@ -260,7 +257,6 @@ export const buildPaymentSchedule = (
         moraPendiente: 0,
         penalidad: 0,
         cargosAdicionales: 0,
-        // montoCuotaBase = interés ORIGINAL (antes de ajustes), para que la UI pueda mostrarlo
         montoCuotaBase: originalInterest,
         montoExigible: monthlyInterest,
         pagado: 0,
@@ -271,32 +267,40 @@ export const buildPaymentSchedule = (
         interesOriginal: originalInterest,
         congelada: isCongelada,
         moraOriginal: 0,
-        capitalAmortizado: initCapitalAmortizado
+        capitalAmortizado: initCapitalAmortizado,
+        interesPagado: 0,
+        moraPagado: 0,
+        ultimoCalculoMoraDate: duePoint
       });
 
     } else if (event.tipo === "pago") {
       const paymentDate = event.fecha;
       let remaining = event.pago!.monto;
 
-      // Distribuir el pago a las cuotas vencidas/pendientes generadas hasta el momento
+      // Primero calcular y acumular mora para todas las cuotas vencidas hasta la fecha de este pago
       for (const cuota of processedCuotas) {
-        if (remaining <= EPSILON) break;
         if (cuota.estado === "Saldada") continue;
 
-        // Calcular mora acumulada de esta cuota al momento del pago
-        const diasVencidosAlPago = Math.max(0, Math.ceil((paymentDate.getTime() - normalizeDate(cuota.fechaVencimiento).getTime()) / DAY_MS));
-        
-        let originalMora = 0;
-        let mora = 0;
+        const gracePeriodAdj = activeAjustes.find((a) => a.tipo === "periodo_gracia");
+        const periodoGraciaDias = gracePeriodAdj ? toNumber(gracePeriodAdj.periodo_gracia_dias) : 7;
 
-        if (diasVencidosAlPago > periodoGraciaDias) {
-          originalMora = cuota.interesPendiente * lateInterestRateDaily * diasVencidosAlPago;
-          mora = originalMora;
+        const totalDiasDesdeVencimiento = Math.max(0, Math.ceil((paymentDate.getTime() - normalizeDate(cuota.fechaVencimiento).getTime()) / DAY_MS));
+        
+        let newMora = 0;
+        if (totalDiasDesdeVencimiento > periodoGraciaDias) {
+          const baseDate = cuota.moraOriginal === 0 ? normalizeDate(cuota.fechaVencimiento) : cuota.ultimoCalculoMoraDate!;
+          const diasParaCalcular = Math.max(0, Math.ceil((paymentDate.getTime() - baseDate.getTime()) / DAY_MS));
+          newMora = round2(cuota.interesPendiente * lateInterestRateDaily * diasParaCalcular);
+        }
+
+        if (newMora > 0) {
+          let originalMora = newMora;
+          let adjustedMora = originalMora;
 
           // Aplicar ajustes sobre la mora
           const eliminarMoraAdj = activeAjustes.find((a) => a.tipo === "eliminar_mora");
           if (eliminarMoraAdj) {
-            mora = 0;
+            adjustedMora = 0;
             moraEliminada = true;
             if (!cuota.ajustesAplicados?.includes(eliminarMoraAdj.id)) {
               cuota.ajustesAplicados = [...(cuota.ajustesAplicados || []), eliminarMoraAdj.id];
@@ -305,37 +309,49 @@ export const buildPaymentSchedule = (
             const reducirMoraAdj = activeAjustes.find((a) => a.tipo === "reducir_mora");
             if (reducirMoraAdj) {
               const porcentaje = toNumber(reducirMoraAdj.monto_afectado);
-              mora = originalMora * (1 - porcentaje / 100);
+              adjustedMora = round2(originalMora * (1 - porcentaje / 100));
               if (!cuota.ajustesAplicados?.includes(reducirMoraAdj.id)) {
                 cuota.ajustesAplicados = [...(cuota.ajustesAplicados || []), reducirMoraAdj.id];
               }
             }
           }
-        }
 
-        const beneficioMora = originalMora - mora;
-        totalBeneficioAplicado += beneficioMora;
+          const beneficioMora = round2(originalMora - adjustedMora);
+          totalBeneficioAplicado = round2(totalBeneficioAplicado + beneficioMora);
+
+          cuota.moraOriginal = round2((cuota.moraOriginal || 0) + originalMora);
+          cuota.moraPendiente = round2((cuota.moraPendiente || 0) + adjustedMora);
+        }
+        
+        cuota.ultimoCalculoMoraDate = paymentDate;
+      }
+
+      // Distribuir el pago a las cuotas vencidas/pendientes generadas hasta el momento
+      for (const cuota of processedCuotas) {
+        if (remaining <= EPSILON) break;
+        if (cuota.estado === "Saldada") continue;
 
         // Pagar la mora primero
         let pagoMora = 0;
-        if (mora > 0) {
-          pagoMora = Math.min(mora, remaining);
-          remaining -= pagoMora;
-          mora -= pagoMora;
+        if (cuota.moraPendiente > 0) {
+          pagoMora = round2(Math.min(cuota.moraPendiente, remaining));
+          remaining = round2(remaining - pagoMora);
+          cuota.moraPendiente = round2(cuota.moraPendiente - pagoMora);
+          cuota.moraPagado = round2((cuota.moraPagado || 0) + pagoMora);
         }
 
         // Pagar el interés de la cuota
         let pagoInteres = 0;
         if (cuota.interesPendiente > 0 && remaining > 0) {
-          pagoInteres = Math.min(cuota.interesPendiente, remaining);
-          remaining -= pagoInteres;
-          cuota.interesPendiente -= pagoInteres;
+          pagoInteres = round2(Math.min(cuota.interesPendiente, remaining));
+          remaining = round2(remaining - pagoInteres);
+          cuota.interesPendiente = round2(cuota.interesPendiente - pagoInteres);
+          cuota.interesPagado = round2((cuota.interesPagado || 0) + pagoInteres);
         }
 
-        cuota.pagado += (pagoMora + pagoInteres);
-        cuota.moraPendiente = mora;
-        cuota.saldoPendiente = cuota.interesPendiente;
-        cuota.montoExigible = cuota.interesPendiente + cuota.moraPendiente;
+        cuota.pagado = round2((cuota.moraPagado || 0) + (cuota.interesPagado || 0));
+        cuota.saldoPendiente = round2(cuota.interesPendiente + cuota.moraPendiente);
+        cuota.montoExigible = round2(cuota.interesPendiente + cuota.moraPendiente + cuota.penalidad + cuota.cargosAdicionales);
 
         if (cuota.interesPendiente <= EPSILON && cuota.moraPendiente <= EPSILON) {
           cuota.estado = "Saldada";
@@ -349,11 +365,11 @@ export const buildPaymentSchedule = (
       if (remaining > EPSILON) {
         const lastCuota = processedCuotas[processedCuotas.length - 1];
         if (lastCuota) {
-          lastCuota.capitalAmortizado = (lastCuota.capitalAmortizado || 0) + remaining;
+          lastCuota.capitalAmortizado = round2((lastCuota.capitalAmortizado || 0) + remaining);
         } else {
-          accumulatedCapitalAmortizado += remaining;
+          accumulatedCapitalAmortizado = round2(accumulatedCapitalAmortizado + remaining);
         }
-        currentCapital = Math.max(0, currentCapital - remaining);
+        currentCapital = round2(Math.max(0, currentCapital - remaining));
         remaining = 0;
       }
     }
@@ -367,23 +383,31 @@ export const buildPaymentSchedule = (
 
     if (cuota.estado === "Saldada") {
       cuota.moraPendiente = 0;
-      cuota.moraOriginal = 0;
       cuota.saldoPendiente = 0;
       cuota.montoExigible = 0;
       continue;
     }
 
-    let originalMora = 0;
-    let mora = 0;
+    const gracePeriodAdj = activeAjustes.find((a) => a.tipo === "periodo_gracia");
+    const periodoGraciaDias = gracePeriodAdj ? toNumber(gracePeriodAdj.periodo_gracia_dias) : 7;
 
-    if (diasVencidos > periodoGraciaDias) {
-      originalMora = cuota.interesPendiente * lateInterestRateDaily * diasVencidos;
-      mora = originalMora;
+    const totalDiasDesdeVencimiento = Math.max(0, Math.ceil((now.getTime() - duePoint.getTime()) / DAY_MS));
+    
+    let newMora = 0;
+    if (totalDiasDesdeVencimiento > periodoGraciaDias) {
+      const baseDate = cuota.moraOriginal === 0 ? normalizeDate(cuota.fechaVencimiento) : cuota.ultimoCalculoMoraDate!;
+      const diasParaCalcular = Math.max(0, Math.ceil((now.getTime() - baseDate.getTime()) / DAY_MS));
+      newMora = round2(cuota.interesPendiente * lateInterestRateDaily * diasParaCalcular);
+    }
+
+    if (newMora > 0) {
+      let originalMora = newMora;
+      let adjustedMora = originalMora;
 
       // Aplicar ajustes sobre la mora
       const eliminarMoraAdj = activeAjustes.find((a) => a.tipo === "eliminar_mora");
       if (eliminarMoraAdj) {
-        mora = 0;
+        adjustedMora = 0;
         moraEliminada = true;
         if (!cuota.ajustesAplicados?.includes(eliminarMoraAdj.id)) {
           cuota.ajustesAplicados = [...(cuota.ajustesAplicados || []), eliminarMoraAdj.id];
@@ -392,18 +416,23 @@ export const buildPaymentSchedule = (
         const reducirMoraAdj = activeAjustes.find((a) => a.tipo === "reducir_mora");
         if (reducirMoraAdj) {
           const porcentaje = toNumber(reducirMoraAdj.monto_afectado);
-          mora = originalMora * (1 - porcentaje / 100);
+          adjustedMora = round2(originalMora * (1 - porcentaje / 100));
           if (!cuota.ajustesAplicados?.includes(reducirMoraAdj.id)) {
             cuota.ajustesAplicados = [...(cuota.ajustesAplicados || []), reducirMoraAdj.id];
           }
         }
       }
+
+      const beneficioMora = round2(originalMora - adjustedMora);
+      totalBeneficioAplicado = round2(totalBeneficioAplicado + beneficioMora);
+
+      cuota.moraOriginal = round2((cuota.moraOriginal || 0) + originalMora);
+      cuota.moraPendiente = round2((cuota.moraPendiente || 0) + adjustedMora);
     }
 
-    cuota.moraOriginal = originalMora;
-    cuota.moraPendiente = mora;
-    cuota.saldoPendiente = cuota.interesPendiente;
-    cuota.montoExigible = cuota.interesPendiente + cuota.moraPendiente + cuota.penalidad + cuota.cargosAdicionales;
+    cuota.ultimoCalculoMoraDate = now;
+    cuota.saldoPendiente = round2(cuota.interesPendiente + cuota.moraPendiente);
+    cuota.montoExigible = round2(cuota.interesPendiente + cuota.moraPendiente + cuota.penalidad + cuota.cargosAdicionales);
 
     if (cuota.interesPendiente <= EPSILON && cuota.moraPendiente <= EPSILON) {
       cuota.estado = "Saldada";
@@ -419,13 +448,13 @@ export const buildPaymentSchedule = (
   );
   const cuotaSiguiente = processedCuotas.find((cuota) => cuota.estado !== "Saldada") || null;
 
-  const totalPagado = validPayments.reduce((sum, pago) => sum + pago.montoNormalizado, 0);
-  const capitalPendiente = currentCapital;
-  const interesPendiente = processedCuotas.reduce((sum, cuota) => sum + cuota.interesPendiente, 0);
-  const moraAcumulada = processedCuotas.reduce((sum, cuota) => sum + cuota.moraPendiente, 0);
-  const penalidadesAcumuladas = processedCuotas.reduce((sum, cuota) => sum + cuota.penalidad, 0);
-  const cargosAdicionalesAcumulados = processedCuotas.reduce((sum, cuota) => sum + cuota.cargosAdicionales, 0);
-  const saldoPendiente = capitalPendiente + interesPendiente + moraAcumulada + penalidadesAcumuladas + cargosAdicionalesAcumulados;
+  const totalPagado = round2(validPayments.reduce((sum, pago) => sum + pago.montoNormalizado, 0));
+  const capitalPendiente = round2(currentCapital);
+  const interesPendiente = round2(processedCuotas.reduce((sum, cuota) => sum + cuota.interesPendiente, 0));
+  const moraAcumulada = round2(processedCuotas.reduce((sum, cuota) => sum + cuota.moraPendiente, 0));
+  const penalidadesAcumuladas = round2(processedCuotas.reduce((sum, cuota) => sum + cuota.penalidad, 0));
+  const cargosAdicionalesAcumulados = round2(processedCuotas.reduce((sum, cuota) => sum + cuota.cargosAdicionales, 0));
+  const saldoPendiente = round2(capitalPendiente + interesPendiente + moraAcumulada + penalidadesAcumuladas + cargosAdicionalesAcumulados);
   
   const cuotasPendientes = processedCuotas.filter((cuota) => cuota.estado !== "Saldada").length;
   const cuotasVencidas = processedCuotas.filter((cuota) => cuota.estado === "Vencida").length;

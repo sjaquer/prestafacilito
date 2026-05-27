@@ -63,6 +63,9 @@ export interface CuotaPrestamo {
   congelada?: boolean;              // Si el interés de la cuota está congelado
   moraOriginal?: number;            // Mora original antes de reducción/eliminación
   capitalAmortizado?: number;       // Parte del abono del cliente que va directamente a capital (principal)
+  interesPagado?: number;           // Total de interés pagado en esta cuota
+  moraPagado?: number;              // Total de mora pagada en esta cuota
+  ultimoCalculoMoraDate?: Date;     // Última fecha en la que se calculó la mora
 }
 
 export interface ResumenDeudaPrestamo {

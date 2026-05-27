@@ -6,7 +6,8 @@
   font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #f1f5f9;
   background: #070a13;
-  font-size: 18px; /* 15px × 1.2 = 18px — escala 120% */
+  --font-scale: 1.0;
+  font-size: calc(18px * var(--font-scale)); /* 15px × 1.2 = 18px — escala 120% base + multiplicador dinámico */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -187,24 +188,32 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 /* ─── TABLE STYLES ───────────────────────────────────── */
+.table-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+.data-table {
+  min-width: 1050px;
+}
 .data-table th {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: rgb(100 116 139);
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(255, 255, 255, 0.01);
+  color: rgb(148 163 184);
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.015);
   white-space: nowrap;
 }
 .data-table td {
-  padding: 0.875rem 1rem;
+  padding: 1.125rem 1.25rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   vertical-align: middle;
 }
 .data-table tr:hover td {
-  background: rgba(255, 255, 255, 0.015);
+  background: rgba(255, 255, 255, 0.02);
 }
 .data-table tr:last-child td {
   border-bottom: none;
@@ -306,12 +315,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   .modal-mobile-full {
     border-radius: 1.25rem 1.25rem 0 0;
     max-height: 92dvh;
-  }
-
-  /* Tabla → scroll horizontal */
-  .table-scroll-x {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
   }
 
   /* Cards de stat más compactas */

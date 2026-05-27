@@ -123,7 +123,7 @@ CREATE OR REPLACE VIEW resumen_financiero_clientes AS
         CASE WHEN p.estado = 'activo' THEN 1 ELSE 0 END
     ), 0::bigint) AS prestamos_activos,
     COALESCE(sum(p.monto_capital), 0::numeric) AS capital_total_prestado,
-    COALESCE(sum(p.monto_capital * (1 + p.tasa_interes_porcentaje / 100)), 0::numeric) AS total_exigible,
+    COALESCE(sum(p.monto_capital * (1 + (p.tasa_interes_porcentaje / 100) * COALESCE(NULLIF(EXTRACT(year from age(COALESCE(p.fecha_vencimiento, p.fecha_emision + interval '3 months'), p.fecha_emision)) * 12 + EXTRACT(month from age(COALESCE(p.fecha_vencimiento, p.fecha_emision + interval '3 months'), p.fecha_emision)), 0), 3))), 0::numeric) AS total_exigible,
     COALESCE((
         SELECT sum(a.monto) FROM amortizaciones a
         JOIN prestamos pr ON a.prestamo_id = pr.id

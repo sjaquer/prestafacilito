@@ -912,6 +912,36 @@ app.post("/api/prestamos", requireAuth, async (req, res) => {
   }
 });
 
+app.get("/api/prestamos", requireAuth, async (req, res) => {
+  try {
+    const [pRes, cRes] = await Promise.all([
+      supabase.from("prestamos").select("*"),
+      supabase.from("clientes").select("*")
+    ]);
+
+    if (pRes.error) throw pRes.error;
+    if (cRes.error) throw cRes.error;
+
+    const prestamos = pRes.data || [];
+    const clientes = cRes.data || [];
+
+    const prestamosConCliente = prestamos.map(p => {
+      const cliente = clientes.find(c => c.id === p.cliente_id);
+      return {
+        ...p,
+        monto_capital: parseFloat(p.monto_capital) || 0,
+        tasa_interes_porcentaje: parseFloat(p.tasa_interes_porcentaje) || 0,
+        cliente_nombre: cliente ? cliente.nombre_completo : "Cliente no encontrado"
+      };
+    });
+
+    res.json(prestamosConCliente);
+  } catch (err: any) {
+    console.error("Error al obtener lista de préstamos:", err);
+    res.status(500).json({ error: "Error en el servidor", detail: err.message });
+  }
+});
+
 // 5. Detalle de Préstamos
 app.get("/api/prestamos/:id", requireAuth, async (req, res) => {
   try {
@@ -938,7 +968,7 @@ app.get("/api/prestamos/:id", requireAuth, async (req, res) => {
     const debtState = buildPaymentSchedule(prestamo, pagosRealizados, ajustes, new Date());
     const capital = toNumber(prestamo.monto_capital);
     const tasaInteres = toNumber(prestamo.tasa_interes_porcentaje);
-    const totalBaseExigible = capital * (1 + tasaInteres / 100);
+    const totalBaseExigible = capital + (capital * (tasaInteres / 100) * debtState.resumen.totalCuotas);
 
     res.json({
       prestamo: {
@@ -976,14 +1006,19 @@ app.get("/api/prestamos/:id", requireAuth, async (req, res) => {
 app.put("/api/prestamos/:id", requireAuth, async (req, res) => {
   try {
     const prestamoId = req.params.id;
-    const { fecha_emision, fecha_vencimiento } = req.body;
+    const { fecha_emision, fecha_vencimiento, monto_capital, tasa_interes_porcentaje } = req.body;
+
+    const updatePayload: any = {
+      fecha_emision,
+      fecha_vencimiento
+    };
+
+    if (monto_capital !== undefined) updatePayload.monto_capital = toNumber(monto_capital);
+    if (tasa_interes_porcentaje !== undefined) updatePayload.tasa_interes_porcentaje = toNumber(tasa_interes_porcentaje);
 
     const { data: updated, error } = await supabase
       .from("prestamos")
-      .update({
-        fecha_emision,
-        fecha_vencimiento
-      })
+      .update(updatePayload)
       .eq("id", prestamoId)
       .select()
       .single();
@@ -996,7 +1031,7 @@ app.put("/api/prestamos/:id", requireAuth, async (req, res) => {
     await logAction(
       username,
       "EDITAR_PRESTAMO",
-      `Actualizó fechas del préstamo ${updated.tipo_prestamo} de S/. ${updated.monto_capital} del cliente: ${cliente ? cliente.nombre_completo : updated.cliente_id}`
+      `Actualizó parámetros del préstamo ${updated.tipo_prestamo} de S/. ${updated.monto_capital} del cliente: ${cliente ? cliente.nombre_completo : updated.cliente_id}`
     );
 
     // Sincronizar cuotas reprogramadas en Google Calendar de forma asíncrona
@@ -1050,6 +1085,12 @@ app.post("/api/prestamos/:id/pagos", requireAuth, async (req, res) => {
     const pagosAnteriores = aRes.data || [];
     const ajustes = ajRes.data || [];
     const deudaAntes = buildPaymentSchedule(prestamo, pagosAnteriores, ajustes, new Date(fecha_pago || new Date()));
+    
+    if (montoPago > deudaAntes.resumen.saldoPendiente + 0.01) {
+      res.status(400).json({ error: `El monto del pago excede el saldo pendiente actual (S/. ${deudaAntes.resumen.saldoPendiente.toFixed(2)})` });
+      return;
+    }
+    
     const clasificacionAutomatica = classifyPayment(montoPago, deudaAntes);
     const excedenteAplicado = Math.max(0, montoPago - deudaAntes.resumen.totalExigible);
 
@@ -1543,25 +1584,35 @@ app.get("/api/drive/status", requireAuth, (_req, res) => {
 app.post("/api/ai/reporte-gerencial", requireAuth, async (req, res) => {
   try {
     // 1. Consultas paralelas a Supabase para agrupar métricas financieras reales
-    const [pRes, aRes, cRes, lRes] = await Promise.all([
+    const [pRes, aRes, cRes, lRes, ajRes] = await Promise.all([
       supabase.from("prestamos").select("*"),
       supabase.from("amortizaciones").select("*"),
       supabase.from("clientes").select("*"),
-      supabase.from("logs").select("*").order("fecha_hora", { ascending: false }).limit(10)
+      supabase.from("logs").select("*").order("fecha_hora", { ascending: false }).limit(10),
+      supabase.from("ajustes_prestamo").select("*")
     ]);
 
     if (pRes.error) throw pRes.error;
     if (aRes.error) throw aRes.error;
     if (cRes.error) throw cRes.error;
+    if (ajRes.error) throw ajRes.error;
 
     const prestamos = pRes.data || [];
     const amortizaciones = aRes.data || [];
     const clientes = cRes.data || [];
     const logsRecientes = lRes.data || [];
+    const todosAjustes = ajRes.data || [];
 
     // 2. Procesar métricas agregadas en NodeJS
     const totalCapital = prestamos.reduce((sum, p) => sum + (parseFloat(p.monto_capital) || 0), 0);
-    const totalExigible = prestamos.reduce((sum, p) => sum + ((parseFloat(p.monto_capital) || 0) * (1 + (parseFloat(p.tasa_interes_porcentaje) || 0) / 100)), 0);
+    
+    let totalExigible = 0;
+    for (const p of prestamos) {
+      const pagosDelPrestamo = amortizaciones.filter(a => a.prestamo_id === p.id);
+      const ajustesDelPrestamo = todosAjustes.filter(aj => aj.prestamo_id === p.id);
+      const debtState = buildPaymentSchedule(p, pagosDelPrestamo, ajustesDelPrestamo, new Date());
+      totalExigible += debtState.resumen.totalExigible;
+    }
     const totalRecuperado = amortizaciones.reduce((sum, a) => sum + (parseFloat(a.monto) || 0), 0);
     const saldoPendiente = Math.max(0, totalExigible - totalRecuperado);
 
