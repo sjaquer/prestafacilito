@@ -57,6 +57,32 @@ export const DashboardPage: React.FC = () => {
   // Lightbox
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
+  const handleClipboardImage = (items: DataTransferItemList | null) => {
+    if (!items) return false;
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf("image") !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          setSelectedVcrFile(file);
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setSelectedVcrBase64((reader.result as string).split(",")[1]);
+            setShowVcrModal(true);
+          };
+          reader.readAsDataURL(file);
+
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
+          return true;
+        }
+      }
+    }
+
+    return false;
+  };
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
@@ -95,28 +121,8 @@ export const DashboardPage: React.FC = () => {
 
     // Global paste handler to paste images directly (e.g. transfer screenshots)
     const handleGlobalPaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf("image") !== -1) {
-          const file = items[i].getAsFile();
-          if (file) {
-            setSelectedVcrFile(file);
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              setSelectedVcrBase64((reader.result as string).split(",")[1]);
-              setShowVcrModal(true);
-            };
-            reader.readAsDataURL(file);
-            
-            if (fileInputRef.current) {
-              fileInputRef.current.value = "";
-            }
-            e.preventDefault();
-            break;
-          }
-        }
+      if (handleClipboardImage(e.clipboardData?.items || null)) {
+        e.preventDefault();
       }
     };
 
@@ -417,9 +423,19 @@ export const DashboardPage: React.FC = () => {
         title="Registrar Cobro Rápido"
         size="lg"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          onPaste={(e) => {
+            if (handleClipboardImage(e.clipboardData?.items || null)) {
+              e.preventDefault();
+            }
+          }}
+        >
           {/* Vista previa del voucher */}
-          <div className="flex flex-col items-center justify-center bg-black/30 border border-white/5 rounded-3xl p-4 min-h-[300px]">
+          <div
+            className="flex flex-col items-center justify-center bg-black/30 border border-white/5 rounded-3xl p-4 min-h-[300px] cursor-pointer"
+            onClick={() => fileInputRef.current?.click()}
+          >
             {selectedVcrFile && selectedVcrFile.type.startsWith("image/") ? (
               <div className="flex flex-col items-center gap-2 w-full">
                 <img
