@@ -63,31 +63,27 @@ export const ClientFinancialSummary: React.FC<ClientFinancialSummaryProps> = ({ 
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* Score de Confianza */}
+      {/* Progreso de Pago (Reemplaza Score de Confianza / Score Map) */}
       <Card variant="simple" className="flex flex-col justify-between p-5">
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-black text-slate-550 uppercase tracking-widest block">Índice de Confianza</span>
-            <span className="text-2xl font-black text-white mt-1 block">Score {assessment.score}/100</span>
+            <span className="text-[10px] font-black text-slate-550 uppercase tracking-widest block">Progreso de Pago</span>
+            <span className="text-2xl font-black text-white mt-1 block">{payPercentage}%</span>
           </div>
-          <div className={`w-10 h-10 rounded-xl ${assessment.bg} border flex items-center justify-center`}>
-            <assessment.Icon size={18} className={assessment.color} />
+          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+            <CheckCircle2 size={18} className="text-indigo-400" />
           </div>
         </div>
 
         <div className="mt-4 space-y-2">
           <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
             <div 
-              className={`h-full rounded-full transition-all duration-700 ${
-                assessment.level === "Excelente" ? "bg-emerald-500" :
-                assessment.level === "Bajo" ? "bg-blue-550" :
-                assessment.level === "Medio" ? "bg-amber-500" : "bg-rose-500"
-              }`} 
-              style={{ width: `${assessment.score}%` }} 
+              className="h-full rounded-full transition-all duration-700 bg-indigo-500" 
+              style={{ width: `${payPercentage}%` }} 
             />
           </div>
           <div className="flex justify-between items-center text-[10px] font-black text-slate-550 uppercase tracking-wider">
-            <span>Riesgo {assessment.level}</span>
+            <span>Amortizado vs Exigible</span>
             <span>Historial: {totalLoans} Deudas</span>
           </div>
         </div>
@@ -107,14 +103,9 @@ export const ClientFinancialSummary: React.FC<ClientFinancialSummaryProps> = ({ 
           </div>
         </div>
 
-        <div className="mt-4 space-y-1">
-          <div className="flex justify-between items-center text-xs font-semibold text-slate-400">
-            <span>Proporción de Pago:</span>
-            <span className="text-white font-bold">{payPercentage}%</span>
-          </div>
-          <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
-            <div className="h-full rounded-full bg-indigo-500 transition-all duration-500" style={{ width: `${payPercentage}%` }} />
-          </div>
+        <div className="mt-4 flex items-center gap-1 text-[10px] font-black text-slate-550 uppercase tracking-wider select-none">
+          <Clock size={11} className="text-rose-400 shrink-0" />
+          <span>{activeLoans} Crédito{activeLoans !== 1 ? "s" : ""} Activo{activeLoans !== 1 ? "s" : ""}</span>
         </div>
       </Card>
 
@@ -122,7 +113,7 @@ export const ClientFinancialSummary: React.FC<ClientFinancialSummaryProps> = ({ 
       <Card variant="simple" className="flex flex-col justify-between p-5">
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-black text-slate-555 uppercase tracking-widest block">Historial Liquidado</span>
+            <span className="text-[10px] font-black text-slate-555 uppercase tracking-widest block">Total Liquidado</span>
             <span className="text-2xl font-black text-emerald-450 font-mono mt-1 block">
               {formatCurrency(amortizado)}
             </span>
@@ -132,17 +123,11 @@ export const ClientFinancialSummary: React.FC<ClientFinancialSummaryProps> = ({ 
           </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-4 text-xs font-semibold text-slate-400 select-none">
-          <div className="flex items-center gap-1">
-            <Clock size={12} className="text-indigo-400" />
-            <span>{activeLoans} Activo{activeLoans !== 1 ? "s" : ""}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <CheckCircle2 size={12} className="text-emerald-450" />
-            <span>{historicalLoans} Cancelado{historicalLoans !== 1 ? "s" : ""}</span>
-          </div>
+        <div className="mt-4 flex items-center gap-1 text-[10px] font-black text-slate-550 uppercase tracking-wider select-none">
+          <CheckCircle2 size={11} className="text-emerald-450 shrink-0" />
+          <span>{historicalLoans} Crédito{historicalLoans !== 1 ? "s" : ""} Finalizado{historicalLoans !== 1 ? "s" : ""}</span>
         </div>
       </Card>
     </div>
   );
-};
+};};

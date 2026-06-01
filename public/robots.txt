@@ -1,0 +1,5 @@
+# robots.txt para PrestaFacilito - Sistema Cerrado Privado
+# Bloqueo total de motores de búsqueda y rastreadores web.
+
+User-agent: *
+Disallow: /

@@ -482,6 +482,40 @@ async function logAction(usuario: string, accion: string, detalles: string) {
 
 const app = express();
 
+// Middlewares de seguridad robusta para sistema cerrado
+app.use((req, res, next) => {
+  // 1. Desactivar indexación por completo en motores de búsqueda (Google, Bing, etc.)
+  res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet, noodp, noydir");
+  
+  // 2. Prevenir clickjacking
+  res.setHeader("X-Frame-Options", "DENY");
+  
+  // 3. Prevenir sniffing de tipo MIME
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  
+  // 4. Referrer Policy ultra-segura para sistema cerrado
+  res.setHeader("Referrer-Policy", "no-referrer");
+  
+  // 5. Cache-Control estricto para evitar almacenamiento de datos financieros confidenciales
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  
+  // 6. Content Security Policy (CSP) adaptada al sistema
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "img-src 'self' data: blob: https://*.googleusercontent.com https://*.googleapis.com; " +
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.googleapis.com; " +
+    "frame-src 'self' https://docs.google.com https://drive.google.com;"
+  );
+  
+  next();
+});
+
 // Aumentar el límite de tamaño de petición para permitir la transferencia de base64 de comprobantes
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ limit: "15mb", extended: true }));
