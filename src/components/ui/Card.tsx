@@ -17,8 +17,8 @@ export const Card: React.FC<CardProps> = ({
   
   const variants = {
     bento: "bento-card",
-    glass: "bg-[#0c1020]/40 border border-white/[0.04] backdrop-blur-md",
-    simple: "bg-[#0b0e19] border border-white/[0.03]",
+    glass: "bg-[#0d1224]/45 border border-white/[0.08] backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+    simple: "bg-[#080c16] border border-white/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
   };
 
   const hoverStyles = hoverable && variant !== "bento" 

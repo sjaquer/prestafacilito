@@ -21,7 +21,7 @@ export const Button: React.FC<ButtonProps> = ({
   const baseStyles = "inline-flex items-center justify-center gap-2 font-bold tracking-wide transition-all duration-200 rounded-xl cursor-pointer select-none active:scale-[0.98] disabled:active:scale-100 disabled:opacity-50 disabled:cursor-not-allowed border";
   
   const variants = {
-    primary: "btn-primary border-indigo-500/20 text-white shadow-lg shadow-indigo-500/10",
+    primary: "btn-primary border-emerald-500/20 text-white shadow-lg shadow-emerald-500/10",
     secondary: "bg-white/5 border-white/10 hover:bg-white/10 text-slate-300 hover:text-white hover:border-white/15",
     glow: "glow-btn bg-white/5 border-white/10 hover:bg-white/12 text-white",
     danger: "bg-rose-500/10 border-rose-500/20 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 hover:border-rose-500/30",

@@ -38,6 +38,11 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
+  // Estados para modo Alquiler de Casa y Otros
+  const [montoMensual, setMontoMensual] = useState("");
+  const [duracionMeses, setDuracionMeses] = useState("6");
+  const [customTipo, setCustomTipo] = useState("");
+  
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Filtrar clientes
@@ -45,15 +50,39 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
     c.nombre_completo.toLowerCase().includes(busqueda.toLowerCase())
   );
 
-  // Auto-completar fecha de vencimiento si es necesario
+  // Si cambia el tipo, establecer tasas por defecto
   useEffect(() => {
-    if (fechaEmision && !fechaVencimiento) {
-      // Por defecto: 3 meses después
-      const date = new Date(`${fechaEmision}T00:00:00`);
-      date.setMonth(date.getMonth() + 3);
-      setFechaVencimiento(date.toISOString().split("T")[0]);
+    if (tipo === "Personal" || tipo === "Negocio") {
+      setTasa("10");
+    } else if (tipo === "Alquiler de Casa") {
+      setTasa("0");
     }
-  }, [fechaEmision, fechaVencimiento]);
+  }, [tipo]);
+
+  // Auto-calcular fecha de vencimiento al cambiar fecha de emisión, tipo o duración
+  useEffect(() => {
+    if (tipo === "Alquiler de Casa") {
+      if (fechaEmision) {
+        const d = new Date(fechaEmision + "T12:00:00");
+        d.setMonth(d.getMonth() + parseInt(duracionMeses || "6"));
+        setFechaVencimiento(d.toISOString().split("T")[0]);
+      }
+    } else {
+      if (fechaEmision) {
+        const d = new Date(fechaEmision + "T12:00:00");
+        d.setDate(d.getDate() + 30); // 30 días por defecto
+        setFechaVencimiento(d.toISOString().split("T")[0]);
+      }
+    }
+  }, [fechaEmision, tipo, duracionMeses]);
+
+  // Auto-calcular el capital total en modo Alquiler de Casa (Mensualidad x Meses)
+  useEffect(() => {
+    if (tipo === "Alquiler de Casa") {
+      const calcCapital = (parseFloat(montoMensual) || 0) * parseInt(duracionMeses || "6");
+      setMonto(calcCapital > 0 ? calcCapital.toString() : "");
+    }
+  }, [montoMensual, duracionMeses, tipo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +108,8 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
       return;
     }
 
+    const finalTipo = tipo === "Otros" ? (customTipo.trim() || "Otros") : tipo;
+
     setSubmitting(true);
     const success = await onSubmit({
       cliente_id: clienteId,
@@ -86,7 +117,7 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
       tasa_interes_porcentaje: nTasa,
       fecha_emision: fechaEmision,
       fecha_vencimiento: fechaVencimiento || null,
-      tipo_prestamo: tipo,
+      tipo_prestamo: finalTipo,
     });
 
     setSubmitting(false);
@@ -97,16 +128,19 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
       setTasa("");
       setBusqueda("");
       setTipo("Personal");
+      setMontoMensual("");
+      setDuracionMeses("6");
+      setCustomTipo("");
       onClose();
     }
   };
 
-  // Cálculo rápido del total estimado
+  // Cálculo rápido del total estimado para no-alquileres
   const totalEstimado = (() => {
     const cap = parseFloat(monto) || 0;
     const rate = parseFloat(tasa) || 0;
     
-    if (cap <= 0 || !fechaEmision || !fechaVencimiento) return 0;
+    if (cap <= 0 || !fechaEmision || !fechaVencimiento || tipo === "Alquiler de Casa") return 0;
     const start = new Date(fechaEmision);
     const end = new Date(fechaVencimiento);
     if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
@@ -132,12 +166,12 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Otorgar Nuevo Crédito"
+      title={tipo === "Alquiler de Casa" ? "Registrar Contrato de Alquiler" : "Otorgar Nuevo Crédito"}
       size="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4 font-sans select-none">
         
-        {/* Autocomeplete Cliente */}
+        {/* Autocomplete Cliente */}
         <div className="relative space-y-1">
           <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
             Cliente Prestatario <span className="text-rose-500 font-bold">*</span>
@@ -178,7 +212,7 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
                 <div
                   key={c.id}
                   onClick={() => selectCliente(c)}
-                  className="px-4 py-2.5 hover:bg-indigo-600 hover:text-white text-xs md:text-sm text-slate-300 transition cursor-pointer"
+                  className="px-4 py-2.5 hover:bg-emerald-600 hover:text-white text-xs md:text-sm text-slate-350 transition cursor-pointer font-semibold"
                 >
                   {c.nombre_completo}
                 </div>
@@ -191,94 +225,165 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
           )}
         </div>
 
-        {/* Grid de Monto e Interés */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            label="Capital del Préstamo (S/.)"
-            placeholder="Ej: 5000"
-            type="number"
-            required
-            value={monto}
-            onChange={(e) => {
-              setMonto(e.target.value);
-              setErrors(prev => {
-                const c = { ...prev };
-                delete c.monto;
-                return c;
-              });
-            }}
-            error={errors.monto}
-          />
-
-          <div className="relative">
-            <Input
-              label="Tasa de Interés Mensual (%)"
-              placeholder="Ej: 10"
-              type="number"
-              required
-              value={tasa}
-              onChange={(e) => {
-                setTasa(e.target.value);
-                setErrors(prev => {
-                  const c = { ...prev };
-                  delete c.tasa;
-                  return c;
-                });
-              }}
-              error={errors.tasa}
-            />
-            <div className="absolute right-0 top-0.5">
-              <Tooltip content="Porcentaje de interés fijo cobrado al cliente de forma mensual sobre el saldo restante.">
-                <HelpCircle size={13} className="text-slate-500 hover:text-indigo-400 cursor-pointer" />
-              </Tooltip>
-            </div>
-          </div>
-        </div>
-
-        {/* Tipo de Préstamo */}
+        {/* Tipo de Préstamo / Deuda */}
         <div className="flex flex-col gap-1.5 w-full">
           <label className="text-[11px] md:text-[12px] font-black text-slate-400 uppercase tracking-wider block">
-            Categoría del Crédito
+            Categoría del Crédito / Deuda
           </label>
           <select
             value={tipo}
             onChange={(e) => setTipo(e.target.value)}
-            className="glass-input w-full px-4 rounded-xl border border-white/8 font-medium bg-[#080c18] text-[#f8fafc] focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 cursor-pointer h-12"
+            className="glass-input w-full px-4 rounded-xl border border-white/8 font-medium bg-[#080c18] text-[#f8fafc] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 cursor-pointer h-12"
           >
             <option value="Personal">Personal</option>
             <option value="Negocio">Comercio / Negocio</option>
+            <option value="Alquiler de Casa">Alquiler de Casa (Contrato Mensual)</option>
             <option value="Hipotecario">Hipotecario</option>
             <option value="Garantía">Prendario / Con Garantía</option>
-            <option value="Otro">Otro</option>
+            <option value="Otros">Otros (Especificar Razón)</option>
           </select>
         </div>
+
+        {/* Inputs Condicionales: Modo Alquiler de Casa */}
+        {tipo === "Alquiler de Casa" && (
+          <div className="space-y-4 p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl animate-fadeIn">
+            <span className="text-[9.5px] font-black text-emerald-450 uppercase tracking-widest block">Configuración de Contrato de Alquiler</span>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block pl-0.5">Monto Mensual (S/.) *</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="any"
+                  placeholder="Ej. 1200"
+                  value={montoMensual}
+                  onChange={(e) => setMontoMensual(e.target.value)}
+                  className="w-full glass-input rounded-xl px-4 font-medium border border-white/8 outline-none font-mono"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block pl-0.5">Duración (Meses) *</label>
+                <select
+                  value={duracionMeses}
+                  onChange={(e) => setDuracionMeses(e.target.value)}
+                  className="w-full glass-input rounded-xl px-4 font-medium border border-white/8 outline-none bg-[#080c18] cursor-pointer h-12 text-slate-200"
+                >
+                  {[1,2,3,4,5,6,7,8,9,10,11,12,18,24].map(m => (
+                    <option key={m} value={m} className="bg-[#0f172a]">{m} {m === 1 ? 'Mes' : 'Meses'}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {parseFloat(montoMensual) > 0 && (
+              <div className="bg-[#080c16] p-3.5 rounded-xl border border-white/5 text-[11px] text-slate-350 space-y-1.5 font-semibold leading-relaxed">
+                <div className="flex justify-between">
+                  <span>Período de contrato:</span>
+                  <span className="text-white">{fechaEmision} al {fechaVencimiento}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Mensualidad:</span>
+                  <span className="text-white font-mono">{formatCurrency(parseFloat(montoMensual))}</span>
+                </div>
+                <div className="flex justify-between border-t border-white/5 pt-1.5 mt-1 font-black text-xs md:text-sm text-white">
+                  <span className="text-emerald-400">Capital Total (Deuda de Alquiler):</span>
+                  <span className="font-financial">{formatCurrency(parseFloat(montoMensual) * parseInt(duracionMeses))}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Inputs Condicionales: Modo Otros (Especificar Razón) */}
+        {tipo === "Otros" && (
+          <div className="animate-fadeIn">
+            <Input
+              label="Especificar Razón / Tipo *"
+              placeholder="Ej. Emergencia Médica, Compra de Mercadería"
+              required
+              value={customTipo}
+              onChange={(e) => setCustomTipo(e.target.value)}
+            />
+          </div>
+        )}
+
+        {/* Grid de Monto e Interés Estándar (Sólo para NO Alquiler) */}
+        {tipo !== "Alquiler de Casa" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label={tipo === "Otros" ? "Capital de Deuda (S/.)" : "Capital del Préstamo (S/.)"}
+              placeholder="Ej: 5000"
+              type="number"
+              required
+              value={monto}
+              onChange={(e) => {
+                setMonto(e.target.value);
+                setErrors(prev => {
+                  const c = { ...prev };
+                  delete c.monto;
+                  return c;
+                });
+              }}
+              error={errors.monto}
+            />
+
+            <div className="relative">
+              <Input
+                label="Tasa de Interés Mensual (%)"
+                placeholder="Ej: 10"
+                type="number"
+                required
+                value={tasa}
+                onChange={(e) => {
+                  setTasa(e.target.value);
+                  setErrors(prev => {
+                    const c = { ...prev };
+                    delete c.tasa;
+                    return c;
+                  });
+                }}
+                error={errors.tasa}
+              />
+              <div className="absolute right-0 top-0.5">
+                <Tooltip content="Porcentaje de interés de préstamo cobrado de forma mensual.">
+                  <HelpCircle size={13} className="text-slate-500 hover:text-emerald-400 cursor-pointer" />
+                </Tooltip>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Fechas */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
-            label="Fecha de Desembolso"
+            label={tipo === "Alquiler de Casa" ? "Fecha de Inicio de Contrato" : "Fecha de Desembolso"}
             type="date"
             required
             value={fechaEmision}
             onChange={(e) => setFechaEmision(e.target.value)}
           />
           <Input
-            label="Fecha de Vencimiento Final"
+            label={tipo === "Alquiler de Casa" ? "Fin del Contrato (Auto)" : "Fecha de Vencimiento Final"}
             type="date"
             required
+            disabled={tipo === "Alquiler de Casa"}
+            className={tipo === "Alquiler de Casa" ? "opacity-60" : ""}
             value={fechaVencimiento}
             onChange={(e) => setFechaVencimiento(e.target.value)}
           />
         </div>
 
         {/* Previsualización del total */}
-        {totalEstimado > 0 && (
-          <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl flex items-center justify-between text-xs md:text-sm">
+        {tipo !== "Alquiler de Casa" && totalEstimado > 0 && (
+          <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl flex items-center justify-between text-xs md:text-sm">
             <span className="font-bold text-slate-400 flex items-center gap-1.5">
-              <Coins size={14} className="text-indigo-400" />
+              <Coins size={14} className="text-emerald-400" />
               Deuda Total Estimada:
             </span>
-            <span className="font-black text-indigo-300 font-mono text-sm md:text-base">
+            <span className="font-financial text-emerald-300 text-sm md:text-base">
               {formatCurrency(totalEstimado)}
             </span>
           </div>
@@ -291,7 +396,7 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
           loading={submitting}
           className="w-full mt-4 h-12 font-bold"
         >
-          Otorgar Crédito y Generar Cuotas
+          {tipo === "Alquiler de Casa" ? "Registrar Contrato de Alquiler" : "Otorgar Crédito y Generar Cuotas"}
         </Button>
       </form>
     </Modal>

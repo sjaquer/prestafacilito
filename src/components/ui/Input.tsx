@@ -34,7 +34,7 @@ export const Input: React.FC<InputProps> = ({
         className={`glass-input w-full px-4 rounded-xl font-medium focus:ring-2 border ${
           error 
             ? "border-rose-500/50 bg-rose-500/[0.02] focus:border-rose-500 focus:ring-rose-500/20" 
-            : "border-white/8 focus:border-indigo-500 focus:ring-indigo-500/10"
+            : "border-white/8 focus:border-emerald-500 focus:ring-emerald-500/14"
         }`}
         {...props}
       />

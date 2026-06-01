@@ -30,7 +30,6 @@ export const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [syncingCalendar, setSyncingCalendar] = useState(false);
   const [syncResult, setSyncResult] = useState<any>(null);
-  const [nowTick, setNowTick] = useState(() => new Date());
 
   // Modales
   const [showNewLoanModal, setShowNewLoanModal] = useState(false);
@@ -113,11 +112,6 @@ export const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     fetchDashboardData();
-    
-    // Timer para radar de vencimientos
-    const timer = setInterval(() => {
-      setNowTick(new Date());
-    }, 60000);
 
     // Global paste handler to paste images directly (e.g. transfer screenshots)
     const handleGlobalPaste = (e: ClipboardEvent) => {
@@ -129,7 +123,6 @@ export const DashboardPage: React.FC = () => {
     window.addEventListener("paste", handleGlobalPaste);
 
     return () => {
-      clearInterval(timer);
       window.removeEventListener("paste", handleGlobalPaste);
     };
   }, []);
@@ -278,7 +271,7 @@ export const DashboardPage: React.FC = () => {
 
   const activeLoans = ultimosPrestamos.filter((p) => p.estado === "activo");
   const overdueLoans = activeLoans.filter((p) => {
-    const todayStr = nowTick.toISOString().split("T")[0];
+    const todayStr = new Date().toISOString().split("T")[0];
     return p.fecha_vencimiento && p.fecha_vencimiento < todayStr;
   });
   const paidCount = ultimosPrestamos.filter((p) => p.estado === "pagado").length;
@@ -389,7 +382,6 @@ export const DashboardPage: React.FC = () => {
       <ClientAlerts
         activeLoans={activeLoans}
         clientes={clientes}
-        nowTick={nowTick}
         compact={true}
       />
 

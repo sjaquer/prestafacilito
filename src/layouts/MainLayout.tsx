@@ -75,14 +75,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
               onClick={() => navigate("/")} 
               className="flex items-center gap-2.5 shrink-0 cursor-pointer select-none"
             >
-              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
+              <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0">
                 <Coins className="text-white" size={16} />
               </div>
               <div className="hidden sm:block leading-none">
                 <span className="font-black text-white text-sm tracking-tight block">
                   PrestaFacilito
                 </span>
-                <span className="text-[10px] text-indigo-400/70 font-semibold tracking-wider">
+                <span className="text-[10px] text-emerald-400/70 font-semibold tracking-wider">
                   Panel Administrativo 🇵🇪
                 </span>
               </div>
@@ -101,7 +101,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                     to={item.path}
                     className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-150 cursor-pointer flex-1 justify-center decoration-none ${
                       isActive
-                        ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
+                        ? "bg-emerald-600 text-white shadow-md shadow-emerald-500/20"
                         : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.05]"
                     }`}
                   >
@@ -124,8 +124,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
 
               {user && (
                 <div className="hidden sm:flex items-center gap-2 select-none">
-                  <div className="w-7 h-7 rounded-lg bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center">
-                    <span className="text-[10px] font-black text-indigo-300 uppercase">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center">
+                    <span className="text-[10px] font-black text-emerald-300 uppercase">
                       {user.charAt(0)}
                     </span>
                   </div>
@@ -158,7 +158,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
         <React.Suspense 
           fallback={
             <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-              <span className="animate-spin text-indigo-400 shrink-0">
+              <span className="animate-spin text-emerald-450 shrink-0">
                 <Coins size={28} />
               </span>
               <span className="text-xs font-bold text-slate-500 tracking-[0.15em] uppercase">
@@ -183,12 +183,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                 to={item.path}
                 className={`flex flex-col items-center gap-0.5 py-1.5 px-4 rounded-xl transition-all duration-200 cursor-pointer flex-1 decoration-none ${
                   isActive
-                    ? "text-indigo-400"
+                    ? "text-emerald-450"
                     : "text-slate-600 hover:text-slate-400"
                 }`}
               >
                 <div
-                  className={`p-1.5 rounded-lg transition-all ${isActive ? "bg-indigo-500/15" : ""}`}
+                  className={`p-1.5 rounded-lg transition-all ${isActive ? "bg-emerald-500/15" : ""}`}
                 >
                   <item.icon
                     size={18}
@@ -196,7 +196,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                   />
                 </div>
                 <span
-                  className={`text-[9px] font-bold tracking-wide ${isActive ? "text-indigo-400" : "text-slate-600"}`}
+                  className={`text-[9px] font-bold tracking-wide ${isActive ? "text-emerald-450" : "text-slate-600"}`}
                 >
                   {item.label === "Análisis IA" ? "IA" : item.label}
                 </span>

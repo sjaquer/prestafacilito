@@ -5,11 +5,35 @@ import { formatCurrency, formatDateWithDay } from "../../lib/formatters";
 import { Cliente } from "../../types";
 import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
+import { motion } from "motion/react";
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      type: "spring" as const,
+      stiffness: 110,
+      damping: 18,
+    },
+  },
+};
 
 interface ClientAlertsProps {
   activeLoans: any[];
   clientes: Cliente[];
-  nowTick: Date;
+  nowTick?: Date;
   compact?: boolean;
 }
 
@@ -20,7 +44,7 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
   compact = false,
 }) => {
   const dayMs = 24 * 60 * 60 * 1000;
-  const today = new Date(nowTick);
+  const today = nowTick ? new Date(nowTick) : new Date();
   today.setHours(0, 0, 0, 0);
 
   const getRemainingDays = (dateValue: string) => {
@@ -146,12 +170,15 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
               <span className="badge bg-rose-500/10 border border-rose-500/20 text-rose-400 font-bold font-mono">
                 {loansVencidos.length} deudor{loansVencidos.length !== 1 ? "es" : ""}
               </span>
-            </div>
-
             {/* List */}
-            <div className="flex-1 overflow-y-auto mt-4 pr-1 space-y-3.5 scrollbar-thin">
+            <motion.div 
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="flex-1 overflow-y-auto mt-4 pr-1 space-y-3.5 scrollbar-thin"
+            >
               {loansVencidos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center p-6 text-slate-500 select-none py-16">
+                <div className="flex flex-col items-center justify-center h-full text-center p-6 text-slate-550 select-none py-16">
                   <CheckCircle2 size={32} className="text-emerald-500 mb-3" />
                   <p className="text-xs font-bold text-slate-350">¡Ninguna cuota vencida!</p>
                   <p className="text-[10px] text-slate-550 mt-1">Todos los créditos están al día en sus fechas</p>
@@ -161,7 +188,11 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
                   const absOverdue = Math.abs(loan.remainingDays);
                   
                   return (
-                    <div key={loan.id} className="flex items-center justify-between p-3.5 bg-rose-550/[0.015] border border-rose-500/10 rounded-2xl gap-3 hover:border-rose-500/20 transition duration-150">
+                    <motion.div 
+                      key={loan.id} 
+                      variants={itemVariants}
+                      className="flex items-center justify-between p-3.5 bg-rose-550/[0.015] border border-rose-500/10 rounded-2xl gap-3 hover:border-rose-500/20 transition duration-150"
+                    >
                       <div className="flex flex-col gap-2 min-w-0 flex-1">
                         <span className="font-bold text-slate-50 text-sm leading-tight">{loan.cliente_nombre}</span>
                         <div className="flex items-center gap-2">
@@ -173,7 +204,7 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
                       {/* Actions */}
                       <div className="flex items-center gap-2 shrink-0">
                         <div className="flex flex-col items-end gap-1.5">
-                          <span className="badge bg-rose-550/10 border border-rose-500/15 text-rose-400 font-black uppercase text-[8px] tracking-wider">
+                          <span className="badge bg-rose-550/10 border border-rose-500/15 text-rose-400 font-black uppercase text-[8px] tracking-wider font-financial">
                             Mora +{absOverdue} d{absOverdue !== 1 ? "s" : ""}
                           </span>
                           <div className="flex items-center gap-1">
@@ -208,12 +239,13 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })
               )}
-            </div>
-            {compact && originalVencidosLength > 5 && (
+            </motion.div>
+          </div>
+          {compact && originalVencidosLength > 5 && (
               <div className="pt-2 border-t border-white/5 text-center mt-2">
                 <Link
                   to="/cartera"
@@ -246,7 +278,12 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto mt-4 pr-1 space-y-3.5 scrollbar-thin">
+            <motion.div 
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="flex-1 overflow-y-auto mt-4 pr-1 space-y-3.5 scrollbar-thin"
+            >
               {loansProximos.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-6 text-slate-500 select-none py-16">
                   <CalendarDays size={32} className="text-slate-650 mb-3" />
@@ -261,25 +298,29 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
                   if (remaining === 0) {
                     timerBadgeColor = "bg-amber-500/10 border-amber-500/15 text-amber-400 animate-pulse";
                   } else if (remaining <= 3) {
-                    timerBadgeColor = "bg-indigo-500/10 border-indigo-500/15 text-indigo-400";
+                    timerBadgeColor = "bg-emerald-500/10 border-emerald-500/15 text-emerald-400";
                   } else if (remaining <= 7) {
                     timerBadgeColor = "bg-emerald-500/10 border-emerald-500/15 text-emerald-450";
                   }
 
                   return (
-                    <div key={loan.id} className="flex items-center justify-between p-3.5 bg-white/[0.012] border border-white/[0.04] rounded-2xl gap-3 hover:border-white/[0.08] transition duration-150">
+                    <motion.div 
+                      key={loan.id} 
+                      variants={itemVariants}
+                      className="flex items-center justify-between p-3.5 bg-white/[0.012] border border-white/[0.04] rounded-2xl gap-3 hover:border-white/[0.08] transition duration-150"
+                    >
                       <div className="flex flex-col gap-2 min-w-0 flex-1">
                         <span className="font-bold text-slate-50 text-sm leading-tight">{loan.cliente_nombre}</span>
                         <div className="flex items-center gap-2">
-                          <Clock size={10} className="text-indigo-400 shrink-0" />
-                          <span className="text-[10px] text-slate-500 font-semibold">Monto: <strong className="text-slate-350 font-mono font-bold">{formatCurrency(loan.monto_capital)}</strong></span>
+                          <Clock size={10} className="text-emerald-550 shrink-0" />
+                          <span className="text-[10px] text-slate-500 font-semibold">Monto: <strong className="text-slate-300 font-financial font-bold">{formatCurrency(loan.monto_capital)}</strong></span>
                         </div>
                       </div>
 
                       {/* Actions */}
                       <div className="flex items-center gap-2 shrink-0">
                         <div className="flex flex-col items-end gap-1.5">
-                          <span className={`badge uppercase text-[8px] tracking-wider font-black ${timerBadgeColor}`}>
+                          <span className={`badge uppercase text-[8px] tracking-wider font-black font-financial ${timerBadgeColor}`}>
                             {remaining === 0 ? "Vence hoy" : `En ${remaining} día${remaining !== 1 ? "s" : ""}`}
                           </span>
                           <div className="flex items-center gap-1">
@@ -288,7 +329,7 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
                                 href={loan.recLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/15 text-indigo-400 hover:bg-indigo-500/20 transition cursor-pointer"
+                                className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20 transition cursor-pointer"
                                 title="Enviar recordatorio amistoso"
                               >
                                 <Bell size={12} />
@@ -303,11 +344,11 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })
               )}
-            </div>
+            </motion.div>
             {compact && originalProximosLength > 5 && (
               <div className="pt-2 border-t border-white/5 text-center mt-2">
                 <Link
