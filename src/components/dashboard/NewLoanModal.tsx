@@ -247,7 +247,15 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
         {/* Inputs Condicionales: Modo Alquiler de Casa */}
         {tipo === "Alquiler de Casa" && (
           <div className="space-y-4 p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl animate-fadeIn">
-            <span className="text-[9.5px] font-black text-emerald-450 uppercase tracking-widest block">Configuración de Contrato de Alquiler</span>
+            <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+              <div className="w-12 h-12 bg-black/50 border border-white/5 rounded-xl overflow-hidden shrink-0">
+                <img src="/housing_rental_icon.png" alt="Alquiler" className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <span className="text-[9.5px] font-black text-emerald-450 uppercase tracking-widest block">Configuración de Contrato de Alquiler</span>
+                <p className="text-[10px] text-slate-500 font-bold uppercase mt-0.5">Control de arrendamiento mensual</p>
+              </div>
+            </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">

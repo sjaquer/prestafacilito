@@ -62,15 +62,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               initial={{ scale: 0.8, rotate: -10 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-              className="mx-auto w-14 h-14 bg-gradient-to-tr from-indigo-600 to-indigo-500 rounded-2xl flex items-center justify-center mb-4 shadow-[0_8px_20px_rgba(99,102,241,0.3)]"
+              className="mx-auto w-16 h-16 bg-black/40 border border-white/10 rounded-2xl flex items-center justify-center mb-4 shadow-[0_8px_24px_rgba(0,0,0,0.4)] overflow-hidden shrink-0"
             >
-              <Coins className="text-white" size={28} />
+              <img src="/brand_logo_icon.png" alt="PrestaFacilito" className="w-full h-full object-cover" />
             </motion.div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-indigo-200 tracking-tight">
-              Control de Cartera
+            <h1 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-emerald-300 tracking-tight">
+              PrestaFacilito
             </h1>
             <p className="text-gray-400 text-xs sm:text-sm mt-2 font-medium">
-              Gestión segura de créditos y amortizaciones
+              Gestión segura de créditos y alquileres de vivienda
             </p>
           </div>
 
@@ -92,11 +92,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
             {/* Input de Usuario */}
             <div id="username-field" className="space-y-2">
-              <label className="text-[11px] font-bold text-indigo-300 uppercase tracking-widest block pl-1">
+              <label className="text-[11px] font-black text-emerald-450 uppercase tracking-widest block pl-1">
                 Usuario de Administración
               </label>
               <div className="relative group">
-                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-500 group-focus-within:text-emerald-400 transition-colors">
                   <User size={18} />
                 </span>
                 <input
@@ -113,11 +113,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
             {/* Input de Contraseña */}
             <div id="password-field" className="space-y-2">
-              <label className="text-[11px] font-bold text-indigo-300 uppercase tracking-widest block pl-1">
+              <label className="text-[11px] font-black text-emerald-455 uppercase tracking-widest block pl-1">
                 Contraseña
               </label>
               <div className="relative group">
-                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-500 group-focus-within:text-emerald-400 transition-colors">
                   <Lock size={18} />
                 </span>
                 <input
