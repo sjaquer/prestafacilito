@@ -163,7 +163,6 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
         {/* COLUMNA 1: Personas que no pagaron aún (VENCIDOS) */}
         <Card variant="simple" className={`border-rose-500/10 flex flex-col justify-between ${compact ? 'min-h-[360px]' : 'min-h-[450px]'}`}>
           <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Header Column */}
             <div className="flex items-center justify-between pb-3 border-b border-white/5 mb-1">
               <div className="flex items-center gap-2">
                 <div className="w-9 h-9 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
@@ -178,8 +177,8 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
                 {loansVencidos.length} deudor{loansVencidos.length !== 1 ? "es" : ""}
               </span>
             </div>
-            {/* List */}
-            <motion.div 
+
+            <motion.div
               variants={containerVariants}
               initial="hidden"
               animate="visible"
@@ -194,10 +193,10 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
               ) : (
                 loansVencidos.map((loan) => {
                   const absOverdue = Math.abs(loan.remainingDays);
-                  
+
                   return (
-                    <motion.div 
-                      key={loan.id} 
+                    <motion.div
+                      key={loan.id}
                       variants={itemVariants}
                       className="flex items-center justify-between p-4 bg-white/[0.012] border border-white/[0.04] rounded-3xl gap-3 hover:border-white/[0.08] transition duration-150"
                     >
@@ -205,11 +204,12 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
                         <span className="font-black text-slate-50 text-sm leading-tight tracking-tight">{loan.cliente_nombre}</span>
                         <div className="flex items-center gap-2">
                           <Clock size={10} className="text-rose-400 shrink-0" />
-                          <span className="text-[10px] text-slate-500 font-semibold">Venció: <strong className="text-slate-400 font-bold">{formatDateWithDay(loan.fecha_vencimiento)}</strong></span>
+                          <span className="text-[10px] text-slate-500 font-semibold">
+                            Venció: <strong className="text-slate-400 font-bold">{formatDateWithDay(loan.fecha_vencimiento)}</strong>
+                          </span>
                         </div>
                       </div>
 
-                      {/* Actions */}
                       <div className="flex items-center gap-2 shrink-0">
                         <div className="flex flex-col items-end gap-1.5">
                           <span className="badge bg-rose-500/10 border border-rose-500/15 text-rose-400 font-black uppercase text-[8px] tracking-wider font-financial">
@@ -253,6 +253,7 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
               )}
             </motion.div>
           </div>
+
           {compact && originalVencidosLength > 5 && (
             <div className="pt-2 border-t border-white/5 text-center mt-2">
               <Link
@@ -263,7 +264,6 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
               </Link>
             </div>
           )}
-          </div>
         </Card>
 
         {/* COLUMNA 2: Faltan por pagar / Próximos a Vencer */}
