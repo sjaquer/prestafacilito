@@ -265,48 +265,76 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
     ? `M ${graphMoraPoints[0].x} ${graphMoraPoints[0].y} ` + graphMoraPoints.slice(1).map(p => `L ${p.x} ${p.y}`).join(" ")
     : "";
 
+  const tabClassName = (tab: TabType) =>
+    `ai-tab flex items-center gap-2 px-4 py-2.5 text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+      activeTab === tab ? "ai-tab-active" : ""
+    }`;
+
   return (
-    <div id="ai-report-view" className="space-y-6 max-w-6xl mx-auto pb-10">
+    <div id="ai-report-view" className="ai-shell space-y-6 max-w-6xl mx-auto pb-10">
       
-      {/* Cabecera Premium */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/5 pb-5">
-        <div className="flex items-center gap-3.5">
-          {onBack && (
-          <button
-            onClick={onBack}
-            className="p-3 bg-[#0f172a]/80 hover:bg-white/5 border border-white/5 text-slate-400 hover:text-white rounded-2xl transition duration-150 cursor-pointer shadow-sm"
-          >
-            <ArrowLeft size={16} />
-          </button>
-          )}
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2.5 py-0.5 rounded-md tracking-wider flex items-center gap-1 font-mono uppercase">
-                <Sparkles size={11} className="animate-pulse" />
-                <span>Executive CFO AI v2.5</span>
-              </span>
-              <span className="text-[10px] font-bold text-slate-500">
-                Sincronización: {report?.fechaReporte || "Semanal"}
-              </span>
+      {/* Hero / Cabecera */}
+      <div className="ai-hero rounded-[2rem] p-5 md:p-6 space-y-5 overflow-hidden relative">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_25%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.12),transparent_28%)]" />
+        <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
+          <div className="flex items-start gap-3.5">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="w-11 h-11 flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white rounded-2xl transition duration-150 cursor-pointer shadow-sm"
+              >
+                <ArrowLeft size={16} />
+              </button>
+            )}
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="ai-chip font-mono">
+                  <Sparkles size={11} className="animate-pulse" />
+                  Executive CFO AI v2.5
+                </span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.18em]">
+                  Sincronización: {report?.fechaReporte || "Semanal"}
+                </span>
+              </div>
+              <div className="space-y-1">
+                <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+                  Informe de Inteligencia Financiera
+                </h1>
+                <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
+                  Un cockpit ejecutivo para priorizar riesgos, visualizar caja y tomar decisiones de cobranza con contexto.
+                </p>
+              </div>
             </div>
-            <h1 className="text-2xl font-black tracking-tight text-white mt-1">
-              Informe de Inteligencia Financiera
-            </h1>
           </div>
+
+          <button
+            onClick={() => fetchReport(true)}
+            disabled={loading}
+            className="w-full md:w-auto px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-cyan-500 text-white font-extrabold text-xs rounded-2xl transition duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/15 disabled:opacity-50 min-h-[44px]"
+          >
+            <RefreshCw className={`shrink-0 ${loading ? "animate-spin" : ""}`} size={14} />
+            <span>{loading ? "Calculando Diagnóstico..." : "Refrescar Auditoría de IA"}</span>
+          </button>
         </div>
 
-        <button
-          onClick={() => fetchReport(true)}
-          disabled={loading}
-          className="w-full md:w-auto px-5 py-3 bg-gradient-to-r from-purple-650 to-indigo-650 hover:from-purple-550 hover:to-indigo-550 text-white font-extrabold text-xs rounded-xl transition duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-50 min-h-[44px]"
-        >
-          <RefreshCw className={`shrink-0 ${loading ? "animate-spin" : ""}`} size={14} />
-          <span>{loading ? "Calculando Diagnóstico..." : "Refrescar Auditoría de IA"}</span>
-        </button>
+        <div className="relative grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="ai-panel p-4">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.18em] mb-1">Morosidad estimada</p>
+            <p className="text-xl font-black text-white font-mono">{tasaMorosidad}%</p>
+          </div>
+          <div className="ai-panel p-4">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.18em] mb-1">Recuperación</p>
+            <p className="text-xl font-black text-white font-mono">{porcentajeRecup}%</p>
+          </div>
+          <div className="ai-panel p-4">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.18em] mb-1">Saldo pendiente</p>
+            <p className="text-xl font-black text-white font-mono">{formatCurrency(saldoPendiente)}</p>
+          </div>
+        </div>
       </div>
 
       {error && (
-        <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-2xl text-xs flex items-start gap-2.5">
+        <div className="ai-panel p-4 border-amber-500/20 text-amber-300 text-xs flex items-start gap-2.5">
           <AlertTriangle className="shrink-0 text-amber-400 animate-bounce" size={16} />
           <div>
             <span className="font-bold block">Error al generar informe con Inteligencia Artificial</span>
@@ -316,11 +344,11 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
       )}
 
       {loading && !report ? (
-        <div className="flex flex-col items-center justify-center py-28 bg-[#0f172a]/30 border border-white/5 rounded-3xl space-y-4 relative overflow-hidden">
+        <div className="ai-panel flex flex-col items-center justify-center py-28 space-y-4 relative overflow-hidden">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl" />
           <div className="relative w-16 h-16 flex items-center justify-center">
-            <div className="absolute inset-0 rounded-full border-4 border-purple-500/20 border-t-purple-500 animate-spin" />
-            <Sparkles className="text-purple-400 animate-pulse" size={24} />
+            <div className="absolute inset-0 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin" />
+            <Sparkles className="text-emerald-400 animate-pulse" size={24} />
           </div>
           <div className="text-center space-y-1 relative z-10">
             <h4 className="text-sm font-extrabold text-white">Analizando métricas corporativas...</h4>
@@ -334,14 +362,10 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
           <div className="space-y-6">
             
             {/* Tab Navigation Menu */}
-            <div className="flex bg-[#0f172a]/80 p-1.5 rounded-2xl border border-white/5 max-w-2xl overflow-x-auto scrollbar-none">
+            <div className="ai-panel p-1.5 flex max-w-2xl overflow-x-auto scrollbar-none">
               <button
                 onClick={() => setActiveTab("cockpit")}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === "cockpit"
-                    ? "bg-purple-650 text-white shadow-md shadow-purple-500/10"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
+                className={tabClassName("cockpit")}
               >
                 <BarChart3 size={14} />
                 <span>CFO Cockpit</span>
@@ -349,11 +373,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
               
               <button
                 onClick={() => setActiveTab("diagnostico")}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === "diagnostico"
-                    ? "bg-purple-650 text-white shadow-md shadow-purple-500/10"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
+                className={tabClassName("diagnostico")}
               >
                 <Award size={14} />
                 <span>Diagnóstico Ejecutivo</span>
@@ -361,11 +381,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
 
               <button
                 onClick={() => setActiveTab("estrategias")}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === "estrategias"
-                    ? "bg-purple-650 text-white shadow-md shadow-purple-500/10"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
+                className={tabClassName("estrategias")}
               >
                 <ListChecks size={14} />
                 <span>Estrategias de Cobranza</span>
@@ -373,11 +389,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
 
               <button
                 onClick={() => setActiveTab("alertas")}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap relative ${
-                  activeTab === "alertas"
-                    ? "bg-purple-650 text-white shadow-md shadow-purple-500/10"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
+                className={`${tabClassName("alertas")} relative`}
               >
                 <BellRing size={14} />
                 <span>Alertas de Cartera</span>
@@ -428,8 +440,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                       </div>
 
                       {/* Gráfico de Proyección de Caja */}
-                      <div className="bento-card p-6 rounded-3xl relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500" />
+                        <div className="ai-panel ai-panel-accent p-6 rounded-[1.75rem] relative overflow-hidden">
                         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-white/5 pb-4 mb-4">
                           <div>
                             <h3 className="font-black text-white text-sm">Flujo de Caja Proyectado a 4 Semanas</h3>
@@ -504,7 +515,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                         </div>
                         
                         <div className="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-2xl flex gap-2 items-start text-[11px] text-slate-350 leading-relaxed">
-                          <Info className="text-purple-400 shrink-0 mt-0.5" size={13} />
+                          <Info className="text-emerald-400 shrink-0 mt-0.5" size={13} />
                             <p>
                             <strong>Insight Ejecutivo:</strong> La proyección indica que la **{topProjection?.period || "semana de mayor volumen"}** será el pico de recaudo más alto, acumulando una amortización estimada de cobro óptima. Se sugiere desplegar notificaciones masivas 48h antes de este lapso.
                           </p>
@@ -633,10 +644,9 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                   <div className="space-y-6">
                     
                     {/* Diagnóstico Resumen */}
-                    <div className="bento-card p-6 rounded-3xl relative overflow-hidden group">
-                      <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-purple-500 to-indigo-650" />
+                    <div className="ai-panel ai-panel-accent p-6 rounded-[1.75rem] relative overflow-hidden group">
                       <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-4">
-                        <div className="w-10 h-10 bg-purple-500/15 rounded-xl flex items-center justify-center text-purple-400">
+                        <div className="w-10 h-10 bg-emerald-500/15 rounded-xl flex items-center justify-center text-emerald-400">
                           <Award size={20} />
                         </div>
                         <div>
@@ -648,8 +658,8 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                         {report.saludFinanciera}
                       </p>
                       {report.resumenDesempeño && (
-                        <div className="mt-4 p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl">
-                          <span className="text-[9px] font-bold text-indigo-300 uppercase tracking-wider block font-mono">Recomendación a la Dirección</span>
+                        <div className="mt-4 p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
+                          <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wider block font-mono">Recomendación a la Dirección</span>
                           <p className="text-xs text-indigo-200 italic mt-1 leading-relaxed">
                             "{report.resumenDesempeño}"
                           </p>
@@ -698,7 +708,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                     )}
 
                     {/* Distribución de Métodos de Pago */}
-                    <div className="bento-card p-6 rounded-3xl max-w-2xl">
+                    <div className="ai-panel p-6 rounded-[1.75rem] max-w-2xl">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-4 text-center">
                         Distribución de Canales de Cobro Utilizados
                       </span>
@@ -734,8 +744,8 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                 {activeTab === "estrategias" && (
                   <div className="space-y-5">
                     
-                    <div className="p-4 bg-purple-550/10 border border-purple-500/20 text-purple-300 rounded-2xl text-xs flex items-start gap-2.5">
-                      <Sparkles className="shrink-0 text-purple-400 mt-0.5" size={16} />
+                    <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 rounded-2xl text-xs flex items-start gap-2.5">
+                      <Sparkles className="shrink-0 text-emerald-400 mt-0.5" size={16} />
                       <div>
                         <span className="font-bold block">Hoja de Ruta Estratégica</span>
                         <span className="opacity-90 leading-normal">
@@ -848,7 +858,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                                     <button
                                       onClick={() => generateWhatsAppMessage(p)}
                                       disabled={generatingMsgId === p.cliente}
-                                      className="px-3.5 py-2 bg-purple-650 hover:bg-purple-550 text-white font-extrabold text-[10.5px] rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer border border-purple-500/20 disabled:opacity-50 min-h-[36px]"
+                                      className="px-3.5 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-cyan-500 text-white font-extrabold text-[10.5px] rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer border border-emerald-400/20 disabled:opacity-50 min-h-[36px]"
                                     >
                                       {generatingMsgId === p.cliente ? (
                                         <>

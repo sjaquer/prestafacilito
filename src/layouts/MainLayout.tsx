@@ -60,22 +60,22 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
   return (
     <div
       id="admin-workspace"
-      className="min-h-screen flex flex-col bg-[#070a13] text-[#f8fafc] pb-20 sm:pb-0"
+      className="workspace-shell min-h-screen flex flex-col bg-transparent text-[#f8fafc] pb-20 sm:pb-0"
     >
       {/* ── HEADER ── */}
       <header
         id="workspace-header"
-        className="sticky top-0 z-40 bg-[#070a13]/90 backdrop-blur-xl border-b border-white/[0.055] shadow-sm shadow-black/30"
+        className="sticky top-0 z-40 bg-[#060913]/78 backdrop-blur-2xl border-b border-white/[0.06] shadow-[0_12px_40px_-24px_rgba(0,0,0,0.8)]"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-14 items-center gap-4">
+          <div className="flex justify-between h-16 items-center gap-4">
             {/* Brand */}
             <div 
               id="nav-brand" 
               onClick={() => navigate("/")} 
               className="flex items-center gap-2.5 shrink-0 cursor-pointer select-none"
             >
-              <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0">
+              <div className="w-9 h-9 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0">
                 <Coins className="text-white" size={16} />
               </div>
               <div className="hidden sm:block leading-none">
@@ -91,7 +91,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
             {/* Desktop Nav */}
             <nav
               id="nav-links"
-              className="hidden sm:flex items-center gap-0.5 bg-white/[0.035] p-1 rounded-xl border border-white/[0.06] flex-1 max-w-sm mx-auto select-none"
+              className="hidden sm:flex items-center gap-0.5 bg-white/[0.035] p-1 rounded-2xl border border-white/[0.06] flex-1 max-w-sm mx-auto select-none"
             >
               {navItems.map((item) => {
                 const isActive = isPathActive(item);
@@ -99,9 +99,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-150 cursor-pointer flex-1 justify-center decoration-none ${
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-bold transition-all duration-150 cursor-pointer flex-1 justify-center decoration-none ${
                       isActive
-                        ? "bg-emerald-600 text-white shadow-md shadow-emerald-500/20"
+                        ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/20 border border-emerald-400/20"
                         : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.05]"
                     }`}
                   >
@@ -153,7 +153,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
       {/* ── MAIN CONTENT ── */}
       <main
         id="workspace-content"
-        className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7"
+        className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 relative z-[1]"
       >
         <React.Suspense 
           fallback={
@@ -174,7 +174,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
 
       {/* ── MOBILE BOTTOM NAV ── */}
       <div className="sm:hidden fixed bottom-3 left-3 right-3 z-40 select-none">
-        <div className="bg-[#0c1020]/95 backdrop-blur-xl border border-white/[0.08] rounded-2xl px-2 py-1.5 shadow-2xl shadow-black/60 flex justify-around items-center">
+        <div className="bg-[#0c1020]/92 backdrop-blur-xl border border-white/[0.08] rounded-2xl px-2 py-1.5 shadow-2xl shadow-black/60 flex justify-around items-center">
           {navItems.map((item) => {
             const isActive = isPathActive(item);
             return (
@@ -183,7 +183,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                 to={item.path}
                 className={`flex flex-col items-center gap-0.5 py-1.5 px-4 rounded-xl transition-all duration-200 cursor-pointer flex-1 decoration-none ${
                   isActive
-                    ? "text-emerald-450"
+                    ? "text-emerald-300"
                     : "text-slate-600 hover:text-slate-400"
                 }`}
               >
@@ -209,7 +209,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
       {/* ── FOOTER ── */}
       <footer
         id="workspace-footer"
-        className="bg-[#070a13] border-t border-white/[0.05] py-4 hidden sm:block select-none"
+        className="bg-[#05070f] border-t border-white/[0.05] py-4 hidden sm:block select-none relative z-[1]"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <p className="text-[11px] text-slate-600 font-medium">
