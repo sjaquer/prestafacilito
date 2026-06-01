@@ -277,6 +277,35 @@ body::before {
   background: linear-gradient(180deg, rgba(16, 185, 129, 0.95), rgba(59, 130, 246, 0.9));
 }
 
+.dashboard-shell {
+  position: relative;
+}
+
+.dashboard-section-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.dashboard-section-title h2,
+.dashboard-section-title h3 {
+  letter-spacing: -0.03em;
+}
+
+.dashboard-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
 /* ─── SCROLLBAR NATIVO INTEGRADO (Modern Web Guidance) ─ */
 ::-webkit-scrollbar {
   width: 6px;

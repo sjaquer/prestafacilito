@@ -43,14 +43,15 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
     <div className="space-y-6 select-none">
       {/* 1. GRÁFICA DE BALANCE DE RETORNO */}
       <Card variant="bento">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2 text-xs">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-4 gap-3 text-xs">
           <div>
-            <h3 className="font-extrabold text-white text-sm">Visualizador de Cartera y Retorno</h3>
+            <span className="dashboard-chip text-emerald-300 border-emerald-500/15 bg-emerald-500/10 mb-2 w-fit">Retorno</span>
+            <h3 className="font-black text-white text-base tracking-tight">Visualizador de cartera y retorno</h3>
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
               Dinero amortizado frente a saldo restante
             </p>
           </div>
-          <div className="font-mono text-right text-[11px] md:text-xs">
+          <div className="font-mono text-right text-[11px] md:text-xs bg-white/[0.02] border border-white/5 rounded-2xl px-3 py-2">
             <span className="text-emerald-450 font-black">{recoveryRate.toFixed(1)}%</span> Cobrado ·{" "}
             <span className="text-blue-455 font-black">{(100 - recoveryRate).toFixed(1)}%</span> Pendiente
           </div>

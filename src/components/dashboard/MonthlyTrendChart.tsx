@@ -50,11 +50,18 @@ export const MonthlyTrendChart: React.FC<MonthlyTrendChartProps> = ({ amortizaci
 
   return (
     <Card variant="bento" className="w-full select-none font-sans">
-      <div className="mb-4">
-        <h3 className="font-extrabold text-white text-sm">Tendencia de Cobros Mensuales</h3>
-        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-          Ingresos recolectados en los últimos 6 meses
-        </p>
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div>
+          <span className="dashboard-chip text-indigo-300 border-indigo-500/15 bg-indigo-500/10 mb-2 w-fit">Cobros</span>
+          <h3 className="font-black text-white text-base tracking-tight">Tendencia de cobros mensuales</h3>
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+            Ingresos recolectados en los últimos 6 meses
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+          <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/5">Vista ejecutiva</span>
+          <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/15">Actualizada</span>
+        </div>
       </div>
 
       <div className="relative w-full h-[220px]">
@@ -136,7 +143,7 @@ export const MonthlyTrendChart: React.FC<MonthlyTrendChartProps> = ({ amortizaci
                   height={barHeight}
                   rx="6"
                   ry="6"
-                  fill="url(#barGradient)"
+                  fill={d.total > 0 ? "url(#barGradient)" : "rgba(255,255,255,0.08)"}
                   className="transition-all duration-300 group-hover:filter group-hover:brightness-125"
                   style={{ filter: "drop-shadow(0px 0px 4px rgba(139, 92, 246, 0.15))" }}
                 />
@@ -183,7 +190,7 @@ export const MonthlyTrendChart: React.FC<MonthlyTrendChartProps> = ({ amortizaci
                   x={x + barWidth / 2}
                   y={height - paddingY + 16}
                   textAnchor="middle"
-                  className="text-[9px] font-black fill-slate-400 group-hover:fill-indigo-400 transition-colors duration-200"
+                  className="text-[9px] font-black fill-slate-400 group-hover:fill-indigo-300 transition-colors duration-200"
                 >
                   {d.label}
                 </text>

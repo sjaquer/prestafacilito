@@ -46,14 +46,20 @@ export const LoanDistributionChart: React.FC<LoanDistributionChartProps> = ({
 
   return (
     <Card variant="bento" className="w-full select-none font-sans flex flex-col h-full justify-between">
-      <div>
-        <h3 className="font-extrabold text-white text-sm">Distribución de Préstamos</h3>
-        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-          Estado actual de la cartera de créditos
-        </p>
+      <div className="flex items-end justify-between gap-3 mb-1">
+        <div>
+          <span className="dashboard-chip text-fuchsia-300 border-fuchsia-500/15 bg-fuchsia-500/10 mb-2 w-fit">Cartera</span>
+          <h3 className="font-black text-white text-base tracking-tight">Distribución de préstamos</h3>
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+            Estado actual de la cartera de créditos
+          </p>
+        </div>
+        <div className="hidden sm:flex flex-col items-end text-[10px] font-black uppercase tracking-widest text-slate-500">
+          <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/5">Total {total}</span>
+        </div>
       </div>
 
-      <div className="flex flex-row items-center justify-around my-auto gap-4 py-3">
+      <div className="flex flex-col sm:flex-row items-center justify-around my-auto gap-5 py-3">
         {/* Gráfico Donut SVG */}
         <div className="relative" style={{ width: size, height: size }}>
           {total === 0 ? (
@@ -121,7 +127,7 @@ export const LoanDistributionChart: React.FC<LoanDistributionChartProps> = ({
         </div>
 
         {/* Leyenda */}
-        <div className="flex flex-col gap-2 bg-white/[0.01] border border-white/5 rounded-2xl p-3 shrink-0 min-w-[120px]">
+        <div className="flex flex-col gap-2 bg-white/[0.02] border border-white/5 rounded-3xl p-4 shrink-0 min-w-[150px] w-full sm:w-auto">
           {total === 0 ? (
             <div className="text-[10px] font-bold text-slate-500 py-1 text-center">
               Sin préstamos registrados
