@@ -130,4 +130,4 @@ export const ClientFinancialSummary: React.FC<ClientFinancialSummaryProps> = ({ 
       </Card>
     </div>
   );
-};};
+};

@@ -91,7 +91,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
             {/* Desktop Nav */}
             <nav
               id="nav-links"
-              className="hidden sm:flex items-center gap-0.5 bg-white/[0.035] p-1 rounded-2xl border border-white/[0.06] flex-1 max-w-sm mx-auto select-none"
+              className="hidden lg:flex items-center gap-0.5 bg-white/[0.035] p-1 rounded-2xl border border-white/[0.06] flex-1 max-w-md xl:max-w-lg mx-auto select-none"
             >
               {navItems.map((item) => {
                 const isActive = isPathActive(item);
@@ -99,7 +99,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-bold transition-all duration-150 cursor-pointer flex-1 justify-center decoration-none ${
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-bold transition-all duration-150 cursor-pointer flex-1 min-w-0 justify-center whitespace-nowrap decoration-none ${
                       isActive
                         ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/20 border border-emerald-400/20"
                         : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.05]"
@@ -123,7 +123,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
               <div className="w-px h-5 bg-white/[0.08] hidden sm:block" />
 
               {user && (
-                <div className="hidden sm:flex items-center gap-2 select-none">
+                <div className="hidden lg:flex items-center gap-2 select-none">
                   <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center">
                     <span className="text-[10px] font-black text-emerald-300 uppercase">
                       {user.charAt(0)}
