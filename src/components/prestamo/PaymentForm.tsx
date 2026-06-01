@@ -17,16 +17,20 @@ interface PaymentFormProps {
     mimeType?: string;
     base64Data?: string;
   }) => Promise<boolean>;
+  loanType?: string;
 }
 
 export const PaymentForm: React.FC<PaymentFormProps> = ({
   expectedAmount,
   saldoPendiente,
   onSubmit,
+  loanType,
 }) => {
   const [monto, setMonto] = useState("");
   const [metodo, setMetodo] = useState("Yape");
   const [fecha, setFecha] = useState(() => new Date().toISOString().split("T")[0]);
+  
+  const isAlquiler = loanType === "Alquiler de Casa";
   
   // Voucher upload state
   const [vcrFile, setVcrFile] = useState<File | null>(null);
@@ -95,15 +99,17 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
   return (
     <Card variant="bento" className="select-none font-sans">
       <div className="mb-4">
-        <h2 className="text-sm md:text-base font-black text-white tracking-tight leading-none">Registrar Amortización</h2>
-        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
-          Registrar abono de cuota o saldo del prestatario
+        <h2 className="text-sm md:text-base font-black text-white tracking-tight leading-none">
+          {isAlquiler ? "Registrar Mensualidad" : "Registrar Amortización"}
+        </h2>
+        <p className="text-[10px] text-slate-555 font-bold uppercase tracking-wider mt-1.5">
+          {isAlquiler ? "Registrar abono mensual o saldo del contrato de alquiler" : "Registrar abono de cuota o saldo del prestatario"}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-450 text-xs font-bold rounded-2xl">
+          <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-455 text-xs font-bold rounded-2xl">
             {error}
           </div>
         )}
@@ -111,7 +117,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
         {success && (
           <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold rounded-2xl flex items-center gap-1.5">
             <CheckCircle size={14} className="shrink-0 text-emerald-400" />
-            <span>¡Pago registrado y voucher subido de forma exitosa!</span>
+            <span>¡Pago registrado y comprobante cargado con éxito!</span>
           </div>
         )}
 
@@ -122,7 +128,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
             onClick={() => setMonto(round2(expectedAmount).toString())}
             className="px-3 py-2 bg-white/5 border border-white/8 hover:bg-white/10 text-slate-300 hover:text-white rounded-xl font-bold transition duration-150 cursor-pointer text-center"
           >
-            Cuota: {formatCurrency(expectedAmount)}
+            {isAlquiler ? "Mensualidad" : "Cuota"}: {formatCurrency(expectedAmount)}
           </button>
           
           <button
@@ -130,12 +136,12 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
             onClick={() => setMonto(round2(saldoPendiente).toString())}
             className="px-3 py-2 bg-white/5 border border-white/8 hover:bg-white/10 text-slate-300 hover:text-white rounded-xl font-bold transition duration-150 cursor-pointer text-center"
           >
-            Total: {formatCurrency(saldoPendiente)}
+            {isAlquiler ? "Total Contrato" : "Total"}: {formatCurrency(saldoPendiente)}
           </button>
         </div>
 
         <Input
-          label="Monto Amortizado (S/.)"
+          label={isAlquiler ? "Monto a Cancelar (S/.)" : "Monto Amortizado (S/.)"}
           type="number"
           step="0.01"
           required
@@ -208,7 +214,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
           loading={submitting}
           className="w-full mt-4 h-12 font-bold"
         >
-          Registrar Cobro
+          {isAlquiler ? "Registrar Pago de Alquiler" : "Registrar Cobro"}
         </Button>
       </form>
     </Card>

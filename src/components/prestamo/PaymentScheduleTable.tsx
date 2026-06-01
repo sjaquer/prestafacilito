@@ -11,14 +11,17 @@ interface PaymentScheduleTableProps {
   cuotas: CuotaPrestamo[];
   onQuickAjuste: (cuotaNumero: number) => void;
   loanState: "activo" | "pagado";
+  loanType?: string;
 }
 
 export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
   cuotas,
   onQuickAjuste,
   loanState,
+  loanType,
 }) => {
   const [showPaid, setShowPaid] = useState(false);
+  const isAlquiler = loanType === "Alquiler de Casa";
 
   // Filtrar cuotas saldadas si se ocultan
   const displayedCuotas = showPaid 
@@ -33,9 +36,14 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
       {/* Header con toggle de cuotas pagadas */}
       <div className="p-1 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
         <div>
-          <h2 className="font-black text-white text-base tracking-tight leading-none">Cronograma de Pagos</h2>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
-            Calendario de cuotas mensuales amortizables en el tiempo
+          <h2 className="font-black text-white text-base tracking-tight leading-none">
+            {isAlquiler ? "Calendario de Alquileres" : "Cronograma de Pagos"}
+          </h2>
+          <p className="text-[10px] text-slate-550 font-bold uppercase tracking-wider mt-1.5">
+            {isAlquiler 
+              ? "Registro de mensualidades vencidas y canceladas del contrato"
+              : "Calendario de cuotas mensuales amortizables en el tiempo"
+            }
           </p>
         </div>
 
@@ -52,7 +60,10 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
       <div className="mt-5">
         {displayedCuotas.length === 0 ? (
           <div className="text-center py-16 text-slate-500 font-bold text-sm">
-            Todas las cuotas de este crédito se encuentran saldadas. 🎉
+            {isAlquiler 
+              ? "Todas las mensualidades de este contrato de alquiler se encuentran saldadas. 🎉"
+              : "Todas las cuotas de este crédito se encuentran saldadas. 🎉"
+            }
           </div>
         ) : (
           <>
@@ -61,9 +72,9 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
               <table className="w-full text-left border-collapse data-table font-sans">
                 <thead>
                   <tr className="bg-white/2 text-[10px] font-black text-gray-500 uppercase tracking-widest border-b border-white/5 select-none">
-                    <th className="px-4 py-3">N° Cuota</th>
+                    <th className="px-4 py-3">N° Mes</th>
                     <th className="px-4 py-3">Vencimiento</th>
-                    <th className="px-4 py-3">Interés Esperado</th>
+                    <th className="px-4 py-3">{isAlquiler ? "Mensualidad" : "Interés Esperado"}</th>
                     <th className="px-4 py-3">Mora Acumulada</th>
                     <th className="px-4 py-3">Total Exigible</th>
                     <th className="px-4 py-3">Total Pagado</th>
@@ -213,7 +224,9 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                       </div>
                       
                       <div className="flex flex-col">
-                        <span className="text-slate-500 text-[10px] uppercase tracking-wide">Interés</span>
+                        <span className="text-slate-500 text-[10px] uppercase tracking-wide">
+                          {isAlquiler ? "Mensualidad" : "Interés"}
+                        </span>
                         <span className="text-white mt-0.5 font-mono">
                           {isCongelada ? (
                             <span className="text-emerald-400">Congelado</span>

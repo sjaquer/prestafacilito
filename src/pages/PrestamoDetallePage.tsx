@@ -224,6 +224,7 @@ export const PrestamoDetallePage: React.FC = () => {
             cuotas={schedule?.cuotas || []}
             loanState={prestamo.estado}
             onQuickAjuste={() => {}}
+            loanType={prestamo.tipo_prestamo}
           />
 
           {/* Historial de Amortizaciones */}
@@ -251,6 +252,7 @@ export const PrestamoDetallePage: React.FC = () => {
             expectedAmount={schedule?.cuotaSiguiente?.montoExigible || 0}
             saldoPendiente={schedule?.resumen.saldoPendiente || 0}
             onSubmit={handleRegisterPayment}
+            loanType={prestamo.tipo_prestamo}
           />
 
           {/* Asistente de Cobros IA */}

@@ -99,6 +99,149 @@ export const buildPaymentSchedule = (
     }
   }
 
+  // Bypassear lógica de préstamos tradicionales para Alquiler de Casa (Contrato de Arrendamiento)
+  if (prestamo.tipo_prestamo === "Alquiler de Casa") {
+    const capital = toNumber(prestamo.monto_capital);
+    const emissionDate = normalizeDate(prestamo.fecha_emision);
+    const now = normalizeDate(referenceDate);
+
+    // La primera cuota es emisionDate + 1 mes
+    const firstDueDate = addMonthsClamped(emissionDate, 1);
+
+    // Determinar cuántas cuotas generar
+    const lastDueDate = prestamo.fecha_vencimiento && !Number.isNaN(normalizeDate(prestamo.fecha_vencimiento).getTime())
+      ? normalizeDate(prestamo.fecha_vencimiento)
+      : null;
+    const limitDate = lastDueDate
+      ? new Date(Math.max(now.getTime(), lastDueDate.getTime()))
+      : now;
+
+    const totalCuotasProgramadas = Math.max(1, countMonthlyOccurrences(firstDueDate, limitDate));
+    const montoMensual = round2(capital / totalCuotasProgramadas);
+
+    const processedCuotas: CuotaPrestamo[] = [];
+
+    // 1. Generar todas las cuotas (mensualidades de alquiler fijas)
+    for (let i = 0; i < totalCuotasProgramadas; i++) {
+      const duePoint = addMonthsClamped(firstDueDate, i);
+      processedCuotas.push({
+        numero: i + 1,
+        fechaVencimiento: formatIsoDate(duePoint),
+        capitalPendiente: round2(capital - (i * montoMensual)),
+        interesPendiente: montoMensual, // Representa la mensualidad de alquiler esperada
+        moraPendiente: 0,
+        penalidad: 0,
+        cargosAdicionales: 0,
+        montoCuotaBase: montoMensual,
+        montoExigible: montoMensual,
+        pagado: 0,
+        saldoPendiente: montoMensual,
+        diasVencidos: 0,
+        estado: duePoint.getTime() <= now.getTime() ? "Vencida" : "Pendiente",
+        interesOriginal: montoMensual,
+        congelada: false,
+        moraOriginal: 0,
+        capitalAmortizado: 0,
+        interesPagado: 0,
+        moraPagado: 0,
+      });
+    }
+
+    // 2. Procesar pagos recibidos y distribuirlos secuencialmente
+    const sortedPayments = pagos
+      .map(p => ({ ...p, montoVal: toNumber(p.monto), dateVal: normalizeDate(p.fecha_pago) }))
+      .filter(p => p.montoVal > EPSILON && !Number.isNaN(p.dateVal.getTime()) && p.dateVal.getTime() <= now.getTime())
+      .sort((a, b) => a.dateVal.getTime() - b.dateVal.getTime());
+
+    let totalPagado = 0;
+    for (const pago of sortedPayments) {
+      let remaining = pago.montoVal;
+      totalPagado = round2(totalPagado + remaining);
+
+      for (const cuota of processedCuotas) {
+        if (remaining <= EPSILON) break;
+        if (cuota.estado === "Saldada") continue;
+
+        // El abono de alquiler reduce el saldo del mes correspondiente
+        const pagoAlquiler = round2(Math.min(cuota.interesPendiente, remaining));
+        remaining = round2(remaining - pagoAlquiler);
+        cuota.interesPendiente = round2(cuota.interesPendiente - pagoAlquiler);
+        cuota.interesPagado = round2((cuota.interesPagado || 0) + pagoAlquiler);
+        
+        cuota.pagado = round2(cuota.interesPagado);
+        cuota.saldoPendiente = round2(cuota.interesPendiente);
+        cuota.montoExigible = round2(cuota.interesPendiente);
+
+        if (cuota.interesPendiente <= EPSILON) {
+          cuota.estado = "Saldada";
+        } else {
+          cuota.estado = "Parcial";
+        }
+      }
+
+      // Registro de adelantos excepcionales
+      if (remaining > EPSILON) {
+        const lastCuota = processedCuotas[processedCuotas.length - 1];
+        if (lastCuota) {
+          lastCuota.capitalAmortizado = round2((lastCuota.capitalAmortizado || 0) + remaining);
+        }
+      }
+    }
+
+    // 3. Recalcular días de vencimiento para cuotas impagas
+    for (const cuota of processedCuotas) {
+      const duePoint = normalizeDate(cuota.fechaVencimiento);
+      const diasVencidos = Math.max(0, Math.ceil((now.getTime() - duePoint.getTime()) / DAY_MS));
+      cuota.diasVencidos = diasVencidos;
+
+      if (cuota.estado !== "Saldada") {
+        if (cuota.pagado > EPSILON) {
+          cuota.estado = "Parcial";
+        } else {
+          cuota.estado = duePoint.getTime() <= now.getTime() ? "Vencida" : "Pendiente";
+        }
+      }
+    }
+
+    const cuotasVencidasDetalle = processedCuotas.filter(
+      (cuota) => cuota.estado === "Vencida" || (cuota.estado === "Parcial" && cuota.diasVencidos > 0)
+    );
+    const cuotaSiguiente = processedCuotas.find((cuota) => cuota.estado !== "Saldada") || null;
+
+    const totalAlquilerPagado = processedCuotas.reduce((sum, c) => sum + (c.interesPagado || 0), 0);
+    const capitalPendiente = round2(Math.max(0, capital - totalAlquilerPagado));
+    const saldoPendiente = capitalPendiente;
+
+    const cuotasPendientes = processedCuotas.filter((cuota) => cuota.estado !== "Saldada").length;
+    const cuotasVencidas = processedCuotas.filter((cuota) => cuota.estado === "Vencida").length;
+
+    return {
+      resumen: {
+        totalCuotas: totalCuotasProgramadas,
+        cuotasPendientes,
+        cuotasVencidas,
+        capitalPendiente,
+        interesPendiente: 0,
+        moraAcumulada: 0,
+        penalidadesAcumuladas: 0,
+        cargosAdicionalesAcumulados: 0,
+        totalExigible: saldoPendiente,
+        totalPagado,
+        saldoPendiente
+      },
+      cuotas: processedCuotas,
+      cuotaSiguiente,
+      cuotasVencidasDetalle,
+      planAyuda: {
+        tieneAjustesActivos: false,
+        interesCongelado: false,
+        fechaCongelamientoHasta: null,
+        moraEliminada: false,
+        totalBeneficioAplicado: 0
+      }
+    };
+  }
+
   const capital = toNumber(prestamo.monto_capital);
   const tasaInteres = toNumber(prestamo.tasa_interes_porcentaje);
 
