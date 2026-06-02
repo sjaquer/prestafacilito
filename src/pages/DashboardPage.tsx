@@ -169,14 +169,25 @@ export const DashboardPage: React.FC = () => {
 
       setVcrAutoMatching(true);
       try {
-        const res = await fetch(`/api/prestamos/autoseleccionar?clienteId=${vcrClienteId}&monto=${vcrMonto}`);
+        const res = await fetch("/api/prestamos/autoseleccionar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cliente_id: vcrClienteId,
+            monto: round2(parseFloat(vcrMonto)),
+            fecha_pago: vcrFecha
+          })
+        });
         if (res.ok) {
-          const list = await res.json();
-          setVcrMatchingLoans(list || []);
-          
-          // Auto-vincular primer préstamo sugerido
-          if (list && list.length > 0) {
-            setVcrLoanId(list[0].prestamo_id);
+          const data = await res.json();
+          const suggestions = data?.sugerencias || [];
+          const bestMatch = data?.mejorCoincidencia || null;
+          const merged = bestMatch ? [bestMatch, ...suggestions.filter((s: any) => s.prestamo_id !== bestMatch.prestamo_id)] : suggestions;
+          setVcrMatchingLoans(merged);
+
+          // Auto-vincular mejor coincidencia
+          if (bestMatch?.prestamo_id) {
+            setVcrLoanId(bestMatch.prestamo_id);
           }
         }
       } catch (err) {

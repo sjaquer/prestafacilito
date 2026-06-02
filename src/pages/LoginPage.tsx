@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Lock, User, AlertCircle, Loader2, Coins, ChevronRight, UserCheck, Delete, Backspace } from "lucide-react";
+import { Lock, User, AlertCircle, Loader2, Coins, ChevronRight, UserCheck, Delete } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Button } from "../components/ui/Button";
 
@@ -283,7 +283,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   className="h-10 rounded-xl bg-slate-550/5 border border-white/[0.04] text-xs font-black text-slate-400 hover:bg-white/[0.06] active:scale-95 transition-all cursor-pointer flex items-center justify-center"
                   title="Retroceso"
                 >
-                  <Backspace size={14} />
+                  <Delete size={14} />
                 </button>
               </div>
             </div>

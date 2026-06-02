@@ -482,23 +482,43 @@ function getDiffDescription(oldObj: any, newObj: any, fields: Record<string, str
 }
 
 // Helper para auditoría de acciones (Logs) en Supabase y local (universal)
-async function logAction(usuario: string, accion: string, detalles: string, req?: express.Request) {
+async function logAction(
+  usuario: string,
+  accion: string,
+  detalles: string,
+  req?: express.Request,
+  metaExtra?: Record<string, any>
+) {
   try {
     let ip = "";
     let userAgent = "";
+    let route = "";
+    let method = "";
     if (req) {
       const forwarded = req.headers['x-forwarded-for'] as string;
       ip = forwarded ? forwarded.split(',')[0].trim() : (req.socket.remoteAddress || "");
       userAgent = req.headers['user-agent'] || "";
+      route = req.originalUrl || "";
+      method = req.method || "";
     }
 
-    // Agregar detalles de red al mensaje de logs en la BD si aplica
-    const detailsWithIp = ip ? `${detalles} (IP: ${ip})` : detalles;
+    const meta = {
+      ip,
+      userAgent,
+      route,
+      method,
+      ...metaExtra
+    };
+
+    const detailsPayload = {
+      message: detalles,
+      meta
+    };
 
     await supabase.from("logs").insert({
       usuario,
       accion,
-      detalles: detailsWithIp
+      detalles: JSON.stringify(detailsPayload)
     });
 
     // Guardar también en archivo local en el servidor (Persistencia Universal)
@@ -512,9 +532,8 @@ async function logAction(usuario: string, accion: string, detalles: string, req?
       fecha_hora: new Date().toISOString(),
       usuario,
       accion,
-      detalles,
-      ip,
-      userAgent
+      detalles: detailsPayload.message,
+      meta
     };
 
     fs.appendFileSync(
@@ -893,6 +912,9 @@ app.get("/api/dashboard", requireAuth, async (req, res) => {
     const ultimosPrestamos = [...prestamosConCliente]
       .sort((a, b) => new Date(b.fecha_emision).getTime() - new Date(a.fecha_emision).getTime());
 
+    const username = (req as any).user?.username || "sistema";
+    await logAction(username, "VER_DASHBOARD", "Accedió al dashboard principal.", req);
+
     res.json({
       metrics: {
         totalCapitalPrestado: Math.round(totalCapitalPrestado * 100) / 100,
@@ -917,6 +939,8 @@ app.get("/api/clientes", requireAuth, async (req, res) => {
       .order("nombre_completo", { ascending: true });
 
     if (error) throw error;
+    const username = (req as any).user?.username || "sistema";
+    await logAction(username, "CONSULTAR_CLIENTES", "Consultó el panel de clientes.", req);
     res.json(data || []);
   } catch (err: any) {
     console.error("Error al obtener clientes:", err);
@@ -968,7 +992,8 @@ app.post("/api/clientes", requireAuth, async (req, res) => {
       username, 
       "CREAR_CLIENTE", 
       `Se registró al cliente: ${nombre_completo} (Tel: ${telSanitized})`,
-      req
+      req,
+      { cliente_id: data.id }
     );
 
     res.status(201).json(data);
@@ -1029,7 +1054,7 @@ app.put("/api/clientes/:id", requireAuth, async (req, res) => {
       });
       desc += ` ${diff}`;
     }
-    await logAction(username, "EDITAR_CLIENTE", desc, req);
+    await logAction(username, "EDITAR_CLIENTE", desc, req, { cliente_id: clienteId });
 
     res.json(data);
   } catch (err: any) {
@@ -1074,7 +1099,8 @@ app.post("/api/prestamos", requireAuth, async (req, res) => {
       username,
       "REGISTRAR_PRESTAMO",
       `Otorgó crédito ${tipo_prestamo} de S/. ${monto_capital} al cliente: ${cliente ? cliente.nombre_completo : cliente_id}`,
-      req
+      req,
+      { prestamo_id: data.id, cliente_id }
     );
 
     // Sincronizar cuotas en Google Calendar de forma asíncrona
@@ -1112,6 +1138,8 @@ app.get("/api/prestamos", requireAuth, async (req, res) => {
       };
     });
 
+    const username = (req as any).user?.username || "sistema";
+    await logAction(username, "CONSULTAR_PRESTAMOS", "Consultó la lista general de préstamos.", req);
     res.json(prestamosConCliente);
   } catch (err: any) {
     console.error("Error al obtener lista de préstamos:", err);
@@ -1146,6 +1174,15 @@ app.get("/api/prestamos/:id", requireAuth, async (req, res) => {
     const capital = toNumber(prestamo.monto_capital);
     const tasaInteres = toNumber(prestamo.tasa_interes_porcentaje);
     const totalBaseExigible = capital + (capital * (tasaInteres / 100) * debtState.resumen.totalCuotas);
+
+    const username = (req as any).user?.username || "sistema";
+    await logAction(
+      username,
+      "VER_PRESTAMO_DETALLE",
+      `Consultó el detalle del préstamo ${prestamoId}.`,
+      req,
+      { prestamo_id: prestamoId, cliente_id: prestamo.cliente_id }
+    );
 
     res.json({
       prestamo: {
@@ -1223,7 +1260,7 @@ app.put("/api/prestamos/:id", requireAuth, async (req, res) => {
       });
       desc += ` ${diff}`;
     }
-    await logAction(username, "EDITAR_PRESTAMO", desc, req);
+    await logAction(username, "EDITAR_PRESTAMO", desc, req, { prestamo_id: prestamoId, cliente_id: updated.cliente_id });
 
     // Sincronizar cuotas reprogramadas en Google Calendar de forma asíncrona
     syncLoanScheduleToGoogleCalendar(prestamoId).catch((calErr) => {
@@ -1323,7 +1360,8 @@ app.post("/api/prestamos/:id/pagos", requireAuth, async (req, res) => {
       username,
       "REGISTRAR_PAGO",
       `Abonó S/. ${montoPago} (Método: ${metodo_pago || "Efectivo"} | Tipo: ${clasificacionAutomatica}) al contrato/préstamo de: ${cliente ? cliente.nombre_completo : prestamo.cliente_id}. Saldo anterior: S/. ${deudaAntes.resumen.saldoPendiente.toFixed(2)} ➔ Restante: S/. ${deudaDespues.resumen.saldoPendiente.toFixed(2)}.`,
-      req
+      req,
+      { prestamo_id: prestamoId, cliente_id: prestamo.cliente_id, amortizacion_id: insertedAmort?.id }
     );
 
     // Sincronizar cuotas actualizadas en Google Calendar
@@ -1449,6 +1487,8 @@ app.get("/api/amortizaciones", requireAuth, async (req, res) => {
       };
     });
 
+    const username = (req as any).user?.username || "sistema";
+    await logAction(username, "CONSULTAR_AMORTIZACIONES", "Consultó el historial de amortizaciones.", req);
     res.json(detailed);
   } catch (err: any) {
     console.error("Error al obtener amortizaciones:", err);
@@ -1535,7 +1575,8 @@ app.post("/api/amortizaciones/:id/voucher", requireAuth, async (req, res) => {
       username,
       "ACTUALIZAR_VOUCHER",
       `Adjunto voucher a amortizacion ${amortizacionId} (prestamo ${amortizacion.prestamo_id}).`,
-      req
+      req,
+      { prestamo_id: amortizacion.prestamo_id, amortizacion_id: amortizacionId }
     );
 
     res.json({
