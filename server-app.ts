@@ -10,7 +10,8 @@ import crypto from "crypto";
 import { supabase } from "./src/lib/supabase.js";
 import { buildPaymentSchedule, classifyPayment, toNumber } from "./src/lib/loanLogic.js";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const geminiApiKey = process.env.GEMINI_API_KEY?.trim() || "";
+const ai = geminiApiKey ? new GoogleGenAI({ apiKey: geminiApiKey }) : null;
 
 function getEnv(name: string) {
   return process.env[name]?.trim() || "";
@@ -593,6 +594,11 @@ const cookieOptions = {
   sameSite: "strict" as const,
   maxAge: 24 * 60 * 60 * 1000,
 };
+const clearCookieOptions = {
+  httpOnly: cookieOptions.httpOnly,
+  secure: cookieOptions.secure,
+  sameSite: cookieOptions.sameSite,
+};
 
 // Middleware de Autenticación
 const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -657,7 +663,7 @@ app.get("/api/auth/me", (req, res) => {
 app.post("/api/auth/logout", requireAuth, async (req, res) => {
   const username = (req as any).user?.username || "Admin";
   await logAction(username, "CERRAR_SESION", "El administrador cerró sesión.", req);
-  res.clearCookie("token", cookieOptions);
+  res.clearCookie("token", clearCookieOptions);
   res.json({ success: true });
 });
 
@@ -1020,8 +1026,7 @@ app.put("/api/clientes/:id", requireAuth, async (req, res) => {
       .from("clientes")
       .select("*")
       .eq("id", clienteId)
-      .single()
-      .catch(() => ({ data: null }));
+      .maybeSingle();
 
     const { data, error } = await supabase
       .from("clientes")
@@ -1235,8 +1240,7 @@ app.put("/api/prestamos/:id", requireAuth, async (req, res) => {
       .from("prestamos")
       .select("*")
       .eq("id", prestamoId)
-      .single()
-      .catch(() => ({ data: null }));
+      .maybeSingle();
 
     const { data: updated, error } = await supabase
       .from("prestamos")
@@ -1895,7 +1899,7 @@ app.post("/api/ai/reporte-gerencial", requireAuth, async (req, res) => {
     };
 
     // 3. Evaluar API Key para generar reporte
-    if (!process.env.GEMINI_API_KEY) {
+    if (!ai) {
       // Retorno de contingencia inteligente (Mock Corporativo muy detallado)
       const fechaLat = new Date().toLocaleDateString("es-PE", { day: "numeric", month: "long", year: "numeric" });
       const morosidadCalc = prestamosActivos.length > 0 ? Math.round((prestamosVencidos.length / prestamosActivos.length) * 100) : 0;
@@ -2033,7 +2037,7 @@ app.post("/api/ai/mensaje-cobro", requireAuth, async (req, res) => {
     const username = (req as any).user?.username || "sjaquer";
     const senderName = username === "rjaque" ? "Roberto" : "Sebastián";
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!ai) {
       const msg = `¡Hola, ${clienteNombre}! Te saluda ${senderName} de PrestaFacilito. Te recordamos amablemente tu pago pendiente de S/. ${parseFloat(saldoPendiente).toFixed(2)} con vencimiento el ${fechaVencimiento || "próximo vencimiento"}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un excelente día!`;
       return res.json({ mensaje: msg });
     }
