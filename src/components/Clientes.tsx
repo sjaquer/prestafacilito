@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { Cliente, DocumentoCliente, TipoDocumento, TIPOS_DOCUMENTO_CONFIG, ACCEPT_DOCUMENTOS } from "../types";
 import { motion, AnimatePresence } from "motion/react";
+import { useAuth } from "../hooks/useAuth";
+import { getNombreUsuario } from "../lib/formatters";
 
 // ── Detección de género por nombre ─────────────────────────
 const NOMBRES_FEMENINOS = new Set([
@@ -27,21 +29,23 @@ function detectarGenero(nombre: string): 'SR.' | 'SRA.' {
 }
 
 // ── Generador de mensaje recordatorio ─────────────────────
-function getMensajeRecordatorio(cliente: Cliente, montoCuota?: number, fechaVencimiento?: string): string {
+function getMensajeRecordatorio(cliente: Cliente, username: string | null, montoCuota?: number, fechaVencimiento?: string): string {
   const tratamiento = detectarGenero(cliente.nombre_completo);
   const nombre = cliente.nombre_completo.toUpperCase();
-  const cuota = montoCuota ? `S/ ${montoCuota.toFixed(2)}` : 'la cuota pendiente';
+  const cuota = montoCuota ? `S/ ${montoCuota.toFixed(2)}` : 'la cuota o mensualidad pendiente';
   const fecha = fechaVencimiento || 'la fecha de vencimiento';
+  const remitente = getNombreUsuario(username);
   return (
-    `¡Hola, ${tratamiento} ${nombre}! Te saluda Sebastián.\n` +
-    `Te escribo para recordarte amablemente tu cuota pendiente a cancelar:\n\n` +
-    `${cuota} con vencimiento el ${fecha} para no generar intereses.\n\n` +
+    `¡Hola, ${tratamiento} ${nombre}! Te saluda ${remitente}.\n` +
+    `Te escribo para recordarte amablemente tu pago pendiente a cancelar:\n\n` +
+    `${cuota} con vencimiento el ${fecha}.\n\n` +
     `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
     `Cualquier cosa me lo escribe.`
   );
 }
 
 export function Clientes() {
+  const { user } = useAuth();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -552,7 +556,7 @@ export function Clientes() {
                 const saldo = Math.max(0, exigible - amortizado);
                 const risk = riskConfig[assessment.level];
                 const waPhone = (cliente.telefono || '').replace(/\D/g, '');
-                const mensajeRecordatorio = encodeURIComponent(getMensajeRecordatorio(cliente));
+                const mensajeRecordatorio = encodeURIComponent(getMensajeRecordatorio(cliente, user));
 
                 return (
                   <div key={cliente.id} className="hover:bg-white/[0.012] transition-colors duration-150">

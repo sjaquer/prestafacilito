@@ -7,11 +7,13 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { DataTable, ColumnDef } from "../components/ui/DataTable";
-import { formatCurrency, formatDateWithDay, round2 } from "../lib/formatters";
+import { formatCurrency, formatDateWithDay, round2, getNombreUsuario } from "../lib/formatters";
 import { usePrestamos } from "../hooks/usePrestamos";
 import { useClientes } from "../hooks/useClientes";
+import { useAuth } from "../hooks/useAuth";
 
 export const CarteraPage: React.FC = () => {
+  const { user } = useAuth();
   const { clientes } = useClientes();
   const { updatePrestamo } = usePrestamos();
 
@@ -25,12 +27,14 @@ export const CarteraPage: React.FC = () => {
   const [editFechaVencimiento, setEditFechaVencimiento] = useState("");
   const [editMontoCapital, setEditMontoCapital] = useState("");
   const [editTasaInteres, setEditTasaInteres] = useState("");
+  const [editMontoMensual, setEditMontoMensual] = useState("");
+  const [editDuracionMeses, setEditDuracionMeses] = useState("6");
   const [showEditModal, setShowEditModal] = useState(false);
   const [updatingLoan, setUpdatingLoan] = useState(false);
 
   // Advanced Filters
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterEstado, setFilterEstado] = useState<"todos" | "activo" | "pagado" | "mora">("todos");
+  const [filterEstado, setFilterEstado] = useState<"todos" | "activo" | "pagado" | "mora" | "todos">("todos");
   const [filterTipo, setFilterTipo] = useState<string>("todos");
   const [fechaMin, setFechaMin] = useState("");
   const [fechaMax, setFechaMax] = useState("");
@@ -67,13 +71,28 @@ export const CarteraPage: React.FC = () => {
     const phone = cliente.telefono.replace(/[^\d+]/g, "").trim();
     if (!phone) return null;
 
-    const capital = parseFloat(loan.monto_capital) || 0;
-    const interest = parseFloat(loan.tasa_interes_porcentaje) || 0;
-    const totalExigible = round2(capital * (1 + interest / 100));
+    const isAlquiler = loan.tipo_prestamo === "Alquiler de Casa";
+    let amount = 0;
+    if (isAlquiler) {
+      const start = new Date(loan.fecha_emision + "T12:00:00");
+      const end = loan.fecha_vencimiento ? new Date(loan.fecha_vencimiento + "T12:00:00") : null;
+      let duration = 6;
+      if (end && !isNaN(end.getTime()) && !isNaN(start.getTime())) {
+        duration = Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()));
+      }
+      amount = round2(parseFloat(loan.monto_capital) / duration);
+    } else {
+      const capital = parseFloat(loan.monto_capital) || 0;
+      const interest = parseFloat(loan.tasa_interes_porcentaje) || 0;
+      amount = round2(capital * (1 + interest / 100));
+    }
 
-    const formattedAmount = formatCurrency(totalExigible);
+    const formattedAmount = formatCurrency(amount);
     const fechaFormato = formatDateWithDay(loan.fecha_vencimiento);
-    const text = `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} con vencimiento el ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
+    
+    const text = isAlquiler
+      ? `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu mensualidad de alquiler de ${formattedAmount} con vencimiento el ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`
+      : `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} con vencimiento el ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
 
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   };
@@ -98,19 +117,38 @@ export const CarteraPage: React.FC = () => {
       .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const tratamiento = NOMBRES_FEMENINOS.has(primerNombre) ? "SRA." : "SR.";
 
-    const capital = parseFloat(loan.monto_capital) || 0;
-    const interest = parseFloat(loan.tasa_interes_porcentaje) || 0;
-    const totalExigible = round2(capital * (1 + interest / 100));
-    const cuota = formatCurrency(totalExigible);
+    const isAlquiler = loan.tipo_prestamo === "Alquiler de Casa";
+    let amount = 0;
+    if (isAlquiler) {
+      const start = new Date(loan.fecha_emision + "T12:00:00");
+      const end = loan.fecha_vencimiento ? new Date(loan.fecha_vencimiento + "T12:00:00") : null;
+      let duration = 6;
+      if (end && !isNaN(end.getTime()) && !isNaN(start.getTime())) {
+        duration = Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()));
+      }
+      amount = round2(parseFloat(loan.monto_capital) / duration);
+    } else {
+      const capital = parseFloat(loan.monto_capital) || 0;
+      const interest = parseFloat(loan.tasa_interes_porcentaje) || 0;
+      amount = round2(capital * (1 + interest / 100));
+    }
+
+    const cuota = formatCurrency(amount);
     const fecha = formatDateWithDay(loan.fecha_vencimiento);
     const nombreMayus = loan.cliente_nombre.toUpperCase();
+    const remitente = getNombreUsuario(user);
 
-    const mensaje =
-      `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda Sebastián.\n` +
-      `Te escribo para recordarte amablemente tu cuota pendiente a cancelar:\n\n` +
-      `${cuota} con vencimiento el ${fecha} para no generar intereses.\n\n` +
-      `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
-      `Cualquier cosa me lo escribe.`;
+    const mensaje = isAlquiler
+      ? `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
+        `Te escribo para recordarte amablemente tu mensualidad de alquiler pendiente a cancelar:\n\n` +
+        `${cuota} con vencimiento el ${fecha}.\n\n` +
+        `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
+        `Cualquier cosa me lo escribe.`
+      : `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
+        `Te escribo para recordarte amablemente tu cuota pendiente a cancelar:\n\n` +
+        `${cuota} con vencimiento el ${fecha} para no generar intereses.\n\n` +
+        `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
+        `Cualquier cosa me lo escribe.`;
 
     return `https://wa.me/${phone}?text=${encodeURIComponent(mensaje)}`;
   };
@@ -121,13 +159,38 @@ export const CarteraPage: React.FC = () => {
     return Math.ceil((dueDate.getTime() - today.getTime()) / dayMs);
   };
 
+  // Auto-calcular fecha de vencimiento al cambiar fecha de emisión o duración en modo Alquiler (Modo Edición)
+  useEffect(() => {
+    if (selectedEditLoan && selectedEditLoan.tipo_prestamo === "Alquiler de Casa") {
+      if (editFechaEmision) {
+        const d = new Date(editFechaEmision + "T12:00:00");
+        d.setMonth(d.getMonth() + parseInt(editDuracionMeses || "6"));
+        setEditFechaVencimiento(d.toISOString().split("T")[0]);
+      }
+    }
+  }, [editFechaEmision, editDuracionMeses, selectedEditLoan]);
+
   const handleOpenEditModal = (loan: any, event: React.MouseEvent) => {
     event.stopPropagation();
     setSelectedEditLoan(loan);
     setEditFechaEmision(loan.fecha_emision);
     setEditFechaVencimiento(loan.fecha_vencimiento || "");
-    setEditMontoCapital(String(loan.monto_capital || ""));
-    setEditTasaInteres(String(loan.tasa_interes_porcentaje || ""));
+
+    const isAlq = loan.tipo_prestamo === "Alquiler de Casa";
+    if (isAlq) {
+      const start = new Date(loan.fecha_emision + "T12:00:00");
+      const end = loan.fecha_vencimiento ? new Date(loan.fecha_vencimiento + "T12:00:00") : null;
+      let duration = 6;
+      if (end && !isNaN(end.getTime()) && !isNaN(start.getTime())) {
+        duration = Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()));
+      }
+      const monthly = round2(parseFloat(loan.monto_capital) / duration);
+      setEditMontoMensual(String(monthly));
+      setEditDuracionMeses(String(duration));
+    } else {
+      setEditMontoCapital(String(loan.monto_capital || ""));
+      setEditTasaInteres(String(loan.tasa_interes_porcentaje || ""));
+    }
     setShowEditModal(true);
   };
 
@@ -135,12 +198,21 @@ export const CarteraPage: React.FC = () => {
     e.preventDefault();
     if (!selectedEditLoan) return;
 
+    let finalCapital = parseFloat(editMontoCapital);
+    let finalTasa = parseFloat(editTasaInteres);
+    let finalVencimiento = editFechaVencimiento;
+
+    if (selectedEditLoan.tipo_prestamo === "Alquiler de Casa") {
+      finalCapital = parseFloat(editMontoMensual) * parseInt(editDuracionMeses);
+      finalTasa = 0; // Tasa es 0 para alquileres
+    }
+
     setUpdatingLoan(true);
     const res = await updatePrestamo(selectedEditLoan.id, {
       fecha_emision: editFechaEmision,
-      fecha_vencimiento: editFechaVencimiento || null,
-      monto_capital: parseFloat(editMontoCapital) || undefined,
-      tasa_interes_porcentaje: parseFloat(editTasaInteres) || undefined,
+      fecha_vencimiento: finalVencimiento || null,
+      monto_capital: finalCapital || undefined,
+      tasa_interes_porcentaje: finalTasa,
     });
     setUpdatingLoan(false);
 
@@ -740,79 +812,137 @@ export const CarteraPage: React.FC = () => {
       </Card>
 
       {/* EDIT LOAN MODAL */}
-      {showEditModal && selectedEditLoan && (
-        <Modal
-          isOpen={showEditModal}
-          onClose={() => setShowEditModal(false)}
-          title={`Editar Parámetros: ${selectedEditLoan.cliente_nombre}`}
-        >
-          <form onSubmit={handleEditLoanSubmit} className="space-y-4 font-sans select-none">
-            <div className="p-3 bg-indigo-500/10 border border-indigo-500/15 rounded-2xl text-[10.5px] font-bold text-indigo-300 leading-normal flex items-start gap-2.5">
-              <Info size={14} className="shrink-0 mt-0.5 text-indigo-400" />
-              <span>
-                Editar estos valores recalcula automáticamente el capital, tasa y cronograma de cobros para este crédito. Los cambios se sincronizarán con Google Calendar de inmediato.
-              </span>
-            </div>
+      {showEditModal && selectedEditLoan && (() => {
+        const isAlquiler = selectedEditLoan.tipo_prestamo === "Alquiler de Casa";
+        return (
+          <Modal
+            isOpen={showEditModal}
+            onClose={() => setShowEditModal(false)}
+            title={isAlquiler ? `Editar Contrato de Alquiler: ${selectedEditLoan.cliente_nombre}` : `Editar Parámetros: ${selectedEditLoan.cliente_nombre}`}
+          >
+            <form onSubmit={handleEditLoanSubmit} className="space-y-4 font-sans select-none">
+              <div className="p-3 bg-indigo-500/10 border border-indigo-500/15 rounded-2xl text-[10.5px] font-bold text-indigo-300 leading-normal flex items-start gap-2.5">
+                <Info size={14} className="shrink-0 mt-0.5 text-indigo-400" />
+                <span>
+                  {isAlquiler
+                    ? "Editar estos valores recalcula automáticamente la mensualidad y cronograma de cobros para este alquiler. Los cambios se sincronizarán con Google Calendar de inmediato."
+                    : "Editar estos valores recalcula automáticamente el capital, tasa y cronograma de cobros para este crédito. Los cambios se sincronizarán con Google Calendar de inmediato."
+                  }
+                </span>
+              </div>
 
-            {/* Monto Capital */}
-            <Input
-              label="Monto Capital Inicial (S/.)"
-              type="number"
-              step="0.01"
-              required
-              value={editMontoCapital}
-              onChange={(e) => setEditMontoCapital(e.target.value)}
-            />
+              {isAlquiler ? (
+                <>
+                  {/* Campos de Alquiler */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
+                      label="Monto Mensual (S/.) *"
+                      type="number"
+                      step="any"
+                      required
+                      value={editMontoMensual}
+                      onChange={(e) => setEditMontoMensual(e.target.value)}
+                    />
+                    <div className="flex flex-col gap-1.5 w-full">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block pl-0.5">
+                        Duración (Meses) *
+                      </label>
+                      <select
+                        value={editDuracionMeses}
+                        onChange={(e) => setEditDuracionMeses(e.target.value)}
+                        className="w-full h-11 px-4 glass-input rounded-xl border border-white/8 outline-none bg-[#080c18] cursor-pointer text-slate-200 text-xs font-bold"
+                      >
+                        {[1,2,3,4,5,6,7,8,9,10,11,12,18,24].map(m => (
+                          <option key={m} value={m} className="bg-[#0f172a]">{m} {m === 1 ? 'Mes' : 'Meses'}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
 
-            {/* Tasa de Interes */}
-            <Input
-              label="Tasa de Interés Mensual (%)"
-              type="number"
-              step="0.1"
-              required
-              value={editTasaInteres}
-              onChange={(e) => setEditTasaInteres(e.target.value)}
-            />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
+                      label="Fecha de Inicio de Contrato *"
+                      type="date"
+                      required
+                      value={editFechaEmision}
+                      onChange={(e) => setEditFechaEmision(e.target.value)}
+                    />
+                    <Input
+                      label="Fin del Contrato (Auto)"
+                      type="date"
+                      required
+                      disabled
+                      className="opacity-60"
+                      value={editFechaVencimiento}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Monto Capital */}
+                  <Input
+                    label="Monto Capital Inicial (S/.)"
+                    type="number"
+                    step="0.01"
+                    required
+                    value={editMontoCapital}
+                    onChange={(e) => setEditMontoCapital(e.target.value)}
+                  />
 
-            {/* Fecha Emisión */}
-            <Input
-              label="Fecha de Emisión"
-              type="date"
-              required
-              value={editFechaEmision}
-              onChange={(e) => setEditFechaEmision(e.target.value)}
-            />
+                  {/* Tasa de Interes */}
+                  <Input
+                    label="Tasa de Interés Mensual (%)"
+                    type="number"
+                    step="0.1"
+                    required
+                    value={editTasaInteres}
+                    onChange={(e) => setEditTasaInteres(e.target.value)}
+                  />
 
-            {/* Fecha Vencimiento */}
-            <Input
-              label="Fecha de Vencimiento Final"
-              type="date"
-              value={editFechaVencimiento}
-              onChange={(e) => setEditFechaVencimiento(e.target.value)}
-            />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Fecha Emisión */}
+                    <Input
+                      label="Fecha de Emisión"
+                      type="date"
+                      required
+                      value={editFechaEmision}
+                      onChange={(e) => setEditFechaEmision(e.target.value)}
+                    />
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/5 mt-4">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setShowEditModal(false)}
-                disabled={updatingLoan}
-                className="h-11 font-bold text-xs"
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                loading={updatingLoan}
-                className="h-11 font-bold text-xs px-5"
-              >
-                Guardar Parámetros
-              </Button>
-            </div>
-          </form>
-        </Modal>
-      )}
+                    {/* Fecha Vencimiento */}
+                    <Input
+                      label="Fecha de Vencimiento Final"
+                      type="date"
+                      value={editFechaVencimiento}
+                      onChange={(e) => setEditFechaVencimiento(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/5 mt-4">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setShowEditModal(false)}
+                  disabled={updatingLoan}
+                  className="h-11 font-bold text-xs"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  loading={updatingLoan}
+                  className="h-11 font-bold text-xs px-5"
+                >
+                  Guardar Parámetros
+                </Button>
+              </div>
+            </form>
+          </Modal>
+        );
+      })()}
     </div>
   );
 };

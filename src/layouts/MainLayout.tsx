@@ -6,7 +6,8 @@ import {
   Sparkles, 
   Coins, 
   LogOut,
-  Briefcase
+  Briefcase,
+  Terminal
 } from "lucide-react";
 import { FontSizeControl } from "../components/common/FontSizeControl";
 
@@ -44,6 +45,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
       label: "Análisis IA",
       icon: Sparkles,
       activePaths: ["/reportes"],
+    },
+    {
+      path: "/bitacora",
+      label: "Bitácora",
+      icon: Terminal,
+      activePaths: ["/bitacora"],
     },
   ];
 
@@ -153,7 +160,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
       {/* ── MAIN CONTENT ── */}
       <main
         id="workspace-content"
-        className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 relative z-[1]"
+        className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 relative"
       >
         <React.Suspense 
           fallback={

@@ -52,7 +52,10 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
             onClick={() => setShowPaid(!showPaid)}
             className="text-[10px] font-black uppercase tracking-widest px-3.5 py-2 rounded-xl bg-white/5 border border-white/8 hover:bg-white/10 text-slate-300 hover:text-white transition duration-150 cursor-pointer"
           >
-            {showPaid ? "Ocultar Cuotas Saldadas" : `Mostrar Cuotas Saldadas (${cuotasSaldadasCount})`}
+            {showPaid 
+              ? (isAlquiler ? "Ocultar Mensualidades Canceladas" : "Ocultar Cuotas Saldadas") 
+              : (isAlquiler ? `Mostrar Mensualidades Canceladas (${cuotasSaldadasCount})` : `Mostrar Cuotas Saldadas (${cuotasSaldadasCount})`)
+            }
           </button>
         )}
       </div>
@@ -80,7 +83,7 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                     <th className="px-4 py-3">Total Pagado</th>
                     <th className="px-4 py-3">Saldo Restante</th>
                     <th className="px-4 py-3">Estado Plazo</th>
-                    {loanState === "activo" && <th className="px-4 py-3 text-right">Ajuste</th>}
+                    {loanState === "activo" && !isAlquiler && <th className="px-4 py-3 text-right">Ajuste</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-gray-300 text-xs md:text-sm font-semibold">
@@ -165,7 +168,7 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                         </td>
 
                         {/* Ajuste rápido */}
-                        {loanState === "activo" && (
+                        {loanState === "activo" && !isAlquiler && (
                           <td className="px-4 py-3 text-right">
                             {cuota.estado !== "Saldada" && (
                               <button
@@ -202,7 +205,7 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                   >
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-black text-indigo-455">
-                        CUOTA N° {cuota.numero}
+                        {isAlquiler ? `MENSUALIDAD N° ${cuota.numero}` : `CUOTA N° ${cuota.numero}`}
                       </span>
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider text-[9px] border ${
                         cuota.estado === "Saldada" 
@@ -248,7 +251,7 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                           <span className="text-slate-500 text-[10px] uppercase tracking-wide">Saldo Pendiente</span>
                           <span className="text-white text-sm font-black font-mono mt-0.5">{formatCurrency(cuota.saldoPendiente)}</span>
                         </div>
-                        {loanState === "activo" && cuota.estado !== "Saldada" && (
+                        {loanState === "activo" && cuota.estado !== "Saldada" && !isAlquiler && (
                           <Button
                             onClick={() => onQuickAjuste(cuota.numero)}
                             variant="secondary"

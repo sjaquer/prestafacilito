@@ -21,6 +21,7 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
 
   if (!pago || !prestamo) return null;
 
+  const isAlquiler = prestamo.tipo_prestamo === "Alquiler de Casa";
   const folio = `REC-${pago.id.slice(0, 8).toUpperCase()}`;
 
   const handlePrint = () => {
@@ -174,7 +175,7 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Recibo de Amortización"
+      title={isAlquiler ? "Recibo de Alquiler" : "Recibo de Amortización"}
       size="sm"
       footerActions={
         <>
@@ -206,7 +207,7 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
               PrestaFacilito
             </span>
             <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-1 block">
-              Comprobante de Amortización Oficial
+              {isAlquiler ? "Comprobante de Alquiler Oficial" : "Comprobante de Amortización Oficial"}
             </span>
             <span className="folio-badge inline-block bg-slate-100 text-slate-700 text-[11px] font-black font-mono px-3 py-1 rounded-full mt-3">
               {folio}
@@ -215,7 +216,7 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
 
           {/* Detalles Cliente */}
           <div className="section-title text-[10px] text-slate-500 font-black uppercase tracking-wider mb-2 border-b border-slate-100 pb-1">
-            Información del Prestatario
+            {isAlquiler ? "Información del Arrendatario" : "Información del Prestatario"}
           </div>
           
           <div className="grid-row flex justify-between text-xs font-semibold mb-1">
@@ -230,16 +231,16 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
 
           {/* Detalles Crédito */}
           <div className="section-title text-[10px] text-slate-500 font-black uppercase tracking-wider mt-4 mb-2 border-b border-slate-100 pb-1">
-            Detalles del Crédito
+            {isAlquiler ? "Detalles del Alquiler" : "Detalles del Crédito"}
           </div>
 
           <div className="grid-row flex justify-between text-xs font-semibold mb-1">
-            <span className="text-slate-500">Categoría Préstamo:</span>
+            <span className="text-slate-500">{isAlquiler ? "Categoría Contrato:" : "Categoría Préstamo:"}</span>
             <span className="text-slate-800 text-right">{prestamo.tipo_prestamo}</span>
           </div>
           
           <div className="grid-row flex justify-between text-xs font-semibold mb-1">
-            <span className="text-slate-500">Capital Otorgado:</span>
+            <span className="text-slate-500">{isAlquiler ? "Total Alquiler:" : "Capital Otorgado:"}</span>
             <span className="text-slate-800 font-mono font-extrabold text-right">{formatCurrency(prestamo.monto_capital)}</span>
           </div>
 
@@ -265,7 +266,7 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
 
           {/* Monto cobrado */}
           <div className="amount-row bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center mt-5 shadow-inner">
-            <span className="amount-label text-[10px] text-slate-500 font-bold uppercase tracking-wider">Monto Amortizado</span>
+            <span className="amount-label text-[10px] text-slate-500 font-bold uppercase tracking-wider">{isAlquiler ? "Monto Cancelado" : "Monto Amortizado"}</span>
             <span className="amount-value text-lg font-black text-emerald-500 font-mono">
               {formatCurrency(pago.monto)}
             </span>

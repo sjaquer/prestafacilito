@@ -15,9 +15,11 @@ import { Button } from "../components/ui/Button";
 import { useClientes } from "../hooks/useClientes";
 import { usePrestamos } from "../hooks/usePrestamos";
 import { usePagos } from "../hooks/usePagos";
-import { formatCurrency, round2 } from "../lib/formatters";
+import { useAuth } from "../hooks/useAuth";
+import { formatCurrency, round2, getNombreUsuario } from "../lib/formatters";
 
 export const DashboardPage: React.FC = () => {
+  const { user } = useAuth();
   const { clientes, loading: loadingClientes } = useClientes();
   const { createPrestamo, loading: loadingLoans } = usePrestamos();
   const { registerPago, fetchAmortizaciones, loading: loadingPayments } = usePagos();
@@ -257,9 +259,10 @@ export const DashboardPage: React.FC = () => {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return "Buenos días, Sebastián";
-    if (hour < 18) return "Buenas tardes, Sebastián";
-    return "Buenas noches, Sebastián";
+    const nombre = getNombreUsuario(user);
+    if (hour < 12) return `Buenos días, ${nombre}`;
+    if (hour < 18) return `Buenas tardes, ${nombre}`;
+    return `Buenas noches, ${nombre}`;
   };
 
   const todayFormatted = new Date().toLocaleDateString("es-PE", {

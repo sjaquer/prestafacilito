@@ -19,6 +19,7 @@ export const ProrrogaSection: React.FC<ProrrogaSectionProps> = ({
   ajustes,
   onApplyProrroga,
 }) => {
+  const isAlquiler = prestamo?.tipo_prestamo === "Alquiler de Casa";
   const [motivo, setMotivo] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -76,7 +77,7 @@ export const ProrrogaSection: React.FC<ProrrogaSectionProps> = ({
           <div>
             <h2 className="text-sm md:text-base font-black text-white tracking-tight leading-none">Solicitar Prórroga de Plazo</h2>
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
-              Extender el vencimiento de la cuota por 7 días
+              Extender el vencimiento de la {isAlquiler ? "mensualidad" : "cuota"} por 7 días
             </p>
           </div>
           <HeartHandshake className="text-indigo-400 shrink-0" size={16} />
@@ -91,7 +92,7 @@ export const ProrrogaSection: React.FC<ProrrogaSectionProps> = ({
         {success && (
           <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold rounded-2xl mb-3 flex items-center gap-1">
             <ShieldCheck size={14} className="shrink-0 text-emerald-450" />
-            <span>¡Prórroga de plazo concedida y cuotas recalculadas de forma correcta!</span>
+            <span>¡Prórroga de plazo concedida y {isAlquiler ? "mensualidades" : "cuotas"} recalculadas de forma correcta!</span>
           </div>
         )}
 
@@ -115,7 +116,7 @@ export const ProrrogaSection: React.FC<ProrrogaSectionProps> = ({
         {isElegible && proximaCuota ? (
           <div className="space-y-4">
             <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl text-[11px] md:text-xs font-medium text-slate-300 leading-relaxed">
-              <strong>Nota de Accesibilidad:</strong> Al otorgar esta prórroga, la fecha de vencimiento de la cuota actual ({formatDateShort(proximaCuota.fechaVencimiento)}) se desplazará **7 días adicionales** ({formatDateShort(nuevaFechaEstimada)}), y todas las cuotas futuras también se recalcularán automáticamente para no acortar sus ventanas de pago.
+              <strong>Nota de Accesibilidad:</strong> Al otorgar esta prórroga, la fecha de vencimiento de la {isAlquiler ? "mensualidad" : "cuota"} actual ({formatDateShort(proximaCuota.fechaVencimiento)}) se desplazará **7 días adicionales** ({formatDateShort(nuevaFechaEstimada)}), y todas las {isAlquiler ? "mensualidades" : "cuotas"} futuras también se recalcularán automáticamente para no acortar sus ventanas de pago.
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -135,10 +136,10 @@ export const ProrrogaSection: React.FC<ProrrogaSectionProps> = ({
             <AlertCircle size={24} className="text-slate-600 mx-auto mb-2" />
             <p className="text-xs font-bold text-slate-400">
               {!proximaCuota 
-                ? "Crédito totalmente saldado" 
+                ? (isAlquiler ? "Contrato totalmente saldado" : "Crédito totalmente saldado")
                 : totalProrrogasCount >= maxProrrogasPermitidas 
                   ? "Límite máximo de prórrogas alcanzado (3)" 
-                  : "El préstamo no está activo a operar"
+                  : (isAlquiler ? "El contrato no está activo a operar" : "El préstamo no está activo a operar")
               }
             </p>
           </div>

@@ -6,6 +6,7 @@ import { GoogleGenAI } from "@google/genai";
 import { JWT, OAuth2Client } from "google-auth-library";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { supabase } from "./src/lib/supabase.js";
 import { buildPaymentSchedule, classifyPayment, toNumber } from "./src/lib/loanLogic.js";
 
@@ -467,14 +468,60 @@ function estandarizarTelefono(tel: string): string {
   return soloDigitos;
 }
 
-// Helper para auditoría de acciones (Logs) en Supabase
-async function logAction(usuario: string, accion: string, detalles: string) {
+// Helper para comparación de diferencias en ediciones
+function getDiffDescription(oldObj: any, newObj: any, fields: Record<string, string>): string {
+  const changes: string[] = [];
+  for (const [key, label] of Object.entries(fields)) {
+    const oldVal = oldObj[key] !== undefined && oldObj[key] !== null ? String(oldObj[key]) : "";
+    const newVal = newObj[key] !== undefined && newObj[key] !== null ? String(newObj[key]) : "";
+    if (oldVal.trim() !== newVal.trim()) {
+      changes.push(`${label}: "${oldVal}" ➔ "${newVal}"`);
+    }
+  }
+  return changes.length > 0 ? `Cambios: ${changes.join(" | ")}` : "Sin modificaciones relevantes.";
+}
+
+// Helper para auditoría de acciones (Logs) en Supabase y local (universal)
+async function logAction(usuario: string, accion: string, detalles: string, req?: express.Request) {
   try {
+    let ip = "";
+    let userAgent = "";
+    if (req) {
+      const forwarded = req.headers['x-forwarded-for'] as string;
+      ip = forwarded ? forwarded.split(',')[0].trim() : (req.socket.remoteAddress || "");
+      userAgent = req.headers['user-agent'] || "";
+    }
+
+    // Agregar detalles de red al mensaje de logs en la BD si aplica
+    const detailsWithIp = ip ? `${detalles} (IP: ${ip})` : detalles;
+
     await supabase.from("logs").insert({
       usuario,
       accion,
-      detalles
+      detalles: detailsWithIp
     });
+
+    // Guardar también en archivo local en el servidor (Persistencia Universal)
+    const logDir = path.join(process.cwd(), "logs");
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+
+    const localLogEntry = {
+      id: crypto.randomUUID ? crypto.randomUUID() : new Date().getTime().toString(),
+      fecha_hora: new Date().toISOString(),
+      usuario,
+      accion,
+      detalles,
+      ip,
+      userAgent
+    };
+
+    fs.appendFileSync(
+      path.join(logDir, "audit.jsonl"),
+      JSON.stringify(localLogEntry) + "\n",
+      "utf8"
+    );
   } catch (err) {
     console.error("⚠️ Error al registrar log de auditoría:", err);
   }
@@ -544,16 +591,33 @@ const requireAuth = (req: express.Request, res: express.Response, next: express.
   }
 };
 
+// Obtiene el PIN para un usuario específico desde las variables de entorno
+const getPinForUser = (username: string) => {
+  const envKey = `PIN_${username.trim().toUpperCase()}`;
+  return getEnv(envKey);
+};
+
 // Rutas de Autenticación
 app.post("/api/auth/login", async (req, res) => {
   const { username, password } = req.body;
-  if (username === getAdminUser() && password === getAdminPass()) {
-    const token = jwt.sign({ username }, getJwtSecret(), { expiresIn: "24h" });
+  if (!username || !password) {
+    res.status(400).json({ success: false, message: "Usuario y PIN de acceso requeridos" });
+    return;
+  }
+
+  const cleanUser = username.trim().toLowerCase();
+  const expectedPin = getPinForUser(cleanUser);
+  
+  const isValid = (expectedPin && password === expectedPin) || 
+                  (cleanUser === getAdminUser().toLowerCase() && password === getAdminPass());
+
+  if (isValid) {
+    const token = jwt.sign({ username: cleanUser }, getJwtSecret(), { expiresIn: "24h" });
     res.cookie("token", token, cookieOptions);
-    await logAction(username, "INICIAR_SESION", "El administrador inició sesión de forma exitosa.");
-    res.json({ success: true, username });
+    await logAction(cleanUser, "INICIAR_SESION", `El usuario ${cleanUser} inició sesión de forma exitosa.`, req);
+    res.json({ success: true, username: cleanUser });
   } else {
-    res.status(401).json({ success: false, message: "Credenciales incorrectas" });
+    res.status(401).json({ success: false, message: "Usuario o PIN de acceso incorrecto" });
   }
 });
 
@@ -573,7 +637,7 @@ app.get("/api/auth/me", (req, res) => {
 
 app.post("/api/auth/logout", requireAuth, async (req, res) => {
   const username = (req as any).user?.username || "Admin";
-  await logAction(username, "CERRAR_SESION", "El administrador cerró sesión.");
+  await logAction(username, "CERRAR_SESION", "El administrador cerró sesión.", req);
   res.clearCookie("token", cookieOptions);
   res.json({ success: true });
 });
@@ -585,17 +649,73 @@ app.post("/api/auth/logout", requireAuth, async (req, res) => {
 // 1. Bitácora de Auditoría (Logs)
 app.get("/api/logs", requireAuth, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { usuario, accion, limit, search } = req.query;
+    let query = supabase
       .from("logs")
       .select("*")
-      .order("fecha_hora", { ascending: false })
-      .limit(30);
+      .order("fecha_hora", { ascending: false });
 
+    if (usuario) {
+      query = query.eq("usuario", usuario);
+    }
+    if (accion) {
+      query = query.eq("accion", accion);
+    }
+    if (search) {
+      query = query.ilike("detalles", `%${search}%`);
+    }
+
+    const limitNum = limit ? parseInt(limit as string) : 100;
+    query = query.limit(limitNum);
+
+    const { data, error } = await query;
     if (error) throw error;
     res.json(data || []);
   } catch (err: any) {
     console.error("Error al obtener logs:", err);
     res.status(500).json({ error: "Error de servidor al obtener logs", detail: err.message });
+  }
+});
+
+// Descargar logs en CSV (Persistencia Universal/Descarga)
+app.get("/api/logs/download", requireAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("logs")
+      .select("*")
+      .order("fecha_hora", { ascending: false });
+
+    if (error) throw error;
+
+    let csv = "\uFEFFID,Fecha/Hora,Usuario,Accion,Detalles\n";
+    (data || []).forEach(log => {
+      const escape = (val: any) => `"${String(val || '').replace(/"/g, '""')}"`;
+      csv += `${escape(log.id)},${escape(log.fecha_hora)},${escape(log.usuario)},${escape(log.accion)},${escape(log.detalles)}\n`;
+    });
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", "attachment; filename=bitacora_prestafacilito.csv");
+    res.send(csv);
+  } catch (err: any) {
+    console.error("Error al descargar logs:", err);
+    res.status(500).json({ error: "Error de servidor al descargar logs", detail: err.message });
+  }
+});
+
+// Descargar logs locales (.jsonl)
+app.get("/api/logs/local", requireAuth, async (req, res) => {
+  try {
+    const logFilePath = path.join(process.cwd(), "logs", "audit.jsonl");
+    if (!fs.existsSync(logFilePath)) {
+      res.status(404).json({ error: "No se ha generado ningún log local aún." });
+      return;
+    }
+    res.setHeader("Content-Type", "application/x-jsonlines");
+    res.setHeader("Content-Disposition", "attachment; filename=audit_local.jsonl");
+    fs.createReadStream(logFilePath).pipe(res);
+  } catch (err: any) {
+    console.error("Error al leer logs locales:", err);
+    res.status(500).json({ error: "Error al descargar log local", detail: err.message });
   }
 });
 
@@ -606,7 +726,7 @@ app.post("/api/initialize-sheets", requireAuth, async (req, res) => {
     if (error) throw error;
     
     const username = (req as any).user.username;
-    await logAction(username, "CONECTAR_SUPABASE", "Conexión a base de datos Supabase verificada de forma manual.");
+    await logAction(username, "CONECTAR_SUPABASE", "Conexión a base de datos Supabase verificada de forma manual.", req);
     res.json({ success: true, message: "Conexión con Supabase verificada correctamente." });
   } catch (err: any) {
     console.error("Error de conectividad a Supabase:", err);
@@ -724,7 +844,7 @@ app.post("/api/seed", requireAuth, async (req, res) => {
     if (insertAmortErr) throw insertAmortErr;
 
     const username = (req as any).user.username;
-    await logAction(username, "SEMBRAR_DATOS", "Se sembró la base de datos Supabase con clientes, préstamos y amortizaciones de ejemplo.");
+    await logAction(username, "SEMBRAR_DATOS", "Se sembró la base de datos Supabase con clientes, préstamos y amortizaciones de ejemplo.", req);
 
     res.json({ 
       success: true, 
@@ -847,7 +967,8 @@ app.post("/api/clientes", requireAuth, async (req, res) => {
     await logAction(
       username, 
       "CREAR_CLIENTE", 
-      `Se registró al cliente: ${nombre_completo} (Tel: ${telSanitized})`
+      `Se registró al cliente: ${nombre_completo} (Tel: ${telSanitized})`,
+      req
     );
 
     res.status(201).json(data);
@@ -869,6 +990,14 @@ app.put("/api/clientes/:id", requireAuth, async (req, res) => {
 
     const telSanitized = estandarizarTelefono(telefono || '');
 
+    // Obtener datos previos para la auditoría de cambios
+    const { data: oldCliente } = await supabase
+      .from("clientes")
+      .select("*")
+      .eq("id", clienteId)
+      .single()
+      .catch(() => ({ data: null }));
+
     const { data, error } = await supabase
       .from("clientes")
       .update({
@@ -887,7 +1016,20 @@ app.put("/api/clientes/:id", requireAuth, async (req, res) => {
     if (error) throw error;
 
     const username = (req as any).user.username;
-    await logAction(username, "EDITAR_CLIENTE", `Actualizó el cliente: ${nombre_completo}`);
+    let desc = `Actualizó al cliente: ${nombre_completo}.`;
+    if (oldCliente) {
+      const diff = getDiffDescription(oldCliente, data, {
+        nombre_completo: "Nombre",
+        telefono: "Teléfono",
+        observaciones: "Observaciones",
+        direccion: "Dirección",
+        numero_cuenta: "N° Cuenta",
+        banco_cuenta: "Banco",
+        informacion_adicional: "Info Extra"
+      });
+      desc += ` ${diff}`;
+    }
+    await logAction(username, "EDITAR_CLIENTE", desc, req);
 
     res.json(data);
   } catch (err: any) {
@@ -931,7 +1073,8 @@ app.post("/api/prestamos", requireAuth, async (req, res) => {
     await logAction(
       username,
       "REGISTRAR_PRESTAMO",
-      `Otorgó crédito ${tipo_prestamo} de S/. ${monto_capital} al cliente: ${cliente ? cliente.nombre_completo : cliente_id}`
+      `Otorgó crédito ${tipo_prestamo} de S/. ${monto_capital} al cliente: ${cliente ? cliente.nombre_completo : cliente_id}`,
+      req
     );
 
     // Sincronizar cuotas en Google Calendar de forma asíncrona
@@ -1050,6 +1193,14 @@ app.put("/api/prestamos/:id", requireAuth, async (req, res) => {
     if (monto_capital !== undefined) updatePayload.monto_capital = toNumber(monto_capital);
     if (tasa_interes_porcentaje !== undefined) updatePayload.tasa_interes_porcentaje = toNumber(tasa_interes_porcentaje);
 
+    // Obtener datos previos para la auditoría de cambios
+    const { data: oldPrestamo } = await supabase
+      .from("prestamos")
+      .select("*")
+      .eq("id", prestamoId)
+      .single()
+      .catch(() => ({ data: null }));
+
     const { data: updated, error } = await supabase
       .from("prestamos")
       .update(updatePayload)
@@ -1062,11 +1213,17 @@ app.put("/api/prestamos/:id", requireAuth, async (req, res) => {
     const { data: cliente } = await supabase.from("clientes").select("nombre_completo").eq("id", updated.cliente_id).single();
 
     const username = (req as any).user.username;
-    await logAction(
-      username,
-      "EDITAR_PRESTAMO",
-      `Actualizó parámetros del préstamo ${updated.tipo_prestamo} de S/. ${updated.monto_capital} del cliente: ${cliente ? cliente.nombre_completo : updated.cliente_id}`
-    );
+    let desc = `Actualizó parámetros del contrato/préstamo ${updated.tipo_prestamo} del cliente: ${cliente ? cliente.nombre_completo : updated.cliente_id}.`;
+    if (oldPrestamo) {
+      const diff = getDiffDescription(oldPrestamo, updated, {
+        monto_capital: "Capital",
+        tasa_interes_porcentaje: "Tasa de Interés (%)",
+        fecha_emision: "Fecha de Emisión",
+        fecha_vencimiento: "Fecha de Vencimiento"
+      });
+      desc += ` ${diff}`;
+    }
+    await logAction(username, "EDITAR_PRESTAMO", desc, req);
 
     // Sincronizar cuotas reprogramadas en Google Calendar de forma asíncrona
     syncLoanScheduleToGoogleCalendar(prestamoId).catch((calErr) => {
@@ -1165,7 +1322,8 @@ app.post("/api/prestamos/:id/pagos", requireAuth, async (req, res) => {
     await logAction(
       username,
       "REGISTRAR_PAGO",
-      `Abonó S/. ${montoPago} (${clasificacionAutomatica}) al préstamo de: ${cliente ? cliente.nombre_completo : prestamo.cliente_id}`
+      `Abonó S/. ${montoPago} (Método: ${metodo_pago || "Efectivo"} | Tipo: ${clasificacionAutomatica}) al contrato/préstamo de: ${cliente ? cliente.nombre_completo : prestamo.cliente_id}. Saldo anterior: S/. ${deudaAntes.resumen.saldoPendiente.toFixed(2)} ➔ Restante: S/. ${deudaDespues.resumen.saldoPendiente.toFixed(2)}.`,
+      req
     );
 
     // Sincronizar cuotas actualizadas en Google Calendar
@@ -1376,7 +1534,8 @@ app.post("/api/amortizaciones/:id/voucher", requireAuth, async (req, res) => {
     await logAction(
       username,
       "ACTUALIZAR_VOUCHER",
-      `Adjunto voucher a amortizacion ${amortizacionId} (prestamo ${amortizacion.prestamo_id}).`
+      `Adjunto voucher a amortizacion ${amortizacionId} (prestamo ${amortizacion.prestamo_id}).`,
+      req
     );
 
     res.json({
@@ -1830,8 +1989,11 @@ app.post("/api/ai/mensaje-cobro", requireAuth, async (req, res) => {
       return;
     }
 
+    const username = (req as any).user?.username || "sjaquer";
+    const senderName = username === "rjaque" ? "Roberto" : "Sebastián";
+
     if (!process.env.GEMINI_API_KEY) {
-      const msg = `¡Hola, ${clienteNombre}! Te saludamos de parte de PrestaFacilito. Te recordamos amablemente que tienes un pago pendiente por el monto de S/. ${parseFloat(saldoPendiente).toFixed(2)} con vencimiento el ${fechaVencimiento || "próximo vencimiento"}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un excelente día!`;
+      const msg = `¡Hola, ${clienteNombre}! Te saluda ${senderName} de PrestaFacilito. Te recordamos amablemente tu pago pendiente de S/. ${parseFloat(saldoPendiente).toFixed(2)} con vencimiento el ${fechaVencimiento || "próximo vencimiento"}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un excelente día!`;
       return res.json({ mensaje: msg });
     }
 
@@ -1839,9 +2001,10 @@ app.post("/api/ai/mensaje-cobro", requireAuth, async (req, res) => {
     Cliente: ${clienteNombre}
     Saldo Pendiente: S/. ${parseFloat(saldoPendiente).toFixed(2)}
     Fecha de Vencimiento: ${fechaVencimiento}
+    Emisor/Cobrador: ${senderName} (El mensaje DEBE mencionar: "Te saluda ${senderName} de PrestaFacilito.")
     
     El tono debe ser: profesional, respetuoso, empático, pero claro y asertivo (muy adaptado al habla peruana amigable, usando palabras como 'Te recordamos amablemente', 'PrestaFacilito', etc.).
-    Debe contener íconos emoji relevantes para facilitar la lectura y destacar los datos clave como el saldo y la fecha.
+    Evita el uso excesivo de emojis. Usa como máximo uno o dos si es estrictamente necesario, manteniendo un tono formal de finanzas corporativas.
     Responde estrictamente con un objeto JSON válido con el siguiente formato:
     {
       "mensaje": "Mensaje para WhatsApp formateado listo para enviar."
@@ -1947,7 +2110,8 @@ app.post("/api/prestamos/:id/ajustes", requireAuth, async (req, res) => {
     await logAction(
       username,
       "CREAR_AJUSTE_PRESTAMO",
-      `Aplicó ajuste de tipo ${tipo} al préstamo de ${clienteNombre}. Motivo: ${motivo}`
+      `Aplicó ajuste de tipo ${tipo} al préstamo de ${clienteNombre}. Motivo: ${motivo}. Detalles: Monto antes: S/. ${monto_antes || 0} | después: S/. ${monto_despues || 0}.`,
+      req
     );
 
     res.status(201).json(newAdj);
@@ -1975,7 +2139,8 @@ app.patch("/api/prestamos/:id/ajustes/:ajusteId", requireAuth, async (req, res) 
     await logAction(
       username,
       activo ? "ACTIVAR_AJUSTE_PRESTAMO" : "DESACTIVAR_AJUSTE_PRESTAMO",
-      `${activo ? "Activó" : "Desactivó"} el ajuste ${ajusteId} del préstamo ${updatedAdj.prestamo_id}.`
+      `${activo ? "Activó" : "Desactivó"} el ajuste ${ajusteId} del préstamo ${updatedAdj.prestamo_id}.`,
+      req
     );
 
     res.json(updatedAdj);
@@ -2075,7 +2240,7 @@ app.post("/api/clientes/:id/documentos", requireAuth, async (req, res) => {
     if (docErr) throw docErr;
 
     const username = (req as any).user.username;
-    await logAction(username, 'SUBIR_DOCUMENTO_CLIENTE', `Subió ${tipo_documento} para cliente ${cliente.nombre_completo}.`);
+    await logAction(username, 'SUBIR_DOCUMENTO_CLIENTE', `Subió ${tipo_documento} para cliente ${cliente.nombre_completo}.`, req);
 
     res.status(201).json(docData);
   } catch (err: any) {
@@ -2096,7 +2261,7 @@ app.delete("/api/clientes/:id/documentos/:docId", requireAuth, async (req, res) 
     if (error) throw error;
 
     const username = (req as any).user.username;
-    await logAction(username, 'ELIMINAR_DOCUMENTO_CLIENTE', `Eliminó documento ${docId}.`);
+    await logAction(username, 'ELIMINAR_DOCUMENTO_CLIENTE', `Eliminó documento ${docId}.`, req);
 
     res.json({ success: true });
   } catch (err: any) {
@@ -2353,7 +2518,7 @@ app.post("/api/calendar/sync-month", requireAuth, async (req, res) => {
     }
 
     const actionDetails = `Sincronización mensual de calendario ejecutada de forma exitosa. Se actualizaron/sincronizaron ${syncedCount} cuotas del mes actual y se eliminaron ${deletedCount} eventos obsoletos del mes pasado de préstamos en el calendario.`;
-    await logAction(username, "SINCRONIZAR_CALENDARIO_MENSUAL", actionDetails);
+    await logAction(username, "SINCRONIZAR_CALENDARIO_MENSUAL", actionDetails, req);
 
     res.json({
       success: true,

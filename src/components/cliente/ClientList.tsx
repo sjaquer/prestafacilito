@@ -8,7 +8,8 @@ import {
 import { Cliente } from "../../types";
 import { Badge } from "../ui/Badge";
 import { DataTable, ColumnDef } from "../ui/DataTable";
-import { formatCurrency, formatDate } from "../../lib/formatters";
+import { formatCurrency, formatDate, getNombreUsuario } from "../../lib/formatters";
+import { useAuth } from "../../hooks/useAuth";
 
 // Gender detection for WhatsApp templates
 const NOMBRES_FEMENINOS = new Set([
@@ -28,17 +29,18 @@ function detectarGenero(nombre: string): 'SR.' | 'SRA.' {
   return NOMBRES_FEMENINOS.has(primerNombre) ? 'SRA.' : 'SR.';
 }
 
-function getMensajeRecordatorio(cliente: Cliente): string {
+function getMensajeRecordatorio(cliente: Cliente, username: string | null): string {
   const tratamiento = detectarGenero(cliente.nombre_completo);
   const nombre = cliente.nombre_completo.toUpperCase();
   const exigible = Number(cliente.total_exigible) || 0;
   const amortizado = Number(cliente.total_amortizado) || 0;
   const saldo = Math.max(0, exigible - amortizado);
-  const cuota = saldo > 0 ? `S/ ${saldo.toFixed(2)}` : 'la cuota pendiente';
+  const cuota = saldo > 0 ? `S/ ${saldo.toFixed(2)}` : 'la cuota o mensualidad pendiente';
+  const remitente = getNombreUsuario(username);
   return (
-    `¡Hola, ${tratamiento} ${nombre}! Te saluda Sebastián.\n` +
-    `Te escribo para recordarte amablemente tu cuota pendiente a cancelar:\n\n` +
-    `${cuota} para no generar intereses.\n\n` +
+    `¡Hola, ${tratamiento} ${nombre}! Te saluda ${remitente}.\n` +
+    `Te escribo para recordarte amablemente tu pago pendiente a cancelar:\n\n` +
+    `${cuota}.\n\n` +
     `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
     `Cualquier cosa me lo escribe.`
   );
@@ -50,6 +52,7 @@ interface ClientListProps {
 }
 
 export const ClientList: React.FC<ClientListProps> = ({ clientes, onEditClient }) => {
+  const { user } = useAuth();
   const [filterType, setFilterType] = useState<"todos" | "con_deuda" | "sin_deuda">("todos");
 
   const getClientRiskAssessment = (cliente: Cliente) => {
@@ -186,7 +189,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clientes, onEditClient }
                   {formatCurrency(saldo)}
                 </span>
                 <span className="text-[10px] text-indigo-400 font-bold">
-                  {c.prestamos_activos} préstamo{c.prestamos_activos !== 1 ? "s" : ""}
+                  {c.prestamos_activos} deuda{c.prestamos_activos !== 1 ? "s" : ""} activa{c.prestamos_activos !== 1 ? "s" : ""}
                 </span>
               </>
             ) : (
@@ -222,7 +225,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clientes, onEditClient }
       cell: (c) => {
         const hasDebt = (c.prestamos_activos || 0) > 0;
         const waPhone = (c.telefono || '').replace(/\D/g, '');
-        const recordatorio = getMensajeRecordatorio(c);
+        const recordatorio = getMensajeRecordatorio(c, user);
 
         return (
           <div className="flex items-center justify-end gap-1.5 flex-wrap">

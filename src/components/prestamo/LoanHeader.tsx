@@ -21,6 +21,7 @@ export const LoanHeader: React.FC<LoanHeaderProps> = ({
   onBack,
   onEdit,
 }) => {
+  const isAlquiler = prestamo.tipo_prestamo === "Alquiler de Casa";
   const recoveryRate = useMemo(() => {
     const total = deuda.totalExigible || 0;
     const paid = deuda.totalPagado || 0;
@@ -60,7 +61,7 @@ export const LoanHeader: React.FC<LoanHeaderProps> = ({
             </Button>
           )}
           <Badge variant={prestamo.estado === "activo" ? "success" : "neutral"}>
-            Crédito {prestamo.estado === "activo" ? "Activo" : "Pagado"}
+            {isAlquiler ? "Alquiler" : "Crédito"} {prestamo.estado === "activo" ? "Activo" : "Pagado"}
           </Badge>
           {planAyuda?.tieneAjustesActivos && (
             <Badge variant="primary" icon={<HeartHandshake size={11} />}>
@@ -116,11 +117,13 @@ export const LoanHeader: React.FC<LoanHeaderProps> = ({
                   <span className="text-slate-500">Emisión:</span>
                   <span className="text-white font-mono font-extrabold">{formatDate(prestamo.fecha_emision)}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <Percent size={13} className="text-indigo-400 shrink-0" />
-                  <span className="text-slate-500">Interés:</span>
-                  <span className="text-white font-extrabold font-mono">{prestamo.tasa_interes_porcentaje}%</span>
-                </div>
+                {!isAlquiler && (
+                  <div className="flex items-center gap-1.5">
+                    <Percent size={13} className="text-indigo-400 shrink-0" />
+                    <span className="text-slate-500">Interés:</span>
+                    <span className="text-white font-extrabold font-mono">{prestamo.tasa_interes_porcentaje}%</span>
+                  </div>
+                )}
                 {prestamo.fecha_vencimiento && (
                   <div className="flex items-center gap-1.5">
                     <Calendar size={13} className="text-indigo-400 shrink-0" />
@@ -151,11 +154,11 @@ export const LoanHeader: React.FC<LoanHeaderProps> = ({
             </span>
             <div className="mt-3 space-y-1.5">
               <div className="flex justify-between items-center text-xs md:text-sm font-semibold">
-                <span className="text-slate-455">Capital Prestado:</span>
+                <span className="text-slate-455">{isAlquiler ? "Total Alquiler:" : "Capital Prestado:"}</span>
                 <span className="text-white font-mono font-extrabold">{formatCurrency(prestamo.monto_capital)}</span>
               </div>
               <div className="flex justify-between items-center text-xs md:text-sm font-semibold">
-                <span className="text-slate-455">Intereses Pendientes:</span>
+                <span className="text-slate-455">{isAlquiler ? "Alquiler Pendiente:" : "Intereses Pendientes:"}</span>
                 <span className="text-indigo-300 font-mono font-extrabold">{formatCurrency(deuda.interesPendiente)}</span>
               </div>
               {deuda.moraAcumulada > 0 && (

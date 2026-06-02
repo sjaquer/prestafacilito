@@ -105,3 +105,16 @@ export function formatPhone(phone: string): string {
 export const round2 = (n: number): number => {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 };
+
+/**
+ * Mapea el usuario actual a su nombre real para mensajes y saludos.
+ */
+export function getNombreUsuario(username: string | null): string {
+  if (!username) return "Sebastián";
+  const nameMap: Record<string, string> = {
+    sjaquer: "Sebastián",
+    rjaque: "Roberto"
+  };
+  return nameMap[username.toLowerCase()] || "Sebastián";
+}
+

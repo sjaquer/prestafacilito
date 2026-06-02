@@ -187,9 +187,9 @@ export const PrestamoDetallePage: React.FC = () => {
         <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/15 rounded-3xl flex items-center justify-center mx-auto text-rose-400 shadow-md select-none">
           <AlertTriangle size={32} />
         </div>
-        <h2 className="text-lg font-black text-white">Préstamo no encontrado</h2>
+        <h2 className="text-lg font-black text-white">Contrato no encontrado</h2>
         <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-          {apiError || "No se localizó el préstamo solicitado."}
+          {apiError || "No se localizó el contrato solicitado."}
         </p>
         <Button
           onClick={() => navigate("/")}
@@ -266,7 +266,7 @@ export const PrestamoDetallePage: React.FC = () => {
               </h3>
               
               <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
-                Genera textos persuasivos y amigables basados en el estado del préstamo del cliente.
+                Genera textos persuasivos y amigables basados en el estado del préstamo o alquiler del cliente.
               </p>
 
               <div className="border-t border-white/[0.04] pt-2" />

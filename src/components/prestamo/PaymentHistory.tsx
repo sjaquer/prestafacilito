@@ -21,6 +21,7 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
   onViewComprobante,
   resolveVoucherUrl,
 }) => {
+  const isAlquiler = prestamo.tipo_prestamo === "Alquiler de Casa";
   const getWhatsAppShare = (pago: any) => {
     const phone = prestamo.cliente_telefono?.replace(/\D/g, "").trim();
     if (!phone) return null;
@@ -37,16 +38,18 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
   return (
     <Card variant="simple" className="select-none font-sans flex flex-col h-full">
       <div className="p-1 border-b border-white/5 pb-4">
-        <h2 className="text-sm md:text-base font-black text-white tracking-tight leading-none">Historial de Amortizaciones</h2>
+        <h2 className="text-sm md:text-base font-black text-white tracking-tight leading-none">
+          {isAlquiler ? "Historial de Pagos de Alquiler" : "Historial de Amortizaciones"}
+        </h2>
         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
-          Lista cronológica de abonos recibidos para este crédito
+          {isAlquiler ? "Lista cronológica de mensualidades canceladas para este alquiler" : "Lista cronológica de abonos recibidos para este crédito"}
         </p>
       </div>
 
       <div className="mt-5 flex-1 overflow-y-auto max-h-[360px] scrollbar-thin">
         {pagos.length === 0 ? (
           <div className="text-center py-12 text-slate-500 font-bold text-xs md:text-sm">
-            Aún no se registran abonos en este crédito.
+            {isAlquiler ? "Aún no se registran pagos en este alquiler." : "Aún no se registran abonos en este crédito."}
           </div>
         ) : (
           <>
