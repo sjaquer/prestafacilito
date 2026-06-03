@@ -135,6 +135,30 @@ export const PrestamoDetallePage: React.FC = () => {
     }
   };
 
+  // Condonar interés rápido (Ajuste rápido)
+  const handleQuickAjuste = async (cuotaNumero: number) => {
+    if (!id) return;
+    const confirm = window.confirm(`¿Estás seguro de que deseas condonar (eliminar) el interés de la Cuota #${cuotaNumero}? Esta acción se registrará en la auditoría.`);
+    if (!confirm) return;
+
+    const payload = {
+      tipo: "eliminar_interes_cuota",
+      monto_afectado: 0,
+      cuota_numero: cuotaNumero,
+      fecha_inicio: new Date().toISOString().split("T")[0],
+      descripcion: `Condonación de interés de la Cuota #${cuotaNumero} (Ajuste rápido)`,
+      usuario: "Administración",
+      motivo: "Condonación rápida desde el cronograma de pagos."
+    };
+
+    const result = await createAdjustment(id, payload);
+    if (result.success) {
+      await loadData();
+    } else {
+      alert(result.error || "No se pudo condonar el interés de la cuota.");
+    }
+  };
+
   // Generate Gemini IA Recordatorio
   const handleGenerateAiMessage = async () => {
     if (!data?.prestamo || !schedule) return;
@@ -223,7 +247,7 @@ export const PrestamoDetallePage: React.FC = () => {
           <PaymentScheduleTable
             cuotas={schedule?.cuotas || []}
             loanState={prestamo.estado}
-            onQuickAjuste={() => {}}
+            onQuickAjuste={handleQuickAjuste}
             loanType={prestamo.tipo_prestamo}
           />
 

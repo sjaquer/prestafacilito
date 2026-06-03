@@ -20,7 +20,7 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
   loanState,
   loanType,
 }) => {
-  const [showPaid, setShowPaid] = useState(false);
+  const [showPaid, setShowPaid] = useState(true);
   const isAlquiler = loanType === "Alquiler de Casa";
 
   // Filtrar cuotas saldadas si se ocultan
@@ -39,7 +39,7 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
           <h2 className="font-black text-white text-base tracking-tight leading-none">
             {isAlquiler ? "Calendario de Alquileres" : "Cronograma de Pagos"}
           </h2>
-          <p className="text-[10px] text-slate-550 font-bold uppercase tracking-wider mt-1.5">
+          <p className="text-[10px] text-slate-555 font-bold uppercase tracking-wider mt-1.5">
             {isAlquiler 
               ? "Registro de mensualidades vencidas y canceladas del contrato"
               : "Calendario de cuotas mensuales amortizables en el tiempo"
@@ -78,8 +78,8 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                     <th className="px-4 py-3">N° Mes</th>
                     <th className="px-4 py-3">Vencimiento</th>
                     <th className="px-4 py-3">{isAlquiler ? "Mensualidad" : "Interés Esperado"}</th>
-                    <th className="px-4 py-3">Mora Acumulada</th>
-                    <th className="px-4 py-3">Total Exigible</th>
+                    <th className="px-4 py-3">Mora Generada</th>
+                    <th className="px-4 py-3">Total Programado</th>
                     <th className="px-4 py-3">Total Pagado</th>
                     <th className="px-4 py-3">Saldo Restante</th>
                     <th className="px-4 py-3">Estado Plazo</th>
@@ -90,7 +90,6 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                   {displayedCuotas.map((cuota) => {
                     const isVencida = cuota.estado === "Vencida";
                     const isCongelada = cuota.congelada;
-                    const hasMora = cuota.moraPendiente > 0;
                     
                     return (
                       <tr 
@@ -113,7 +112,7 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                               <span className="line-through text-slate-500 text-[11px]">
                                 {formatCurrency(cuota.interesOriginal || 0)}
                               </span>
-                              <span className="text-emerald-400 text-xs font-black uppercase">
+                              <span className="text-emerald-450 text-xs font-black uppercase">
                                 Congelado
                               </span>
                             </div>
@@ -122,41 +121,71 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                           )}
                         </td>
 
-                        {/* Mora acumulada */}
+                        {/* Mora generada y su estado */}
                         <td className="px-4 py-3 font-mono">
-                          {hasMora ? (
-                            <span className="text-rose-400 font-extrabold">
-                              {formatCurrency(cuota.moraPendiente)}
-                            </span>
+                          {cuota.moraOriginal > 0 ? (
+                            <div className="flex flex-col">
+                              <span className={cuota.moraPendiente === 0 ? "text-slate-400 font-semibold" : "text-rose-400 font-extrabold"}>
+                                {formatCurrency(cuota.moraOriginal)}
+                              </span>
+                              {cuota.moraPendiente > 0 ? (
+                                <span className="text-[9px] text-rose-500/80 font-bold">
+                                  {formatCurrency(cuota.moraPendiente)} pend.
+                                </span>
+                              ) : (
+                                <span className="text-[9px] text-emerald-455 font-bold uppercase">
+                                  Saldada
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-slate-500">S/. 0.00</span>
                           )}
                         </td>
 
-                        {/* Total exigible */}
-                        <td className="px-4 py-3 font-mono text-white font-extrabold">
-                          {formatCurrency(cuota.montoExigible)}
+                        {/* Total programado */}
+                        <td className="px-4 py-3 font-mono text-slate-350 font-semibold">
+                          {formatCurrency((cuota.interesOriginal || 0) + (cuota.moraOriginal || 0))}
                         </td>
 
-                        {/* Total pagado */}
-                        <td className="px-4 py-3 font-mono text-emerald-450">
-                          {cuota.pagado > 0 ? (
-                            <span>{formatCurrency(cuota.pagado)}</span>
+                        {/* Total pagado desglosado (con interés, mora y capital) */}
+                        <td className="px-4 py-3 font-mono">
+                          {cuota.pagado > 0 || cuota.capitalAmortizado > 0 ? (
+                            <div className="flex flex-col">
+                              <span className="text-emerald-450 font-extrabold">
+                                {formatCurrency(cuota.pagado + (cuota.capitalAmortizado || 0))}
+                              </span>
+                              <div className="flex flex-col text-[9px] text-slate-500 font-sans font-semibold mt-0.5 space-y-0.5">
+                                {cuota.interesPagado > 0 && (
+                                  <span>{formatCurrency(cuota.interesPagado)} Int.</span>
+                                )}
+                                {cuota.moraPagado > 0 && (
+                                  <span>{formatCurrency(cuota.moraPagado)} Mora</span>
+                                )}
+                                {cuota.capitalAmortizado > 0 && (
+                                  <span className="text-blue-400 font-bold">+{formatCurrency(cuota.capitalAmortizado)} Cap.</span>
+                                )}
+                              </div>
+                            </div>
                           ) : (
-                            <span className="text-slate-500">S/. 0.00</span>
+                            <span className="text-slate-550">S/. 0.00</span>
                           )}
                         </td>
 
                         {/* Saldo restante */}
                         <td className="px-4 py-3 font-mono text-white font-extrabold">
-                          {formatCurrency(cuota.saldoPendiente)}
+                          {cuota.saldoPendiente > 0 ? (
+                            <span className="text-white">{formatCurrency(cuota.saldoPendiente)}</span>
+                          ) : (
+                            <span className="text-slate-500">S/. 0.00</span>
+                          )}
                         </td>
 
                         {/* Estado */}
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider text-[9px] border ${
                             cuota.estado === "Saldada" 
-                              ? "bg-slate-700/10 border-slate-700/15 text-slate-400" 
+                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-450" 
                               : cuota.estado === "Vencida" 
                                 ? "bg-rose-500/10 border-rose-500/20 text-rose-350 animate-pulse" 
                                 : cuota.estado === "Parcial"
@@ -174,7 +203,7 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                               <button
                                 onClick={() => onQuickAjuste(cuota.numero)}
                                 className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/15 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 transition duration-150 cursor-pointer border-none"
-                                title="Ajuste rápido: congelar interés de cuota"
+                                title="Ajuste rápido: condonar interés de cuota"
                               >
                                 <Scissors size={12} />
                               </button>
@@ -194,7 +223,6 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
               {displayedCuotas.map((cuota) => {
                 const isVencida = cuota.estado === "Vencida";
                 const isCongelada = cuota.congelada;
-                const hasMora = cuota.moraPendiente > 0;
 
                 return (
                   <div 
@@ -209,7 +237,7 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                       </span>
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider text-[9px] border ${
                         cuota.estado === "Saldada" 
-                          ? "bg-slate-700/10 border-slate-700/15 text-slate-400" 
+                          ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-450" 
                           : cuota.estado === "Vencida" 
                             ? "bg-rose-500/10 border-rose-500/20 text-rose-350" 
                             : cuota.estado === "Parcial"
@@ -220,7 +248,7 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-y-2 text-xs font-semibold">
+                    <div className="grid grid-cols-2 gap-y-2.5 text-xs font-semibold">
                       <div className="flex flex-col">
                         <span className="text-slate-500 text-[10px] uppercase tracking-wide">Vencimiento</span>
                         <span className="text-white mt-0.5 font-mono">{formatDateShort(cuota.fechaVencimiento)}</span>
@@ -232,36 +260,74 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                         </span>
                         <span className="text-white mt-0.5 font-mono">
                           {isCongelada ? (
-                            <span className="text-emerald-400">Congelado</span>
+                            <span className="text-emerald-450 font-black uppercase text-[10px]">Congelado</span>
                           ) : (
                             formatCurrency(cuota.interesOriginal || 0)
                           )}
                         </span>
                       </div>
 
-                      {hasMora && (
-                        <div className="flex flex-col">
-                          <span className="text-rose-500 text-[10px] uppercase tracking-wide">Mora</span>
-                          <span className="text-rose-400 mt-0.5 font-mono font-extrabold">{formatCurrency(cuota.moraPendiente)}</span>
-                        </div>
-                      )}
+                      <div className="flex flex-col">
+                        <span className="text-slate-500 text-[10px] uppercase tracking-wide">Mora Generada</span>
+                        <span className="text-white mt-0.5 font-mono">
+                          {cuota.moraOriginal > 0 ? (
+                            <span className={cuota.moraPendiente === 0 ? "text-slate-400 font-semibold" : "text-rose-450 font-bold"}>
+                              {formatCurrency(cuota.moraOriginal)}
+                              {cuota.moraPendiente > 0 && ` (${formatCurrency(cuota.moraPendiente)} pend.)`}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">S/. 0.00</span>
+                          )}
+                        </span>
+                      </div>
 
-                      <div className="flex flex-col col-span-2 pt-2 border-t border-white/5 flex flex-row justify-between items-center">
+                      <div className="flex flex-col">
+                        <span className="text-slate-500 text-[10px] uppercase tracking-wide">Total Programado</span>
+                        <span className="text-slate-355 mt-0.5 font-mono">
+                          {formatCurrency((cuota.interesOriginal || 0) + (cuota.moraOriginal || 0))}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col col-span-2 pt-2 border-t border-white/5 flex flex-row justify-between items-start">
                         <div className="flex flex-col">
-                          <span className="text-slate-500 text-[10px] uppercase tracking-wide">Saldo Pendiente</span>
-                          <span className="text-white text-sm font-black font-mono mt-0.5">{formatCurrency(cuota.saldoPendiente)}</span>
+                          <span className="text-slate-500 text-[10px] uppercase tracking-wide">Total Pagado</span>
+                          <span className="text-emerald-450 font-mono font-extrabold mt-0.5">
+                            {formatCurrency(cuota.pagado + (cuota.capitalAmortizado || 0))}
+                          </span>
+                          <div className="flex flex-col text-[9px] text-slate-500 font-sans font-semibold mt-1 space-y-0.5">
+                            {cuota.interesPagado > 0 && (
+                              <span>{formatCurrency(cuota.interesPagado)} Int.</span>
+                            )}
+                            {cuota.moraPagado > 0 && (
+                              <span>{formatCurrency(cuota.moraPagado)} Mora</span>
+                            )}
+                            {cuota.capitalAmortizado > 0 && (
+                              <span className="text-blue-400 font-bold">+{formatCurrency(cuota.capitalAmortizado)} Cap.</span>
+                            )}
+                          </div>
                         </div>
-                        {loanState === "activo" && cuota.estado !== "Saldada" && !isAlquiler && (
+
+                        <div className="flex flex-col items-end">
+                          <span className="text-slate-500 text-[10px] uppercase tracking-wide">Saldo Pendiente</span>
+                          <span className="text-white text-sm font-black font-mono mt-0.5">
+                            {formatCurrency(cuota.saldoPendiente)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {loanState === "activo" && cuota.estado !== "Saldada" && !isAlquiler && (
+                        <div className="col-span-2 pt-1.5">
                           <Button
                             onClick={() => onQuickAjuste(cuota.numero)}
                             variant="secondary"
                             size="sm"
+                            className="w-full h-8 font-bold border-none"
                             icon={<Scissors size={11} />}
                           >
-                            Congelar
+                            Condonar Interés de Cuota
                           </Button>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
