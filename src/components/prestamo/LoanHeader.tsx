@@ -124,12 +124,29 @@ export const LoanHeader: React.FC<LoanHeaderProps> = ({
                     <span className="text-slate-800 font-extrabold font-mono">{prestamo.tasa_interes_porcentaje}%</span>
                   </div>
                 )}
-                {prestamo.fecha_vencimiento && (
-                  <div className="flex items-center gap-1.5">
-                    <Calendar size={13} className="text-indigo-600 shrink-0" />
-                    <span className="text-slate-500">Vencimiento:</span>
-                    <span className="text-slate-800 font-mono font-extrabold">{formatDate(prestamo.fecha_vencimiento)}</span>
-                  </div>
+                {isAlquiler ? (
+                  <>
+                    <div className="flex items-center gap-1.5">
+                      <Calendar size={13} className="text-indigo-650 shrink-0" />
+                      <span className="text-slate-500">Día de Cobro:</span>
+                      <span className="text-indigo-700 font-mono font-black">Día {prestamo.fecha_emision ? parseInt(prestamo.fecha_emision.split("-")[2]) : ""} de cada mes</span>
+                    </div>
+                    {prestamo.fecha_vencimiento && (
+                      <div className="flex items-center gap-1.5">
+                        <Calendar size={13} className="text-slate-400 shrink-0" />
+                        <span className="text-slate-500">Fin Contrato:</span>
+                        <span className="text-slate-700 font-mono font-bold">{formatDate(prestamo.fecha_vencimiento)}</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  prestamo.fecha_vencimiento && (
+                    <div className="flex items-center gap-1.5">
+                      <Calendar size={13} className="text-indigo-600 shrink-0" />
+                      <span className="text-slate-500">Vencimiento:</span>
+                      <span className="text-slate-800 font-mono font-extrabold">{formatDate(prestamo.fecha_vencimiento)}</span>
+                    </div>
+                  )
                 )}
               </div>
             </div>

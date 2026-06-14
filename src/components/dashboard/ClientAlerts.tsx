@@ -7,6 +7,7 @@ import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
 import { motion } from "motion/react";
 import { useAuth } from "../../hooks/useAuth";
+import { calcularEstadoMora } from "../../lib/moraLogic";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -31,54 +32,47 @@ const itemVariants = {
   },
 };
 
-export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; compact?: boolean }> = ({
+interface ClientAlertsProps {
+  activeLoans: any[];
+  clientes: Cliente[];
+  amortizaciones: any[];
+  compact?: boolean;
+}
+
+export const ClientAlerts: React.FC<ClientAlertsProps> = ({
   activeLoans,
   clientes,
+  amortizaciones,
   compact = false,
 }) => {
   const { user } = useAuth();
-  const dayMs = 24 * 60 * 60 * 1000;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const getRemainingDays = (dateValue: string) => {
-    if (!dateValue) return 0;
-    const dueDate = new Date(`${dateValue}T00:00:00`);
-    return Math.ceil((dueDate.getTime() - today.getTime()) / dayMs);
-  };
-
-  const getWhatsAppLink = (loan: any, cliente: any) => {
+  const getWhatsAppLink = (loan: any, cliente: any, isMora: boolean) => {
     if (!cliente || !cliente.telefono) return null;
     const phone = cliente.telefono.replace(/[^\d+]/g, "").trim();
     if (!phone) return null;
 
     const isAlquiler = loan.tipo_prestamo === "Alquiler de Casa";
-    let amount = 0;
-    if (isAlquiler) {
-      const start = new Date(loan.fecha_emision + "T12:00:00");
-      const end = loan.fecha_vencimiento ? new Date(loan.fecha_vencimiento + "T12:00:00") : null;
-      let duration = 6;
-      if (end && !isNaN(end.getTime()) && !isNaN(start.getTime())) {
-        duration = Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()));
-      }
-      amount = round2(parseFloat(loan.monto_capital) / duration);
-    } else {
-      const capital = parseFloat(loan.monto_capital) || 0;
-      const interest = parseFloat(loan.tasa_interes_porcentaje) || 0;
-      amount = capital * (1 + interest / 100);
-    }
-
+    const amount = isMora ? loan.mora.montoTotalAtrasado : loan.mora.montoCuotaActual;
     const formattedAmount = formatCurrency(amount);
-    const fechaFormato = formatDateWithDay(loan.fecha_vencimiento);
+    const fechaFormato = isMora 
+      ? `cuotas vencidas (${loan.mora.cuotasAtrasadas} cuota(s) pendiente(s))`
+      : `el ${formatDateWithDay(loan.mora.fechaCuotaActual)}`;
     
     const text = isAlquiler
-      ? `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu mensualidad de alquiler de ${formattedAmount} con vencimiento el ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`
-      : `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} con vencimiento el ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
+      ? isMora
+        ? `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu mensualidad de alquiler pendiente de ${formattedAmount} (${loan.mora.cuotasAtrasadas} mes(es) vencido(s)). Agradecemos tu pronta regularización. ¡Que tengas un gran día!`
+        : `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu mensualidad de alquiler de ${formattedAmount} con vencimiento ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`
+      : isMora
+        ? `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} (${loan.mora.cuotasAtrasadas} cuota(s) vencida(s)). Agradecemos tu pronta regularización para no seguir generando intereses. ¡Que tengas un gran día!`
+        : `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota pendiente de ${formattedAmount} con vencimiento ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
     
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   };
 
-  const getRecordatorioLink = (loan: any, cliente: any) => {
+  const getRecordatorioLink = (loan: any, cliente: any, isMora: boolean) => {
     if (!cliente || !cliente.telefono) return null;
     const phone = cliente.telefono.replace(/\D/g, '').trim();
     if (!phone) return null;
@@ -98,74 +92,69 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
     const tratamiento = NOMBRES_FEMENINOS.has(primerNombre) ? 'SRA.' : 'SR.';
 
     const isAlquiler = loan.tipo_prestamo === "Alquiler de Casa";
-    let amount = 0;
-    if (isAlquiler) {
-      const start = new Date(loan.fecha_emision + "T12:00:00");
-      const end = loan.fecha_vencimiento ? new Date(loan.fecha_vencimiento + "T12:00:00") : null;
-      let duration = 6;
-      if (end && !isNaN(end.getTime()) && !isNaN(start.getTime())) {
-        duration = Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()));
-      }
-      amount = round2(parseFloat(loan.monto_capital) / duration);
-    } else {
-      const capital = parseFloat(loan.monto_capital) || 0;
-      const interest = parseFloat(loan.tasa_interes_porcentaje) || 0;
-      amount = capital * (1 + interest / 100);
-    }
-
+    const amount = isMora ? loan.mora.montoTotalAtrasado : loan.mora.montoCuotaActual;
     const cuota = formatCurrency(amount);
-    const fecha = formatDateWithDay(loan.fecha_vencimiento);
+    const fecha = isMora ? "" : formatDateWithDay(loan.mora.fechaCuotaActual);
     const nombreMayus = loan.cliente_nombre.toUpperCase();
     const remitente = getNombreUsuario(user);
 
     const mensaje = isAlquiler
-      ? `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
-        `Te escribo para recordarte amablemente tu mensualidad de alquiler pendiente a cancelar:\n\n` +
-        `${cuota} con vencimiento el ${fecha}.\n\n` +
-        `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
-        `Cualquier cosa me lo escribe.`
-      : `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
-        `Te escribo para recordarte amablemente tu cuota pendiente a cancelar:\n\n` +
-        `${cuota} con vencimiento el ${fecha} para no generar intereses.\n\n` +
-        `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
-        `Cualquier cosa me lo escribe.`;
+      ? isMora
+        ? `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
+          `Te escribo para recordarte amablemente tu mensualidad de alquiler vencida pendiente de pago:\n\n` +
+          `Monto: ${cuota} (${loan.mora.cuotasAtrasadas} mes(es) atrasado(s)).\n\n` +
+          `Agradezco tu apoyo en regularizarlo a la brevedad. ¡Que tengas un gran día!\n` +
+          `Cualquier cosa me lo escribe.`
+        : `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
+          `Te escribo para recordarte amablemente tu mensualidad de alquiler pendiente a cancelar:\n\n` +
+          `${cuota} con vencimiento el ${fecha}.\n\n` +
+          `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
+          `Cualquier cosa me lo escribe.`
+      : isMora
+        ? `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
+          `Te escribo para recordarte amablemente tu cuota vencida pendiente a cancelar:\n\n` +
+          `Monto: ${cuota} (${loan.mora.cuotasAtrasadas} cuota(s) sin pagar).\n\n` +
+          `Agradezco tu pronta regularización para no seguir generando intereses. ¡Que tengas un gran día!\n` +
+          `Cualquier cosa me lo escribe.`
+        : `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
+          `Te escribo para recordarte amablemente tu cuota pendiente a cancelar:\n\n` +
+          `${cuota} con vencimiento el ${fecha} para no generar intereses.\n\n` +
+          `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
+          `Cualquier cosa me lo escribe.`;
 
     return `https://wa.me/${phone}?text=${encodeURIComponent(mensaje)}`;
   };
 
-  // Process loans to get their timer info and categorize them
-  const processedLoans = activeLoans.map(loan => {
-    const remainingDays = getRemainingDays(loan.fecha_vencimiento);
+  // Calcular estado de mora real para cada préstamo
+  const estadosMora = activeLoans.map(loan => calcularEstadoMora(loan, amortizaciones, today));
+
+  // Combinar los préstamos con sus datos de mora calculados
+  const loansWithMora = activeLoans.map((loan, i) => {
+    const mora = estadosMora[i];
     const cliente = clientes.find(c => c.id === loan.cliente_id);
-    const waLink = getWhatsAppLink(loan, cliente);
-    const recLink = getRecordatorioLink(loan, cliente);
-    
     return {
       ...loan,
-      remainingDays,
-      waLink,
-      recLink,
-      cliente
+      mora,
+      cliente,
     };
   });
 
-  // Categorize
-  // 1. Vencidos (Personas que no pagaron aún: remainingDays < 0)
-  let loansVencidos = processedLoans
-    .filter(l => l.remainingDays < 0)
-    .sort((a, b) => a.remainingDays - b.remainingDays); // most overdue first
+  // Panel izquierdo: EN MORA MENSUAL (no pagaron la cuota del mes)
+  let loansEnMora = loansWithMora
+    .filter(l => ["mora_mes", "mora_acumulada"].includes(l.mora.estadoCuotaMes))
+    .sort((a, b) => b.mora.cuotasAtrasadas - a.mora.cuotasAtrasadas || b.mora.diasAtraso - a.mora.diasAtraso);
 
-  // 2. Próximos a vencer (Faltan que paguen / por vencer: remainingDays >= 0)
-  let loansProximos = processedLoans
-    .filter(l => l.remainingDays >= 0)
-    .sort((a, b) => a.remainingDays - b.remainingDays); // closest to due first
+  // Panel derecho: COBROS DEL MES (cuota del mes pendiente pero aún no vencida)
+  let loansDelMes = loansWithMora
+    .filter(l => l.mora.estadoCuotaMes === "pendiente_mes")
+    .sort((a, b) => new Date(a.mora.fechaCuotaActual).getTime() - new Date(b.mora.fechaCuotaActual).getTime());
 
-  const originalVencidosLength = loansVencidos.length;
-  const originalProximosLength = loansProximos.length;
+  const originalVencidosLength = loansEnMora.length;
+  const originalProximosLength = loansDelMes.length;
 
   if (compact) {
-    loansVencidos = loansVencidos.slice(0, 5);
-    loansProximos = loansProximos.slice(0, 5);
+    loansEnMora = loansEnMora.slice(0, 5);
+    loansDelMes = loansDelMes.slice(0, 5);
   }
 
   return (
@@ -181,15 +170,15 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
             </h2>
           </div>
           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.18em] max-w-xs text-left sm:text-right">
-            Auditoría de deudores vencidos y próximos vencimientos
+            Auditoría de deudores vencidos y cobros por realizar
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         
-        {/* COLUMNA 1: Personas que no pagaron aún (VENCIDOS) */}
-        <Card variant="simple" className={`border-rose-200 flex flex-col justify-between ${compact ? 'min-h-[360px]' : 'min-h-[450px]'}`}>
+        {/* COLUMNA 1: Personas que no pagaron aún (SIN PAGAR ESTE MES / EN MORA MENSUAL) */}
+        <Card variant="simple" className={`border-rose-200 flex flex-col justify-between ${compact ? 'h-[360px]' : 'h-[550px]'}`}>
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-1">
               <div className="flex items-center gap-2">
@@ -197,12 +186,12 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
                   <AlertTriangle size={15} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-800 leading-none">Deudas expiradas</h3>
-                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-1">Personas que no han cancelado</p>
+                  <h3 className="text-sm font-black text-slate-800 leading-none">Sin pagar este mes</h3>
+                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-1">Clientes con cuotas mensuales vencidas sin pagar</p>
                 </div>
               </div>
               <span className="badge bg-rose-50 border border-rose-200 text-rose-700 font-bold font-mono">
-                {loansVencidos.length} deudor{loansVencidos.length !== 1 ? "es" : ""}
+                {originalVencidosLength} deudor{originalVencidosLength !== 1 ? "es" : ""}
               </span>
             </div>
 
@@ -212,15 +201,16 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
               animate="visible"
               className="flex-1 overflow-y-auto mt-3 pr-1 space-y-3 scrollbar-thin"
             >
-              {loansVencidos.length === 0 ? (
+              {loansEnMora.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-6 text-slate-500 select-none py-16 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50">
                   <CheckCircle2 size={32} className="text-rose-500 mb-3" />
                   <p className="text-xs font-bold text-slate-700">¡Ninguna cuota vencida!</p>
-                  <p className="text-[10px] text-slate-500 mt-1">Todos los créditos están al día en sus fechas</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Todos los créditos están al día en sus cuotas mensuales</p>
                 </div>
               ) : (
-                loansVencidos.map((loan) => {
-                  const absOverdue = Math.abs(loan.remainingDays);
+                loansEnMora.map((loan) => {
+                  const waLink = getWhatsAppLink(loan, loan.cliente, true);
+                  const recLink = getRecordatorioLink(loan, loan.cliente, true);
 
                   return (
                     <motion.div
@@ -230,23 +220,35 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
                     >
                       <div className="flex flex-col gap-2 min-w-0 flex-1">
                         <span className="font-black text-slate-800 text-sm leading-tight tracking-tight">{loan.cliente_nombre}</span>
-                        <div className="flex items-center gap-2">
-                          <Clock size={10} className="text-rose-500 shrink-0" />
-                          <span className="text-[10px] text-slate-500 font-semibold">
-                            Venció: <strong className="text-slate-600 font-bold">{formatDateWithDay(loan.fecha_vencimiento)}</strong>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="badge bg-rose-50 border border-rose-200 text-rose-700 font-black text-[8px] tracking-wide">
+                            {loan.tipo_prestamo === "Alquiler de Casa" ? (
+                              loan.mora.cuotasAtrasadas > 1 
+                                ? `${loan.mora.cuotasAtrasadas} meses sin pagar`
+                                : `Renta vencida hace ${loan.mora.diasAtraso} días`
+                            ) : (
+                              loan.mora.cuotasAtrasadas > 1 
+                                ? `${loan.mora.cuotasAtrasadas} cuotas sin pagar`
+                                : `Cuota vencida hace ${loan.mora.diasAtraso} días`
+                            )}
                           </span>
+                          {loan.mora.cuotasAtrasadas > 1 && (
+                            <span className="badge bg-purple-50 border border-purple-200 text-purple-700 font-black text-[8px] tracking-wide">
+                              Mora acumulada
+                            </span>
+                          )}
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
                         <div className="flex flex-col items-end gap-1.5">
-                          <span className="badge bg-rose-50 border border-rose-200 text-rose-700 font-black uppercase text-[8px] tracking-wider font-financial">
-                            Mora +{absOverdue} d{absOverdue !== 1 ? "s" : ""}
+                          <span className="text-[10px] text-rose-600 font-bold font-mono">
+                            Debe: {formatCurrency(loan.mora.montoTotalAtrasado)}
                           </span>
                           <div className="flex items-center gap-1">
-                            {loan.recLink && (
+                            {recLink && (
                               <a
-                                href={loan.recLink}
+                                href={recLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="p-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition cursor-pointer"
@@ -255,9 +257,9 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
                                 <Bell size={12} />
                               </a>
                             )}
-                            {loan.waLink && (
+                            {waLink && (
                               <a
-                                href={loan.waLink}
+                                href={waLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition cursor-pointer"
@@ -294,8 +296,8 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
           )}
         </Card>
 
-        {/* COLUMNA 2: Faltan por pagar / Próximos a Vencer */}
-        <Card variant="simple" className={`border-indigo-200 flex flex-col justify-between ${compact ? 'min-h-[360px]' : 'min-h-[450px]'}`}>
+        {/* COLUMNA 2: Cobros del mes (VIGENTES POR VENCER) */}
+        <Card variant="simple" className={`border-indigo-200 flex flex-col justify-between ${compact ? 'h-[360px]' : 'h-[550px]'}`}>
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Header Column */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-1">
@@ -304,12 +306,12 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
                   <CalendarDays size={15} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-800 leading-none">Próximos vencimientos</h3>
-                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-1">Cuotas vigentes por vencer</p>
+                  <h3 className="text-sm font-black text-slate-800 leading-none">Cobros del mes</h3>
+                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-1">Cuotas vigentes del mes por vencer</p>
                 </div>
               </div>
               <span className="badge bg-indigo-55/10 border border-indigo-200 text-indigo-700 font-bold font-mono">
-                {loansProximos.length} activo{loansProximos.length !== 1 ? "s" : ""}
+                {originalProximosLength} activo{originalProximosLength !== 1 ? "s" : ""}
               </span>
             </div>
 
@@ -320,19 +322,21 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
               animate="visible"
               className="flex-1 overflow-y-auto mt-3 pr-1 space-y-3 scrollbar-thin"
             >
-              {loansProximos.length === 0 ? (
+              {loansDelMes.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-6 text-slate-500 select-none py-16 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50">
                   <CalendarDays size={32} className="text-slate-400 mb-3" />
-                  <p className="text-xs font-bold text-slate-700">Sin vencimientos futuros</p>
-                  <p className="text-[10px] text-slate-500 mt-1">No hay créditos activos pendientes de vencimiento</p>
+                  <p className="text-xs font-bold text-slate-700">Sin cobros pendientes este mes</p>
+                  <p className="text-[10px] text-slate-500 mt-1">No hay mensualidades programadas pendientes de pago para este período</p>
                 </div>
               ) : (
-                loansProximos.map((loan) => {
-                  const remaining = loan.remainingDays;
+                loansDelMes.map((loan) => {
+                  const remaining = Math.max(0, Math.ceil((new Date(loan.mora.fechaCuotaActual + "T00:00:00").getTime() - today.getTime()) / (24 * 60 * 60 * 1000)));
+                  const waLink = getWhatsAppLink(loan, loan.cliente, false);
+                  const recLink = getRecordatorioLink(loan, loan.cliente, false);
                   
                   let timerBadgeColor = "bg-slate-100 border-slate-200 text-slate-650";
                   if (remaining === 0) {
-                    timerBadgeColor = "bg-amber-50 border-amber-250 text-amber-700 animate-pulse";
+                    timerBadgeColor = "bg-amber-50 border-amber-250 text-amber-700 animate-pulse font-extrabold";
                   } else if (remaining <= 3) {
                     timerBadgeColor = "bg-emerald-50 border-emerald-250 text-emerald-700";
                   } else if (remaining <= 7) {
@@ -345,11 +349,17 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
                       variants={itemVariants}
                       className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-3xl gap-3 hover:border-slate-350 transition duration-150"
                     >
-                      <div className="flex flex-col gap-2 min-w-0 flex-1">
+                      <div className="flex flex-col gap-1.5 min-w-0 flex-1">
                         <span className="font-black text-slate-900 text-sm leading-tight tracking-tight">{loan.cliente_nombre}</span>
                         <div className="flex items-center gap-2">
-                          <Clock size={10} className="text-emerald-600 shrink-0" />
-                          <span className="text-[10px] text-slate-500 font-semibold">Monto: <strong className="text-slate-800 font-financial font-bold">{formatCurrency(loan.monto_capital)}</strong></span>
+                          <Clock size={10} className="text-indigo-650 shrink-0" />
+                          <span className="text-[10px] text-slate-500 font-semibold">
+                            {loan.tipo_prestamo === "Alquiler de Casa" ? (
+                              <>Alquiler (Día {loan.mora.fechaCuotaActual ? parseInt(loan.mora.fechaCuotaActual.split("-")[2]) : ""}): <strong className="text-slate-700">{formatDateWithDay(loan.mora.fechaCuotaActual)}</strong></>
+                            ) : (
+                              <>Vence: <strong className="text-slate-700">{formatDateWithDay(loan.mora.fechaCuotaActual)}</strong></>
+                            )}
+                          </span>
                         </div>
                       </div>
 
@@ -359,10 +369,13 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
                           <span className={`badge uppercase text-[8px] tracking-wider font-black font-financial ${timerBadgeColor}`}>
                             {remaining === 0 ? "Vence hoy" : `En ${remaining} día${remaining !== 1 ? "s" : ""}`}
                           </span>
+                          <span className="text-[10px] text-indigo-650 font-bold font-mono">
+                            Cuota: {formatCurrency(loan.mora.montoCuotaActual)}
+                          </span>
                           <div className="flex items-center gap-1">
-                            {loan.recLink && (
+                            {recLink && (
                               <a
-                                href={loan.recLink}
+                                href={recLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="p-1.5 rounded-lg bg-emerald-55 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition cursor-pointer"
@@ -373,7 +386,7 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
                             )}
                             <Link
                               to={`/prestamos/${loan.id}`}
-                              className="p-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-650 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+                              className="p-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-655 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
                             >
                               <ArrowUpRight size={12} />
                             </Link>

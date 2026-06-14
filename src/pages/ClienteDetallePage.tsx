@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, User, Phone, MapPin, Calendar, CreditCard,
-  Info, Loader2, ArrowUpRight, CheckCircle2, TrendingUp, Sparkles
+  Info, Loader2, ArrowUpRight, CheckCircle2, TrendingUp, Sparkles, AlertTriangle
 } from "lucide-react";
+import { usePagos } from "../hooks/usePagos";
+import { calcularEstadoMora } from "../lib/moraLogic";
 import { useClientes } from "../hooks/useClientes";
 import { Cliente } from "../types";
 import { Card } from "../components/ui/Card";
@@ -16,8 +18,10 @@ export const ClienteDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { clientes, loading: loadingClientes, updateCliente, refetch: refetchClientes } = useClientes();
+  const { fetchAmortizaciones } = usePagos();
   
   const [clientLoans, setClientLoans] = useState<any[]>([]);
+  const [amortizaciones, setAmortizaciones] = useState<any[]>([]);
   const [loadingLoans, setLoadingLoans] = useState(true);
   const [loanError, setLoanError] = useState("");
 
@@ -30,25 +34,68 @@ export const ClienteDetallePage: React.FC = () => {
     setLoanError("");
     
     try {
-      const res = await fetch("/api/dashboard");
-      if (res.ok) {
-        const data = await res.json();
+      const [dashRes, amortList] = await Promise.all([
+        fetch("/api/dashboard"),
+        fetchAmortizaciones()
+      ]);
+      if (dashRes.ok) {
+        const data = await dashRes.json();
         const allLoans = data.prestamos || [];
         const filtered = allLoans.filter((p: any) => p.cliente_id === id);
         setClientLoans(filtered);
       } else {
         setLoanError("No se pudieron cargar los préstamos del cliente.");
       }
+      setAmortizaciones(amortList || []);
     } catch (err: any) {
       setLoanError(err.message || "Error de red al buscar préstamos.");
     } finally {
       setLoadingLoans(false);
     }
-  }, [id]);
+  }, [id, fetchAmortizaciones]);
 
   useEffect(() => {
     fetchClientLoans();
   }, [fetchClientLoans]);
+
+  const clientMoraDetails = useMemo(() => {
+    const activeClientLoans = clientLoans.filter(l => l.estado === "activo");
+    const estados = activeClientLoans.map(l => {
+      const computed = calcularEstadoMora(l, amortizaciones, new Date());
+      return { ...computed, tipo_prestamo: l.tipo_prestamo };
+    });
+    
+    const cuotasEnMora = estados.filter(e => ["mora_mes", "mora_acumulada"].includes(e.estadoCuotaMes));
+    const totalCuotasAtrasadas = cuotasEnMora.reduce((sum, e) => sum + e.cuotasAtrasadas, 0);
+    const totalMontoAtrasado = cuotasEnMora.reduce((sum, e) => sum + e.montoTotalAtrasado, 0);
+    
+    const tieneMora = cuotasEnMora.length > 0;
+    
+    let proximaCuotaFecha = "";
+    let proximaCuotaMonto = 0;
+    let proximaCuotaTipo = "";
+    
+    if (!tieneMora) {
+      const cuotasPendientes = estados
+        .filter(e => e.estadoCuotaMes === "pendiente_mes")
+        .sort((a, b) => new Date(a.fechaCuotaActual).getTime() - new Date(b.fechaCuotaActual).getTime());
+      
+      if (cuotasPendientes.length > 0) {
+        proximaCuotaFecha = cuotasPendientes[0].fechaCuotaActual;
+        proximaCuotaMonto = cuotasPendientes[0].montoCuotaActual;
+        proximaCuotaTipo = cuotasPendientes[0].tipo_prestamo;
+      }
+    }
+    
+    return {
+      tieneMora,
+      totalCuotasAtrasadas,
+      totalMontoAtrasado,
+      proximaCuotaFecha,
+      proximaCuotaMonto,
+      proximaCuotaTipo
+    };
+  }, [clientLoans, amortizaciones]);
 
   // Wrapper update client callback for child components
   const handleUpdateClient = async (clientId: string, data: Partial<Cliente>) => {
@@ -165,6 +212,45 @@ export const ClienteDetallePage: React.FC = () => {
         </div>
       </Card>
 
+      {/* Banner de Estado de Mora / Cobros */}
+      {!loadingLoans && (clientMoraDetails.tieneMora ? (
+        <div className="bg-rose-50 border border-rose-200 rounded-3xl p-5 flex items-start gap-4 shadow-sm animate-fadeIn">
+          <div className="w-10 h-10 rounded-2xl bg-rose-100/80 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
+            <AlertTriangle size={20} />
+          </div>
+          <div>
+            <p className="text-sm font-black text-rose-900 leading-none">Este cliente tiene mensualidades o cuotas pendientes vencidas</p>
+            <p className="text-xs text-rose-700 mt-2 font-medium">
+              Tiene <strong className="font-extrabold">{clientMoraDetails.totalCuotasAtrasadas} mensualidad(es) o cuota(s) vencida(s)</strong> sin pagar.
+              Total atrasado: <strong className="font-mono font-extrabold">{formatCurrency(clientMoraDetails.totalMontoAtrasado)}</strong>.
+            </p>
+          </div>
+        </div>
+      ) : clientMoraDetails.proximaCuotaFecha ? (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-5 flex items-start gap-4 shadow-sm animate-fadeIn">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-100/80 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
+            <CheckCircle2 size={20} />
+          </div>
+          <div>
+            {clientMoraDetails.proximaCuotaTipo === "Alquiler de Casa" ? (
+              <>
+                <p className="text-sm font-black text-emerald-900 leading-none">Alquiler al día</p>
+                <p className="text-xs text-emerald-700 mt-2 font-medium">
+                  Próxima mensualidad de alquiler programada para el <strong className="font-extrabold">{formatDate(clientMoraDetails.proximaCuotaFecha)}</strong> (Día {parseInt(clientMoraDetails.proximaCuotaFecha.split("-")[2])} de cada mes) por un monto de <strong className="font-mono font-extrabold">{formatCurrency(clientMoraDetails.proximaCuotaMonto)}</strong>.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-black text-emerald-900 leading-none">Cliente al día en sus cuotas</p>
+                <p className="text-xs text-emerald-700 mt-2 font-medium">
+                  Próximo vencimiento programado para el <strong className="font-extrabold">{formatDate(clientMoraDetails.proximaCuotaFecha)}</strong> por un monto de <strong className="font-mono font-extrabold">{formatCurrency(clientMoraDetails.proximaCuotaMonto)}</strong>.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null)}
+
       {/* Financial Summary KPIs */}
       <ClientFinancialSummary cliente={cliente} />
 
@@ -220,7 +306,11 @@ export const ClienteDetallePage: React.FC = () => {
                             {formatCurrency(loan.monto_capital)}
                           </td>
                           <td className="p-3 text-xs font-semibold text-slate-600">
-                            {loan.tipo_prestamo} ({loan.tasa_interes_porcentaje}%)
+                            {loan.tipo_prestamo === "Alquiler de Casa" ? (
+                              <span>Alquiler (Día {parseInt(loan.fecha_emision.split("-")[2])} c/mes)</span>
+                            ) : (
+                              <span>{loan.tipo_prestamo} ({loan.tasa_interes_porcentaje}%)</span>
+                            )}
                           </td>
                           <td className="p-3 text-xs">
                             <Badge variant={isActivo ? "success" : "neutral"}>

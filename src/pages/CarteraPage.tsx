@@ -11,13 +11,17 @@ import { formatCurrency, formatDateWithDay, round2, getNombreUsuario } from "../
 import { usePrestamos } from "../hooks/usePrestamos";
 import { useClientes } from "../hooks/useClientes";
 import { useAuth } from "../hooks/useAuth";
+import { usePagos } from "../hooks/usePagos";
+import { calcularEstadoMora } from "../lib/moraLogic";
 
 export const CarteraPage: React.FC = () => {
   const { user } = useAuth();
   const { clientes } = useClientes();
   const { updatePrestamo } = usePrestamos();
+  const { fetchAmortizaciones } = usePagos();
 
   const [prestamos, setPrestamos] = useState<any[]>([]);
+  const [amortizaciones, setAmortizaciones] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [nowTick] = useState(() => new Date());
 
@@ -34,7 +38,7 @@ export const CarteraPage: React.FC = () => {
 
   // Advanced Filters
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterEstado, setFilterEstado] = useState<"todos" | "activo" | "pagado" | "mora" | "todos">("todos");
+  const [filterEstado, setFilterEstado] = useState<string>("todos");
   const [filterTipo, setFilterTipo] = useState<string>("todos");
   const [fechaMin, setFechaMin] = useState("");
   const [fechaMax, setFechaMax] = useState("");
@@ -49,11 +53,15 @@ export const CarteraPage: React.FC = () => {
   const fetchLoans = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/prestamos");
+      const [res, amortList] = await Promise.all([
+        fetch("/api/prestamos"),
+        fetchAmortizaciones()
+      ]);
       if (res.ok) {
         const data = await res.json();
         setPrestamos(data || []);
       }
+      setAmortizaciones(amortList || []);
     } catch (err) {
       console.error("Error al cargar préstamos para la cartera:", err);
     } finally {
@@ -65,34 +73,41 @@ export const CarteraPage: React.FC = () => {
     fetchLoans();
   }, []);
 
+  const estadosMora = useMemo(() => {
+    return prestamos.map(p => calcularEstadoMora(p, amortizaciones, today));
+  }, [prestamos, amortizaciones]);
+
   const getWhatsAppLink = (loan: any) => {
     const cliente = clientes.find((c) => c.id === loan.cliente_id);
     if (!cliente || !cliente.telefono) return null;
     const phone = cliente.telefono.replace(/[^\d+]/g, "").trim();
     if (!phone) return null;
 
-    const isAlquiler = loan.tipo_prestamo === "Alquiler de Casa";
-    let amount = 0;
-    if (isAlquiler) {
-      const start = new Date(loan.fecha_emision + "T12:00:00");
-      const end = loan.fecha_vencimiento ? new Date(loan.fecha_vencimiento + "T12:00:00") : null;
-      let duration = 6;
-      if (end && !isNaN(end.getTime()) && !isNaN(start.getTime())) {
-        duration = Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()));
-      }
-      amount = round2(parseFloat(loan.monto_capital) / duration);
-    } else {
-      const capital = parseFloat(loan.monto_capital) || 0;
-      const interest = parseFloat(loan.tasa_interes_porcentaje) || 0;
-      amount = round2(capital * (1 + interest / 100));
-    }
+    const index = prestamos.findIndex(p => p.id === loan.id);
+    const mora = estadosMora[index];
+    if (!mora) return null;
 
+    const isAlquiler = loan.tipo_prestamo === "Alquiler de Casa";
+    const isMora = ["mora_mes", "mora_acumulada"].includes(mora.estadoCuotaMes);
+    const amount = isMora ? mora.montoTotalAtrasado : (mora.montoCuotaActual || 0);
     const formattedAmount = formatCurrency(amount);
-    const fechaFormato = formatDateWithDay(loan.fecha_vencimiento);
     
-    const text = isAlquiler
-      ? `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu mensualidad de alquiler de ${formattedAmount} con vencimiento el ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`
-      : `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} con vencimiento el ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
+    let text = "";
+    if (isAlquiler) {
+      if (isMora) {
+        text = `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu mensualidad de alquiler pendiente de ${formattedAmount} (${mora.cuotasAtrasadas} mes(es) vencido(s)). Agradecemos tu pronta regularización. ¡Que tengas un gran día!`;
+      } else {
+        const fechaFormato = formatDateWithDay(mora.fechaCuotaActual);
+        text = `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu mensualidad de alquiler de ${formattedAmount} con vencimiento el ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
+      }
+    } else {
+      if (isMora) {
+        text = `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} (${mora.cuotasAtrasadas} cuota(s) vencida(s)). Agradecemos tu pronta regularización para no seguir generando intereses. ¡Que tengas un gran día!`;
+      } else {
+        const fechaFormato = formatDateWithDay(mora.fechaCuotaActual);
+        text = `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota pendiente de ${formattedAmount} con vencimiento el ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
+      }
+    }
 
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   };
@@ -102,6 +117,10 @@ export const CarteraPage: React.FC = () => {
     if (!cliente || !cliente.telefono) return null;
     const phone = cliente.telefono.replace(/\D/g, "").trim();
     if (!phone) return null;
+
+    const index = prestamos.findIndex(p => p.id === loan.id);
+    const mora = estadosMora[index];
+    if (!mora) return null;
 
     const NOMBRES_FEMENINOS = new Set([
       "maria", "ana", "lucia", "sofia", "elena", "carmen", "rosa", "claudia", "andrea", "patricia",
@@ -118,37 +137,44 @@ export const CarteraPage: React.FC = () => {
     const tratamiento = NOMBRES_FEMENINOS.has(primerNombre) ? "SRA." : "SR.";
 
     const isAlquiler = loan.tipo_prestamo === "Alquiler de Casa";
-    let amount = 0;
-    if (isAlquiler) {
-      const start = new Date(loan.fecha_emision + "T12:00:00");
-      const end = loan.fecha_vencimiento ? new Date(loan.fecha_vencimiento + "T12:00:00") : null;
-      let duration = 6;
-      if (end && !isNaN(end.getTime()) && !isNaN(start.getTime())) {
-        duration = Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()));
-      }
-      amount = round2(parseFloat(loan.monto_capital) / duration);
-    } else {
-      const capital = parseFloat(loan.monto_capital) || 0;
-      const interest = parseFloat(loan.tasa_interes_porcentaje) || 0;
-      amount = round2(capital * (1 + interest / 100));
-    }
-
+    const isMora = ["mora_mes", "mora_acumulada"].includes(mora.estadoCuotaMes);
+    const amount = isMora ? mora.montoTotalAtrasado : (mora.montoCuotaActual || 0);
     const cuota = formatCurrency(amount);
-    const fecha = formatDateWithDay(loan.fecha_vencimiento);
     const nombreMayus = loan.cliente_nombre.toUpperCase();
     const remitente = getNombreUsuario(user);
 
-    const mensaje = isAlquiler
-      ? `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
-        `Te escribo para recordarte amablemente tu mensualidad de alquiler pendiente a cancelar:\n\n` +
-        `${cuota} con vencimiento el ${fecha}.\n\n` +
-        `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
-        `Cualquier cosa me lo escribe.`
-      : `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
-        `Te escribo para recordarte amablemente tu cuota pendiente a cancelar:\n\n` +
-        `${cuota} con vencimiento el ${fecha} para no generar intereses.\n\n` +
-        `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
-        `Cualquier cosa me lo escribe.`;
+    let mensaje = "";
+    if (isAlquiler) {
+      if (isMora) {
+        mensaje = `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
+          `Te escribo para recordarte amablemente tu mensualidad de alquiler vencida pendiente de pago:\n\n` +
+          `Monto: ${cuota} (${mora.cuotasAtrasadas} mes(es) atrasado(s)).\n\n` +
+          `Agradezco tu apoyo en regularizarlo a la brevedad. ¡Que tengas un gran día!\n` +
+          `Cualquier cosa me lo escribe.`;
+      } else {
+        const fecha = formatDateWithDay(mora.fechaCuotaActual);
+        mensaje = `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
+          `Te escribo para recordarte amablemente tu mensualidad de alquiler pendiente a cancelar:\n\n` +
+          `${cuota} con vencimiento el ${fecha}.\n\n` +
+          `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
+          `Cualquier cosa me lo escribe.`;
+      }
+    } else {
+      if (isMora) {
+        mensaje = `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
+          `Te escribo para recordarte amablemente tu cuota vencida pendiente a cancelar:\n\n` +
+          `Monto: ${cuota} (${mora.cuotasAtrasadas} cuota(s) sin pagar).\n\n` +
+          `Agradezco tu pronta regularización para no seguir generando intereses. ¡Que tengas un gran día!\n` +
+          `Cualquier cosa me lo escribe.`;
+      } else {
+        const fecha = formatDateWithDay(mora.fechaCuotaActual);
+        mensaje = `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
+          `Te escribo para recordarte amablemente tu cuota pendiente a cancelar:\n\n` +
+          `${cuota} con vencimiento el ${fecha} para no generar intereses.\n\n` +
+          `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
+          `Cualquier cosa me lo escribe.`;
+      }
+    }
 
     return `https://wa.me/${phone}?text=${encodeURIComponent(mensaje)}`;
   };
@@ -274,16 +300,28 @@ export const CarteraPage: React.FC = () => {
       }
 
       // 2. Estado
+      const index = prestamos.findIndex(loan => loan.id === p.id);
+      const mora = estadosMora[index];
       if (filterEstado !== "todos") {
-        if (filterEstado === "mora") {
-          const remaining = getRemainingDays(p.fecha_vencimiento);
-          if (p.estado !== "activo" || remaining >= 0) return false;
+        if (filterEstado === "pagado") {
+          if (p.estado !== "pagado") return false;
         } else {
-          if (p.estado !== filterEstado) return false;
-          // Si filtra por activos puros, excluir mora
-          if (filterEstado === "activo") {
-            const remaining = getRemainingDays(p.fecha_vencimiento);
-            if (remaining < 0) return false;
+          // Si no es pagado, debe estar activo
+          if (p.estado !== "activo") return false;
+          if (!mora) return false;
+          
+          if (filterEstado === "al_dia") {
+            if (mora.estadoCuotaMes !== "al_dia") return false;
+          } else if (filterEstado === "pendiente_mes") {
+            if (mora.estadoCuotaMes !== "pendiente_mes") return false;
+          } else if (filterEstado === "mora_mes") {
+            if (mora.estadoCuotaMes !== "mora_mes") return false;
+          } else if (filterEstado === "mora_acumulada") {
+            if (mora.estadoCuotaMes !== "mora_acumulada") return false;
+          } else if (filterEstado === "mora") {
+            if (!["mora_mes", "mora_acumulada"].includes(mora.estadoCuotaMes)) return false;
+          } else if (filterEstado === "activo") {
+            if (!["al_dia", "pendiente_mes"].includes(mora.estadoCuotaMes)) return false;
           }
         }
       }
@@ -304,7 +342,7 @@ export const CarteraPage: React.FC = () => {
 
       return true;
     });
-  }, [prestamos, searchTerm, filterEstado, filterTipo, fechaMin, fechaMax, montoMin, montoMax]);
+  }, [prestamos, searchTerm, filterEstado, filterTipo, fechaMin, fechaMax, montoMin, montoMax, estadosMora]);
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -364,8 +402,32 @@ export const CarteraPage: React.FC = () => {
       accessorKey: "cliente_nombre",
       sortable: true,
       cell: (loan) => {
+        const index = prestamos.findIndex(p => p.id === loan.id);
+        const mora = estadosMora[index];
+        
+        let indicatorColor = "bg-slate-300"; // sin_cuotas or default
+        if (mora) {
+          if (mora.estadoCuotaMes === "al_dia") {
+            indicatorColor = "bg-emerald-500";
+          } else if (mora.estadoCuotaMes === "pendiente_mes") {
+            const dueTime = new Date(mora.fechaCuotaActual + "T00:00:00").getTime();
+            const nowTime = today.getTime();
+            const daysLeft = Math.max(0, Math.ceil((dueTime - nowTime) / (24 * 60 * 60 * 1000)));
+            if (daysLeft < 7) {
+              indicatorColor = "bg-amber-400 animate-pulse";
+            } else {
+              indicatorColor = "bg-blue-400";
+            }
+          } else if (mora.estadoCuotaMes === "mora_mes") {
+            indicatorColor = "bg-rose-500";
+          } else if (mora.estadoCuotaMes === "mora_acumulada") {
+            indicatorColor = "bg-purple-600";
+          }
+        }
+
         return (
-          <Link to={`/clientes/${loan.cliente_id}`} className="flex items-center gap-1 hover:opacity-90 select-none cursor-pointer group decoration-none">
+          <Link to={`/clientes/${loan.cliente_id}`} className="flex items-center gap-2 hover:opacity-90 select-none cursor-pointer group decoration-none">
+            <span className={`w-2 h-2 rounded-full shrink-0 ${indicatorColor}`} />
             <span className="font-bold text-slate-900 block group-hover:text-indigo-600 transition leading-tight">{loan.cliente_nombre}</span>
           </Link>
         );
@@ -405,11 +467,26 @@ export const CarteraPage: React.FC = () => {
       header: "F. Vencimiento",
       accessorKey: "fecha_vencimiento",
       sortable: true,
-      cell: (loan) => (
-        <span className="text-slate-600 text-[11px] whitespace-normal">
-          {loan.fecha_vencimiento ? formatDateWithDay(loan.fecha_vencimiento) : "No est."}
-        </span>
-      ),
+      cell: (loan) => {
+        if (loan.tipo_prestamo === "Alquiler de Casa") {
+          const day = loan.fecha_emision ? parseInt(loan.fecha_emision.split("-")[2]) : "";
+          return (
+            <div className="flex flex-col gap-0.5 select-none">
+              <span className="text-indigo-650 font-black text-xs leading-none">
+                Día {day} de cada mes
+              </span>
+              <span className="text-slate-400 text-[9px] font-bold">
+                Fin: {loan.fecha_vencimiento ? formatDateWithDay(loan.fecha_vencimiento) : "Indef."}
+              </span>
+            </div>
+          );
+        }
+        return (
+          <span className="text-slate-600 text-[11px] whitespace-normal">
+            {loan.fecha_vencimiento ? formatDateWithDay(loan.fecha_vencimiento) : "No est."}
+          </span>
+        );
+      },
     },
     {
       header: "Plazo Restante",
@@ -417,11 +494,18 @@ export const CarteraPage: React.FC = () => {
         if (loan.estado === "pagado") {
           return <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Liquidador</span>;
         }
-        const days = getRemainingDays(loan.fecha_vencimiento);
-        if (days < 0) {
+        const index = prestamos.findIndex(p => p.id === loan.id);
+        const mora = estadosMora[index];
+        if (!mora || !mora.fechaCuotaActual) {
+          return <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">No est.</span>;
+        }
+        const days = Math.max(0, Math.ceil((new Date(mora.fechaCuotaActual + "T00:00:00").getTime() - today.getTime()) / (24 * 60 * 60 * 1000)));
+        const isMora = ["mora_mes", "mora_acumulada"].includes(mora.estadoCuotaMes);
+        
+        if (isMora) {
           return (
             <Badge variant="danger" className="text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5">
-              Mora -{Math.abs(days)}d
+              Mora -{Math.abs(mora.diasAtraso)}d
             </Badge>
           );
         }
@@ -455,20 +539,35 @@ export const CarteraPage: React.FC = () => {
       ),
     },
     {
-      header: "Estado",
-      accessorKey: "estado",
-      sortable: true,
+      header: "Estado cuota",
       cell: (loan) => {
-        const isPagado = loan.estado === "pagado";
-        const isMora = loan.estado === "activo" && getRemainingDays(loan.fecha_vencimiento) < 0;
-
-        if (isPagado) {
-          return <Badge variant="neutral" className="bg-slate-100 text-slate-700 border border-slate-200">Pagado</Badge>;
+        if (loan.estado === "pagado") {
+          return <span className="badge text-[8px] font-black border bg-slate-100 text-slate-700 border-slate-200">Pagado</span>;
         }
-        if (isMora) {
-          return <Badge variant="danger">En Mora</Badge>;
-        }
-        return <Badge variant="success">Activo</Badge>;
+        const index = prestamos.findIndex(p => p.id === loan.id);
+        const mora = estadosMora[index];
+        if (!mora) return null;
+        
+        const colorMap = {
+          al_dia: "bg-emerald-50 text-emerald-700 border-emerald-200",
+          pendiente_mes: "bg-blue-50 text-blue-700 border-blue-200",
+          mora_mes: "bg-amber-50 text-amber-700 border-amber-200",
+          mora_acumulada: "bg-rose-50 text-rose-700 border-rose-200",
+          sin_cuotas: "bg-slate-50 text-slate-500 border-slate-200"
+        };
+        const labelMap = {
+          al_dia: "Al día",
+          pendiente_mes: "Por vencer",
+          mora_mes: "Mora",
+          mora_acumulada: `${mora.cuotasAtrasadas} cuotas atrasadas`,
+          sin_cuotas: "Sin cuotas"
+        };
+        
+        return (
+          <span className={`badge text-[8px] font-black border ${colorMap[mora.estadoCuotaMes]}`}>
+            {labelMap[mora.estadoCuotaMes]}
+          </span>
+        );
       },
     },
     {
@@ -712,22 +811,29 @@ export const CarteraPage: React.FC = () => {
             )}
 
             {/* SEGMENTED CONTROL: ESTADOS RÁPIDOS */}
-            <div className="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-xl border border-slate-200/80">
-              {(["todos", "activo", "pagado", "mora"] as const).map((est) => (
+            <div className="flex flex-wrap items-center gap-0.5 bg-slate-100 p-0.5 rounded-xl border border-slate-200/80">
+              {([
+                { value: "todos", label: "Todos" },
+                { value: "al_dia", label: "Al día" },
+                { value: "pendiente_mes", label: "Por vencer" },
+                { value: "mora_mes", label: "Mora" },
+                { value: "mora_acumulada", label: "Mora Acum." },
+                { value: "pagado", label: "Pagados" }
+              ] as const).map((est) => (
                 <button
-                  key={est}
-                  onClick={() => setFilterEstado(est)}
+                  key={est.value}
+                  onClick={() => setFilterEstado(est.value)}
                   className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer border-none transition-all duration-150 ${
-                    filterEstado === est
-                      ? est === "mora"
+                    filterEstado === est.value
+                      ? ["mora_mes", "mora_acumulada"].includes(est.value)
                         ? "bg-rose-600 text-white shadow-md"
-                        : est === "pagado"
+                        : est.value === "pagado"
                         ? "bg-slate-700 text-white"
                         : "bg-indigo-650 text-white shadow-md shadow-indigo-650/10"
                       : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
-                  {est === "todos" ? "Todos" : est === "activo" ? "Vigentes" : est === "pagado" ? "Pagados" : "En Mora"}
+                  {est.label}
                 </button>
               ))}
             </div>

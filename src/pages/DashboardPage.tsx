@@ -17,6 +17,7 @@ import { usePrestamos } from "../hooks/usePrestamos";
 import { usePagos } from "../hooks/usePagos";
 import { useAuth } from "../hooks/useAuth";
 import { formatCurrency, round2, getNombreUsuario } from "../lib/formatters";
+import { calcularEstadoMora } from "../lib/moraLogic";
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
@@ -291,10 +292,10 @@ export const DashboardPage: React.FC = () => {
   });
 
   const activeLoans = ultimosPrestamos.filter((p) => p.estado === "activo");
-  const overdueLoans = activeLoans.filter((p) => {
-    const todayStr = new Date().toISOString().split("T")[0];
-    return p.fecha_vencimiento && p.fecha_vencimiento < todayStr;
-  });
+  const estadosMora = activeLoans.map(p => calcularEstadoMora(p, amortizaciones));
+  const overdueLoans = activeLoans.filter((_, i) =>
+    ["mora_mes", "mora_acumulada"].includes(estadosMora[i]?.estadoCuotaMes)
+  );
   const paidCount = ultimosPrestamos.filter((p) => p.estado === "pagado").length;
 
   const estimatedExigible = round2(
@@ -427,7 +428,8 @@ export const DashboardPage: React.FC = () => {
       <ClientAlerts
         activeLoans={activeLoans}
         clientes={clientes}
-        compact={true}
+        amortizaciones={amortizaciones}
+        compact={false}
       />
 
       {/* 5. DISTRIBUCIÓN BANCARIA */}
