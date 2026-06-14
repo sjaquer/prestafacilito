@@ -13,9 +13,7 @@ interface PaymentFormProps {
     monto: number;
     metodo_pago: string;
     fecha_pago: string;
-    fileName?: string;
-    mimeType?: string;
-    base64Data?: string;
+    vouchers?: Array<{ fileName: string; mimeType: string; base64Data: string }>;
   }) => Promise<boolean>;
   loanType?: string;
 }
@@ -32,9 +30,8 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
   
   const isAlquiler = loanType === "Alquiler de Casa";
   
-  // Voucher upload state
-  const [vcrFile, setVcrFile] = useState<File | null>(null);
-  const [vcrBase64, setVcrBase64] = useState("");
+  // Voucher upload state (multiple)
+  const [vcrFiles, setVcrFiles] = useState<Array<{ file: File; base64: string }>>([]);
   
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -49,16 +46,30 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
     }
   }, [expectedAmount, saldoPendiente]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    setVcrFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setVcrBase64((reader.result as string).split(",")[1]);
-    };
-    reader.readAsDataURL(file);
+    const newVouchers: Array<{ file: File; base64: string }> = [];
+    let processed = 0;
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = (reader.result as string).split(",")[1];
+        newVouchers.push({ file, base64 });
+        processed++;
+        if (processed === files.length) {
+          setVcrFiles((prev) => [...prev, ...newVouchers]);
+          e.target.value = ""; // Reset file input
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeVcrFile = (index: number) => {
+    setVcrFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,16 +93,17 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
       monto: nMonto,
       metodo_pago: metodo,
       fecha_pago: fecha,
-      fileName: vcrFile?.name,
-      mimeType: vcrFile?.type,
-      base64Data: vcrBase64 || undefined,
+      vouchers: vcrFiles.map(v => ({
+        fileName: v.file.name,
+        mimeType: v.file.type,
+        base64Data: v.base64
+      }))
     });
 
     setSubmitting(false);
     if (successResult) {
       setSuccess(true);
-      setVcrFile(null);
-      setVcrBase64("");
+      setVcrFiles([]);
       setTimeout(() => setSuccess(false), 3000);
     }
   };
@@ -180,32 +192,47 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
         />
 
         {/* Drag/Drop Voucher Upload */}
-        <div className="space-y-1">
+        <div className="space-y-2">
           <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider block">
-            Comprobante de Pago (Voucher)
+            Comprobantes de Pago (Vouchers)
           </label>
           
           <label className="doc-upload-zone flex flex-col items-center justify-center p-5 text-center transition select-none border border-dashed border-slate-250 bg-slate-50 rounded-2xl cursor-pointer hover:bg-slate-100">
             <input
               type="file"
+              multiple
               accept="image/*,application/pdf"
-              onChange={handleFileChange}
+              onChange={handleFilesChange}
               className="hidden"
             />
-            {vcrFile ? (
-              <div className="text-emerald-600 flex flex-col items-center gap-1.5 text-xs font-bold">
-                <FileCheck size={32} />
-                <span>{vcrFile.name}</span>
-                <span className="text-[9px] uppercase text-slate-500">Haz click para cambiar de archivo</span>
-              </div>
-            ) : (
-              <div className="text-slate-500 flex flex-col items-center gap-1.5 text-xs font-bold">
-                <UploadCloud size={32} className="text-slate-400" />
-                <span>Subir o arrastrar comprobante</span>
-                <span className="text-[9px] uppercase text-slate-450">Soporta imagen o PDF</span>
-              </div>
-            )}
+            <div className="text-slate-500 flex flex-col items-center gap-1.5 text-xs font-bold">
+              <UploadCloud size={32} className="text-slate-400" />
+              <span>Adjuntar o arrastrar comprobantes</span>
+              <span className="text-[9px] uppercase text-slate-450">Soporta múltiples imágenes o PDF</span>
+            </div>
           </label>
+
+          {/* List of uploaded files */}
+          {vcrFiles.length > 0 && (
+            <div className="space-y-1.5 mt-2 max-h-[150px] overflow-y-auto scrollbar-thin">
+              {vcrFiles.map((vcr, idx) => (
+                <div key={idx} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileCheck size={14} className="text-emerald-600 shrink-0" />
+                    <span className="truncate pr-2">{vcr.file.name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeVcrFile(idx)}
+                    className="text-rose-500 hover:text-rose-700 font-black cursor-pointer bg-transparent border-none px-1"
+                    title="Eliminar"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <Button

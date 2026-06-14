@@ -40,8 +40,7 @@ export const DashboardPage: React.FC = () => {
 
   // Voucher Quick Upload
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedVcrFile, setSelectedVcrFile] = useState<File | null>(null);
-  const [selectedVcrBase64, setSelectedVcrBase64] = useState("");
+  const [vcrFiles, setVcrFiles] = useState<Array<{ name: string; type: string; base64: string }>>([]);
   const [showVcrModal, setShowVcrModal] = useState(false);
   
   const [vcrClienteId, setVcrClienteId] = useState("");
@@ -63,27 +62,27 @@ export const DashboardPage: React.FC = () => {
   const handleClipboardImage = (items: DataTransferItemList | null) => {
     if (!items) return false;
 
+    let found = false;
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf("image") !== -1) {
         const file = items[i].getAsFile();
         if (file) {
-          setSelectedVcrFile(file);
+          found = true;
           const reader = new FileReader();
           reader.onloadend = () => {
-            setSelectedVcrBase64((reader.result as string).split(",")[1]);
+            const base64 = (reader.result as string).split(",")[1];
+            setVcrFiles(prev => [...prev, { name: file.name || "imagen_pegada.png", type: file.type, base64 }]);
             setShowVcrModal(true);
           };
           reader.readAsDataURL(file);
-
-          if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-          }
-          return true;
         }
       }
     }
 
-    return false;
+    if (found && fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    return found;
   };
 
   const fetchDashboardData = async () => {
@@ -209,16 +208,26 @@ export const DashboardPage: React.FC = () => {
   }, [vcrClienteId, vcrMonto]);
 
   const handleVoucherFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    setSelectedVcrFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setSelectedVcrBase64((reader.result as string).split(",")[1]);
-      setShowVcrModal(true);
-    };
-    reader.readAsDataURL(file);
+    const newVcrFiles: Array<{ name: string; type: string; base64: string }> = [];
+    let processed = 0;
+
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = (reader.result as string).split(",")[1];
+        newVcrFiles.push({ name: file.name, type: file.type, base64 });
+        processed++;
+        if (processed === files.length) {
+          setVcrFiles(prev => [...prev, ...newVcrFiles]);
+          setShowVcrModal(true);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleVcrSubmit = async (e: React.FormEvent) => {
@@ -230,25 +239,46 @@ export const DashboardPage: React.FC = () => {
 
     setVcrRegistering(true);
     try {
-      const payload = {
-        monto: round2(parseFloat(vcrMonto)),
-        metodo_pago: vcrMetodo,
-        fecha_pago: vcrFecha,
-        fileName: selectedVcrFile?.name,
-        mimeType: selectedVcrFile?.type,
-        base64Data: selectedVcrBase64 || undefined
-      };
+      // Upload all vouchers to Google Drive proactively
+      let urls: string[] = [];
+      if (vcrFiles.length > 0) {
+        const uploadPromises = vcrFiles.map(async (vcr) => {
+          const uploadRes = await fetch("/api/upload-voucher", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileName: vcr.name,
+              mimeType: vcr.type,
+              base64Data: vcr.base64
+            })
+          });
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            return uploadData.publicUrl || null;
+          }
+          return null;
+        });
+
+        const results = await Promise.all(uploadPromises);
+        urls = results.filter((url): url is string => !!url);
+      }
+
+      const comprobanteUrl = urls.length > 0 ? JSON.stringify(urls) : null;
 
       const res = await fetch(`/api/prestamos/${vcrLoanId}/pagos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          monto: round2(parseFloat(vcrMonto)),
+          metodo_pago: vcrMetodo,
+          fecha_pago: vcrFecha,
+          comprobante_url: comprobanteUrl
+        })
       });
 
       if (res.ok) {
         setShowVcrModal(false);
-        setSelectedVcrFile(null);
-        setSelectedVcrBase64("");
+        setVcrFiles([]);
         setVcrClienteId("");
         setVcrLoanId("");
         setVcrMonto("");
@@ -256,7 +286,7 @@ export const DashboardPage: React.FC = () => {
         await fetchDashboardData();
       } else {
         const errData = await res.json();
-        alert(errData.error || "Ocurrió un error al subir voucher.");
+        alert(errData.error || "Ocurrió un error al registrar el abono.");
       }
     } catch (err: any) {
       alert(err.message || "Error al conectar con el servidor.");
@@ -344,6 +374,7 @@ export const DashboardPage: React.FC = () => {
         {/* Input Oculto para Cargar Archivo de Voucher */}
         <input
           type="file"
+          multiple
           ref={fileInputRef}
           onChange={handleVoucherFileChange}
           accept="image/*,application/pdf"
@@ -452,8 +483,7 @@ export const DashboardPage: React.FC = () => {
         isOpen={showVcrModal}
         onClose={() => {
           setShowVcrModal(false);
-          setSelectedVcrFile(null);
-          setSelectedVcrBase64("");
+          setVcrFiles([]);
           setVcrClienteId("");
           setVcrLoanId("");
           setVcrMonto("");
@@ -471,30 +501,60 @@ export const DashboardPage: React.FC = () => {
           }}
         >
           {/* Vista previa del voucher */}
-          <div
-            className="flex flex-col items-center justify-center bg-slate-50 border border-slate-200 rounded-3xl p-4 min-h-[300px] cursor-pointer"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {selectedVcrFile && selectedVcrFile.type.startsWith("image/") ? (
-              <div className="flex flex-col items-center gap-2 w-full">
-                <img
-                  src={`data:${selectedVcrFile.type};base64,${selectedVcrBase64}`}
-                  alt="Comprobante cargado"
-                  className="max-w-full max-h-[290px] object-contain rounded-2xl shadow-lg cursor-pointer hover:opacity-90 transition"
-                  onClick={() => setLightboxImage(`data:${selectedVcrFile.type};base64,${selectedVcrBase64}`)}
-                />
-                <span className="text-[9px] text-indigo-700 font-extrabold uppercase tracking-wider text-center block mt-1">
-                  💡 Haz clic para ampliar · Presiona Ctrl+V para cambiar imagen
-                </span>
+          <div className="flex flex-col bg-slate-50 border border-slate-200 rounded-3xl p-5 min-h-[300px] gap-3">
+            <div className="flex justify-between items-center select-none">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Comprobantes Adjuntos ({vcrFiles.length})</span>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wider bg-transparent border-none cursor-pointer"
+              >
+                + Añadir
+              </button>
+            </div>
+
+            {vcrFiles.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3 flex-1 overflow-y-auto max-h-[320px] pr-1 scrollbar-thin">
+                {vcrFiles.map((vcr, idx) => (
+                  <div key={idx} className="bg-white border border-slate-200 rounded-2xl overflow-hidden relative group h-28 flex items-center justify-center shadow-sm hover:shadow-md transition">
+                    {vcr.type.startsWith("image/") ? (
+                      <img
+                        src={`data:${vcr.type};base64,${vcr.base64}`}
+                        alt="Voucher Preview"
+                        className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLightboxImage(`data:${vcr.type};base64,${vcr.base64}`);
+                        }}
+                      />
+                    ) : (
+                      <div className="text-[9.5px] font-black text-slate-550 text-center p-2 truncate w-full flex flex-col items-center gap-1.5">
+                        <UploadCloud size={18} className="text-slate-450" />
+                        <span className="truncate w-full block">{vcr.name}</span>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setVcrFiles(prev => prev.filter((_, i) => i !== idx));
+                      }}
+                      className="absolute top-1.5 right-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-black border-none cursor-pointer shadow-md transform active:scale-90 transition"
+                      title="Eliminar voucher"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
               </div>
             ) : (
-              <div className="text-center text-slate-500 flex flex-col items-center gap-2">
-                <UploadCloud size={48} className="text-slate-400" />
-                <span className="font-bold">Comprobante no visualizable</span>
-                <span className="text-[10px] uppercase font-bold tracking-wider">{selectedVcrFile?.name}</span>
-                <span className="text-[9px] text-indigo-700 font-extrabold uppercase tracking-wider block mt-1">
-                  📋 Presiona Ctrl+V para pegar comprobante
-                </span>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl bg-white p-6 text-center cursor-pointer hover:bg-slate-100/50 transition"
+              >
+                <UploadCloud size={32} className="text-slate-400 mb-2" />
+                <span className="font-bold text-xs text-slate-500">Sin comprobantes adjuntos</span>
+                <span className="text-[10px] text-slate-400 font-semibold mt-1">Clic para seleccionar · Ctrl+V para pegar</span>
               </div>
             )}
           </div>

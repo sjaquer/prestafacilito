@@ -1,7 +1,7 @@
 import React from "react";
 import { Terminal, Shield, Eye, FileImage, User } from "lucide-react";
 import { Card } from "../ui/Card";
-import { formatCurrency } from "../../lib/formatters";
+import { formatCurrency, parseVoucherUrls } from "../../lib/formatters";
 import { Amortizacion } from "../../types";
 import { getBancoForMetodo } from "../../lib/constants";
 
@@ -28,7 +28,15 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({
   resolveVoucherUrl,
   compact = false,
 }) => {
-  const registeredVouchers = amortizaciones.filter(a => a.comprobante_url);
+  // Flatten vouchers if there are multiple per amortizacion
+  const registeredVouchers = amortizaciones.flatMap(a => {
+    const urls = parseVoucherUrls(a.comprobante_url);
+    return urls.map((url, idx) => ({
+      ...a,
+      comprobante_url: url,
+      unique_id: `${a.id}_voucher_${idx}`
+    }));
+  });
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 select-none">
@@ -52,7 +60,7 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({
             <div className={`grid ${compact ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'} gap-3`}>
               {registeredVouchers.slice(0, compact ? 4 : 6).map((voucher) => (
                 <div 
-                  key={voucher.id}
+                  key={voucher.unique_id}
                   onClick={() => onVoucherClick(resolveVoucherUrl(voucher.comprobante_url))}
                   className="bg-slate-50/50 border border-slate-200 p-2 rounded-2xl shadow-sm hover:border-emerald-500/30 transition-all duration-300 cursor-pointer flex flex-col justify-between group overflow-hidden"
                 >

@@ -87,43 +87,50 @@ export const PrestamoDetallePage: React.FC = () => {
   };
 
   // Handle Payment Submit
+  // Handle Payment Submit
   const handleRegisterPayment = async (payload: {
     monto: number;
     metodo_pago: string;
     fecha_pago: string;
-    fileName?: string;
-    mimeType?: string;
-    base64Data?: string;
+    vouchers?: Array<{ fileName: string; mimeType: string; base64Data: string }>;
   }) => {
     if (!id) return false;
-    let url: string | null = null;
+    let urls: string[] = [];
     
-    // Proactively upload voucher if attached
-    if (payload.base64Data && payload.fileName && payload.mimeType) {
+    // Proactively upload all vouchers if attached
+    if (payload.vouchers && payload.vouchers.length > 0) {
       try {
-        const uploadRes = await fetch("/api/upload-voucher", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileName: payload.fileName,
-            mimeType: payload.mimeType,
-            base64Data: payload.base64Data
-          })
+        const uploadPromises = payload.vouchers.map(async (vcr) => {
+          const uploadRes = await fetch("/api/upload-voucher", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileName: vcr.fileName,
+              mimeType: vcr.mimeType,
+              base64Data: vcr.base64Data
+            })
+          });
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            return uploadData.publicUrl || null;
+          }
+          return null;
         });
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
-          url = uploadData.publicUrl || null;
-        }
+
+        const results = await Promise.all(uploadPromises);
+        urls = results.filter((url): url is string => !!url);
       } catch (err) {
-        console.error("Error al cargar voucher soporte:", err);
+        console.error("Error al cargar vouchers soporte:", err);
       }
     }
+    
+    const comprobanteUrl = urls.length > 0 ? JSON.stringify(urls) : null;
     
     const result = await registerPago(id, {
       monto: payload.monto,
       metodo_pago: payload.metodo_pago,
       fecha_pago: payload.fecha_pago,
-      comprobante_url: url
+      comprobante_url: comprobanteUrl
     });
     
     if (result.success) {

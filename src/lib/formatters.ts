@@ -118,3 +118,30 @@ export function getNombreUsuario(username: string | null): string {
   return nameMap[username.toLowerCase()] || "Sebastián";
 }
 
+/**
+ * Parsea un string que puede contener una URL única, una lista separada por comas, 
+ * o un array serializado en JSON con múltiples URLs de comprobantes.
+ */
+export function parseVoucherUrls(comprobanteUrl: string | null | undefined): string[] {
+  if (!comprobanteUrl) return [];
+  const trimmed = comprobanteUrl.trim();
+  if (!trimmed) return [];
+  
+  try {
+    if (trimmed.startsWith("[")) {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.map(url => String(url).trim()).filter(Boolean);
+      }
+    }
+  } catch (e) {
+    // Falla el parseo JSON, continuar con otros métodos
+  }
+
+  if (trimmed.includes(",")) {
+    return trimmed.split(",").map(url => url.trim()).filter(Boolean);
+  }
+
+  return [trimmed];
+}
+
