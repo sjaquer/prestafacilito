@@ -32,6 +32,7 @@ export const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [syncingCalendar, setSyncingCalendar] = useState(false);
   const [syncResult, setSyncResult] = useState<any>(null);
+  const [driveStatus, setDriveStatus] = useState<any>(null);
 
   // Modales
   const [showNewLoanModal, setShowNewLoanModal] = useState(false);
@@ -87,10 +88,11 @@ export const DashboardPage: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [dashRes, amortList, logsRes] = await Promise.all([
+      const [dashRes, amortList, logsRes, driveRes] = await Promise.all([
         fetch("/api/dashboard"),
         fetchAmortizaciones(),
-        fetch("/api/logs")
+        fetch("/api/logs"),
+        fetch("/api/drive/status")
       ]);
 
       if (dashRes.ok) {
@@ -104,6 +106,11 @@ export const DashboardPage: React.FC = () => {
       if (logsRes.ok) {
         const logsData = await logsRes.json();
         setLogs(logsData || []);
+      }
+
+      if (driveRes.ok) {
+        const driveData = await driveRes.json();
+        setDriveStatus(driveData);
       }
     } catch (err) {
       console.error("Error al cargar dashboard:", err);
@@ -365,6 +372,30 @@ export const DashboardPage: React.FC = () => {
             className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-200 p-0.5 cursor-pointer border-none bg-transparent"
           >
             ✕
+          </button>
+        </div>
+      )}
+
+      {driveStatus && !driveStatus.configured && (
+        <div className="bg-amber-500/10 border border-amber-500/20 text-amber-300 p-4 rounded-2xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fadeIn">
+          <div className="flex items-start gap-2.5">
+            <ShieldAlert className="shrink-0 text-amber-400 mt-0.5" size={18} />
+            <div>
+              <span className="font-bold block text-sm">Google Drive Desconectado / Error de Token</span>
+              <span className="opacity-90 leading-normal mt-0.5 block">
+                {driveStatus.message || "El token de acceso ha expirado o no está configurado. La subida de comprobantes y la sincronización con Google Calendar/Drive fallará."}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm("¿Deseas iniciar sesión con Google para conectar Drive?")) {
+                window.location.href = "/api/auth/google/login";
+              }
+            }}
+            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-[#0c1020] font-black rounded-xl transition duration-150 text-xs shrink-0 select-none cursor-pointer border-none"
+          >
+            Conectar Google Drive
           </button>
         </div>
       )}

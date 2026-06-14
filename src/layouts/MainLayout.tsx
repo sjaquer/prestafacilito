@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, 
@@ -7,7 +7,9 @@ import {
   Coins, 
   LogOut,
   Briefcase,
-  Terminal
+  Terminal,
+  Cloud,
+  CloudOff
 } from "lucide-react";
 import { FontSizeControl } from "../components/common/FontSizeControl";
 
@@ -20,6 +22,34 @@ interface MainLayoutProps {
 export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
   const location = useLocation();
   const navigate = useNavigate();
+
+  const [driveConfigured, setDriveConfigured] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const checkDriveStatus = async () => {
+      try {
+        const res = await fetch("/api/drive/status");
+        if (res.ok && active) {
+          const data = await res.json();
+          setDriveConfigured(data.configured);
+        } else if (active) {
+          setDriveConfigured(false);
+        }
+      } catch {
+        if (active) setDriveConfigured(false);
+      }
+    };
+    checkDriveStatus();
+    
+    // Interval check every 30 seconds
+    const interval = setInterval(checkDriveStatus, 30000);
+    
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const navItems = [
     {
@@ -126,6 +156,56 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
             >
               {/* Aa Zoom Control */}
               <FontSizeControl />
+
+              <div className="w-px h-5 bg-white/[0.08] hidden sm:block" />
+
+              {/* Google Drive Status Indicator & Reconnect Link */}
+              <div 
+                id="drive-status-indicator"
+                className="flex items-center gap-1.5 bg-white/[0.03] border border-white/[0.08] px-2.5 py-1 rounded-xl select-none"
+              >
+                {driveConfigured === null ? (
+                  <Cloud className="text-slate-500 animate-pulse" size={14} />
+                ) : driveConfigured ? (
+                  <Cloud className="text-emerald-450" size={14} />
+                ) : (
+                  <CloudOff className="text-amber-500 animate-pulse" size={14} />
+                )}
+
+                <span className={`relative flex h-2 w-2`}>
+                  {driveConfigured === null ? (
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-500 animate-pulse" />
+                  ) : driveConfigured ? (
+                    <>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-450 opacity-70" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-450 opacity-70" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                    </>
+                  )}
+                </span>
+                
+                <span className="text-[10px] font-bold text-slate-400 hidden md:inline">
+                  {driveConfigured === null ? "Drive..." : driveConfigured ? "Drive Activo" : "Drive Error"}
+                </span>
+
+                <button
+                  onClick={() => {
+                    if (window.confirm("¿Deseas volver a iniciar sesión con Google para conectar Drive?")) {
+                      window.location.href = "/api/auth/google/login";
+                    }
+                  }}
+                  title="Conectar o volver a vincular Google Drive"
+                  className="p-0.5 hover:bg-white/10 rounded text-slate-400 hover:text-white transition cursor-pointer border-none bg-transparent flex items-center justify-center ml-0.5"
+                >
+                  <span className="text-[9px] font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-wider px-1">
+                    {driveConfigured ? "Reconectar" : "Conectar"}
+                  </span>
+                </button>
+              </div>
 
               <div className="w-px h-5 bg-white/[0.08] hidden sm:block" />
 

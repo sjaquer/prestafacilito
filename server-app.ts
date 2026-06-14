@@ -54,7 +54,7 @@ async function uploadVoucherToDrive(fileName: string, mimeType: string, buffer: 
   const folderId = getDriveFolderId();
   const uniqueName = `${Date.now()}-${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
   const boundary = `----prestafacilito-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  
+
   const metadata: Record<string, unknown> = {
     name: uniqueName
   };
@@ -293,7 +293,7 @@ async function syncLoanScheduleToGoogleCalendar(prestamoId: string) {
     const toDelete = existingEvents.filter((e: any) => !newCuotasNums.includes(e.numero));
     for (const d of toDelete) {
       if (d.eventId) {
-        await deleteGoogleCalendarEvent(d.eventId).catch(err => 
+        await deleteGoogleCalendarEvent(d.eventId).catch(err =>
           console.error("Error al borrar evento de calendario sobrante:", err)
         );
       }
@@ -441,19 +441,19 @@ async function uploadDocumentToDrive(fileName: string, mimeType: string, buffer:
  */
 function detectarGenero(nombreCompleto: string): 'SR.' | 'SRA.' {
   const NOMBRES_FEMENINOS = new Set([
-    'maria','ana','lucia','sofia','elena','carmen','rosa','claudia','andrea','patricia',
-    'laura','diana','gloria','monica','sandra','alejandra','valentina','gabriela','lorena',
-    'jessica','vanessa','adriana','paola','natalia','carolina','fernanda','daniela','sara',
-    'isabel','pilar','julia','alicia','beatriz','cristina','irene','mariana','raquel',
-    'silvia','yolanda','angela','consuelo','esperanza','graciela','luz','mercedes','norma',
-    'olga','rebeca','susana','veronica','wendy','xiomara','yasmin','zoraida','pamela',
-    'karina','brenda','gisela','rocio','miriam','nancy','marisol','milagros','flor',
-    'liliana','estela','rosa','cecilia','catalina','evelyn','fabiola','helen','iliana'
+    'maria', 'ana', 'lucia', 'sofia', 'elena', 'carmen', 'rosa', 'claudia', 'andrea', 'patricia',
+    'laura', 'diana', 'gloria', 'monica', 'sandra', 'alejandra', 'valentina', 'gabriela', 'lorena',
+    'jessica', 'vanessa', 'adriana', 'paola', 'natalia', 'carolina', 'fernanda', 'daniela', 'sara',
+    'isabel', 'pilar', 'julia', 'alicia', 'beatriz', 'cristina', 'irene', 'mariana', 'raquel',
+    'silvia', 'yolanda', 'angela', 'consuelo', 'esperanza', 'graciela', 'luz', 'mercedes', 'norma',
+    'olga', 'rebeca', 'susana', 'veronica', 'wendy', 'xiomara', 'yasmin', 'zoraida', 'pamela',
+    'karina', 'brenda', 'gisela', 'rocio', 'miriam', 'nancy', 'marisol', 'milagros', 'flor',
+    'liliana', 'estela', 'rosa', 'cecilia', 'catalina', 'evelyn', 'fabiola', 'helen', 'iliana'
   ]);
-  
+
   const primerNombre = nombreCompleto.trim().split(/\s+/)[0].toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  
+
   return NOMBRES_FEMENINOS.has(primerNombre) ? 'SRA.' : 'SR.';
 }
 
@@ -553,21 +553,21 @@ const app = express();
 app.use((req, res, next) => {
   // 1. Desactivar indexación por completo en motores de búsqueda (Google, Bing, etc.)
   res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet, noodp, noydir");
-  
+
   // 2. Prevenir clickjacking
   res.setHeader("X-Frame-Options", "DENY");
-  
+
   // 3. Prevenir sniffing de tipo MIME
   res.setHeader("X-Content-Type-Options", "nosniff");
-  
+
   // 4. Referrer Policy ultra-segura para sistema cerrado
   res.setHeader("Referrer-Policy", "no-referrer");
-  
+
   // 5. Cache-Control estricto para evitar almacenamiento de datos financieros confidenciales
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.setHeader("Pragma", "no-cache");
   res.setHeader("Expires", "0");
-  
+
   // 6. Content Security Policy (CSP) adaptada al sistema
   res.setHeader(
     "Content-Security-Policy",
@@ -579,7 +579,7 @@ app.use((req, res, next) => {
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.googleapis.com; " +
     "frame-src 'self' https://docs.google.com https://drive.google.com;"
   );
-  
+
   next();
 });
 
@@ -632,9 +632,9 @@ app.post("/api/auth/login", async (req, res) => {
 
   const cleanUser = username.trim().toLowerCase();
   const expectedPin = getPinForUser(cleanUser);
-  
-  const isValid = (expectedPin && password === expectedPin) || 
-                  (cleanUser === getAdminUser().toLowerCase() && password === getAdminPass());
+
+  const isValid = (expectedPin && password === expectedPin) ||
+    (cleanUser === getAdminUser().toLowerCase() && password === getAdminPass());
 
   if (isValid) {
     const token = jwt.sign({ username: cleanUser }, getJwtSecret(), { expiresIn: "24h" });
@@ -749,7 +749,7 @@ app.post("/api/initialize-sheets", requireAuth, async (req, res) => {
   try {
     const { error } = await supabase.from("clientes").select("id").limit(1);
     if (error) throw error;
-    
+
     const username = (req as any).user.username;
     await logAction(username, "CONECTAR_SUPABASE", "Conexión a base de datos Supabase verificada de forma manual.", req);
     res.json({ success: true, message: "Conexión con Supabase verificada correctamente." });
@@ -766,9 +766,9 @@ app.post("/api/seed", requireAuth, async (req, res) => {
     if (checkErr) throw checkErr;
 
     if (existing && existing.length > 0) {
-      res.json({ 
-        success: false, 
-        message: "La base de datos ya contiene registros. Se omitió la siembra para evitar duplicados." 
+      res.json({
+        success: false,
+        message: "La base de datos ya contiene registros. Se omitió la siembra para evitar duplicados."
       });
       return;
     }
@@ -871,9 +871,9 @@ app.post("/api/seed", requireAuth, async (req, res) => {
     const username = (req as any).user.username;
     await logAction(username, "SEMBRAR_DATOS", "Se sembró la base de datos Supabase con clientes, préstamos y amortizaciones de ejemplo.", req);
 
-    res.json({ 
-      success: true, 
-      message: "¡Siembra de datos exitosa en Supabase! Se crearon 3 Clientes, 3 Préstamos y 2 Amortizaciones." 
+    res.json({
+      success: true,
+      message: "¡Siembra de datos exitosa en Supabase! Se crearon 3 Clientes, 3 Préstamos y 2 Amortizaciones."
     });
   } catch (err: any) {
     console.error("Error al sembrar datos:", err);
@@ -957,7 +957,7 @@ app.get("/api/clientes", requireAuth, async (req, res) => {
 app.post("/api/clientes", requireAuth, async (req, res) => {
   try {
     const { nombre_completo, telefono, observaciones, direccion, numero_cuenta, banco_cuenta, informacion_adicional } = req.body;
-    
+
     if (!nombre_completo) {
       res.status(400).json({ error: "El nombre completo es requerido" });
       return;
@@ -995,8 +995,8 @@ app.post("/api/clientes", requireAuth, async (req, res) => {
 
     const username = (req as any).user.username;
     await logAction(
-      username, 
-      "CREAR_CLIENTE", 
+      username,
+      "CREAR_CLIENTE",
       `Se registró al cliente: ${nombre_completo} (Tel: ${telSanitized})`,
       req,
       { cliente_id: data.id }
@@ -1317,12 +1317,12 @@ app.post("/api/prestamos/:id/pagos", requireAuth, async (req, res) => {
     const pagosAnteriores = aRes.data || [];
     const ajustes = ajRes.data || [];
     const deudaAntes = buildPaymentSchedule(prestamo, pagosAnteriores, ajustes, new Date(fecha_pago || new Date()));
-    
+
     if (montoPago > deudaAntes.resumen.saldoPendiente + 0.01) {
       res.status(400).json({ error: `El monto del pago excede el saldo pendiente actual (S/. ${deudaAntes.resumen.saldoPendiente.toFixed(2)})` });
       return;
     }
-    
+
     const clasificacionAutomatica = classifyPayment(montoPago, deudaAntes);
     const excedenteAplicado = Math.max(0, montoPago - deudaAntes.resumen.totalExigible);
 
@@ -1622,7 +1622,7 @@ app.get("/api/vouchers/proxy/:fileId", requireAuth, async (req, res) => {
     const contentType = driveRes.headers.get("content-type") || "image/jpeg";
     res.setHeader("Content-Type", contentType);
     res.setHeader("Cache-Control", "public, max-age=86400"); // Cache de 1 día
-    
+
     // Obtener los datos del buffer de respuesta y enviarlos
     const arrayBuffer = await driveRes.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -1699,7 +1699,7 @@ const getRedirectUri = (req: express.Request) => {
 app.get("/api/auth/google/login", (req, res) => {
   const clientId = getGoogleClientId();
   const clientSecret = getGoogleClientSecret();
-  
+
   if (!clientId || !clientSecret) {
     res.status(400).send("Faltan GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET en tu archivo .env");
     return;
@@ -1707,7 +1707,7 @@ app.get("/api/auth/google/login", (req, res) => {
 
   const redirectUri = getRedirectUri(req);
   const oauth2Client = new OAuth2Client(clientId, clientSecret, redirectUri);
-  
+
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: "offline",
     scope: [
@@ -1771,6 +1771,8 @@ app.get("/api/auth/google/callback", async (req, res) => {
         fs.writeFileSync(envPath, envContent, "utf8");
         envWriteStatus = "¡Guardado automáticamente en tu archivo <code>.env</code>!";
       }
+      // Actualizar la variable en memoria para evitar requerir reinicio del servidor
+      process.env.GOOGLE_REFRESH_TOKEN = refreshToken;
     } catch (fsErr: any) {
       console.warn("No se pudo escribir en el archivo .env:", fsErr);
     }
@@ -1843,7 +1845,7 @@ app.post("/api/ai/reporte-gerencial", requireAuth, async (req, res) => {
 
     // 2. Procesar métricas agregadas en NodeJS
     const totalCapital = prestamos.reduce((sum, p) => sum + (parseFloat(p.monto_capital) || 0), 0);
-    
+
     let totalExigible = 0;
     for (const p of prestamos) {
       const pagosDelPrestamo = amortizaciones.filter(a => a.prestamo_id === p.id);
@@ -1903,7 +1905,7 @@ app.post("/api/ai/reporte-gerencial", requireAuth, async (req, res) => {
       // Retorno de contingencia inteligente (Mock Corporativo muy detallado)
       const fechaLat = new Date().toLocaleDateString("es-PE", { day: "numeric", month: "long", year: "numeric" });
       const morosidadCalc = prestamosActivos.length > 0 ? Math.round((prestamosVencidos.length / prestamosActivos.length) * 100) : 0;
-      
+
       return res.json({
         fechaReporte: fechaLat,
         saludFinanciera: `El negocio PrestaFacilito muestra un nivel de liquidez aceptable con un total amortizado de S/. ${totalRecuperado.toFixed(2)}. Sin embargo, mantener S/. ${saldoPendiente.toFixed(2)} por cobrar requiere una vigilancia constante de la cartera activa.`,
@@ -2334,7 +2336,7 @@ app.get("/api/documentos/proxy/:fileId", requireAuth, async (req, res) => {
     const contentType = driveRes.headers.get('content-type') || 'application/octet-stream';
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=86400');
-    
+
     const arrayBuffer = await driveRes.arrayBuffer();
     res.send(Buffer.from(arrayBuffer));
   } catch (err: any) {
@@ -2418,9 +2420,9 @@ app.post("/api/calendar/sync-month", requireAuth, async (req, res) => {
     const loanEventsToDelete = events.filter((event: any) => {
       const summary = event.summary || "";
       const description = event.description || "";
-      
+
       const hasPrestaFacilitoDesc = description.includes("PrestaFacilito");
-      const hasPrefix = 
+      const hasPrefix =
         summary.startsWith("🔔 [PENDIENTE]") ||
         summary.startsWith("✅ [PAGADO]") ||
         summary.startsWith("🔶 [PARCIAL]") ||
@@ -2485,7 +2487,7 @@ app.post("/api/calendar/sync-month", requireAuth, async (req, res) => {
             const isPastMonth = cuota.fechaVencimiento >= pastStart && cuota.fechaVencimiento <= pastEnd;
 
             const existing = existingEvents.find((e: any) => e.numero === cuota.numero);
-            
+
             if (isCurrentMonth) {
               // Sincronizar cuota de mes actual
               let colorId = "5"; // Yellow (Banana) - Pendiente por defecto
