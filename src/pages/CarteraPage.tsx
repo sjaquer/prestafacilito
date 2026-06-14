@@ -1,13 +1,14 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { MessageSquare, Bell, ArrowUpRight, Search, FileDown, Info, Calendar, Briefcase, Filter, X, Edit, Landmark, Target, Activity, AlertTriangle } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { MessageSquare, Bell, ArrowUpRight, Search, FileDown, Info, Calendar, Briefcase, Filter, X, Edit, Landmark, Target, Activity, AlertTriangle, MoreHorizontal } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { DataTable, ColumnDef } from "../components/ui/DataTable";
-import { formatCurrency, formatDateWithDay, round2, getNombreUsuario } from "../lib/formatters";
+import { formatCurrency, formatDateWithDay, formatDateShort, round2, getNombreUsuario } from "../lib/formatters";
 import { usePrestamos } from "../hooks/usePrestamos";
 import { useClientes } from "../hooks/useClientes";
 import { useAuth } from "../hooks/useAuth";
@@ -15,10 +16,13 @@ import { usePagos } from "../hooks/usePagos";
 import { calcularEstadoMora } from "../lib/moraLogic";
 
 export const CarteraPage: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { clientes } = useClientes();
   const { updatePrestamo } = usePrestamos();
   const { fetchAmortizaciones } = usePagos();
+
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   const [prestamos, setPrestamos] = useState<any[]>([]);
   const [amortizaciones, setAmortizaciones] = useState<any[]>([]);
@@ -699,7 +703,7 @@ export const CarteraPage: React.FC = () => {
       </div>
 
       {/* MINI-KPI CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KPI 1 */}
         <Card variant="bento" className="relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-1 h-full bg-indigo-600" />
@@ -771,8 +775,8 @@ export const CarteraPage: React.FC = () => {
 
       {/* TABLA PRINCIPAL Y FILTROS */}
       <Card variant="simple" className="flex flex-col">
-        {/* BARRA DE HERRAMIENTAS */}
-        <div className="p-1 border-b border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 select-none">
+        {/* BARRA DE HERRAMIENTAS - ESCRITORIO */}
+        <div className="hidden md:flex p-1 border-b border-slate-200/80 flex-row items-center justify-between gap-4 pb-4 select-none">
           <div className="flex-1 max-w-md relative">
             <Search className="absolute left-3.5 top-3.5 text-slate-400" size={16} />
             <input
@@ -840,9 +844,47 @@ export const CarteraPage: React.FC = () => {
           </div>
         </div>
 
-        {/* PANEL DE FILTROS AVANZADOS EXPANDIBLE */}
+        {/* BARRA DE HERRAMIENTAS - MÓVIL */}
+        <div className="md:hidden flex items-center gap-2 w-full pb-3 border-b border-slate-100 select-none">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3.5 top-3 text-slate-400" size={15} />
+            <input
+              type="text"
+              placeholder="Buscar prestatario o categoría..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="glass-input pl-9 pr-3 h-10 w-full bg-white border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:border-indigo-500"
+            />
+          </div>
+          <button
+            onClick={() => setShowMobileFilters(true)}
+            className={`flex items-center justify-center h-10 w-10 border rounded-xl relative cursor-pointer ${
+              filterEstado !== "todos" || filterTipo !== "todos" || fechaMin || fechaMax || montoMin || montoMax
+                ? "bg-indigo-650 border-indigo-600 text-white shadow-sm"
+                : "bg-white border-slate-200 text-slate-600"
+            }`}
+          >
+            <Filter size={15} />
+            {(filterEstado !== "todos" || filterTipo !== "todos" || fechaMin || fechaMax || montoMin || montoMax) && (
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-rose-500 border border-white text-[8px] font-black flex items-center justify-center text-white">
+                !
+              </span>
+            )}
+          </button>
+          {(filterEstado !== "todos" || filterTipo !== "todos" || fechaMin || fechaMax || montoMin || montoMax || searchTerm) && (
+            <button
+              onClick={clearFilters}
+              className="flex items-center justify-center h-10 w-10 bg-white border border-slate-200 text-rose-600 rounded-xl cursor-pointer"
+              title="Limpiar filtros"
+            >
+              <X size={15} />
+            </button>
+          )}
+        </div>
+
+        {/* PANEL DE FILTROS AVANZADOS EXPANDIBLE - ESCRITORIO */}
         {showFiltersPanel && (
-          <div className="p-4 bg-slate-50/50 border-b border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 animate-fadeIn select-none">
+          <div className="hidden md:grid p-4 bg-slate-50/50 border-b border-slate-200/80 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 animate-fadeIn select-none">
             {/* Filtro por Categoría */}
             <div className="space-y-1.5">
               <label className="text-[9.5px] font-black text-slate-500 uppercase tracking-widest block">Categoría de Crédito</label>
@@ -904,8 +946,8 @@ export const CarteraPage: React.FC = () => {
           </div>
         )}
 
-        {/* TABLA */}
-        <div className="mt-5">
+        {/* TABLA - ESCRITORIO */}
+        <div className="hidden md:block mt-5">
           <DataTable
             data={filteredLoans}
             columns={columns}
@@ -915,6 +957,325 @@ export const CarteraPage: React.FC = () => {
             showSearch={false}
           />
         </div>
+
+        {/* LISTADO DE TARJETAS SWIPEABLES - MÓVIL */}
+        <div className="md:hidden space-y-3 mt-4">
+          {filteredLoans.length === 0 ? (
+            <div className="text-center py-12 text-slate-400 text-xs font-bold bg-white border border-slate-200 rounded-3xl">
+              {loading ? "Cargando base de datos..." : "No se encontraron préstamos."}
+            </div>
+          ) : (
+            filteredLoans.map((loan) => {
+              const index = prestamos.findIndex(p => p.id === loan.id);
+              const mora = estadosMora[index];
+              const remaining = getRemainingDays(loan.fecha_vencimiento);
+              
+              // Mora status calculations
+              let indicatorColor = "bg-slate-300";
+              let statusBadgeColor = "bg-slate-50 text-slate-500 border-slate-200";
+              let statusLabel = "Sin cuotas";
+              
+              if (loan.estado === "pagado") {
+                indicatorColor = "bg-slate-350";
+                statusBadgeColor = "bg-slate-100 text-slate-600 border-slate-250";
+                statusLabel = "Pagado";
+              } else if (mora) {
+                if (mora.estadoCuotaMes === "al_dia") {
+                  indicatorColor = "bg-emerald-500";
+                  statusBadgeColor = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                  statusLabel = "Al día";
+                } else if (mora.estadoCuotaMes === "pendiente_mes") {
+                  const dueTime = new Date(mora.fechaCuotaActual + "T00:00:00").getTime();
+                  const nowTime = today.getTime();
+                  const daysLeft = Math.max(0, Math.ceil((dueTime - nowTime) / (24 * 60 * 60 * 1000)));
+                  if (daysLeft < 7) {
+                    indicatorColor = "bg-amber-400 animate-pulse";
+                  } else {
+                    indicatorColor = "bg-blue-400";
+                  }
+                  statusBadgeColor = "bg-blue-50 text-blue-700 border-blue-200";
+                  statusLabel = "Por vencer";
+                } else if (mora.estadoCuotaMes === "mora_mes") {
+                  indicatorColor = "bg-rose-500";
+                  statusBadgeColor = "bg-amber-50 text-amber-700 border-amber-250";
+                  statusLabel = "Mora";
+                } else if (mora.estadoCuotaMes === "mora_acumulada") {
+                  indicatorColor = "bg-purple-600";
+                  statusBadgeColor = "bg-rose-50 text-rose-700 border-rose-250";
+                  statusLabel = `${mora.cuotasAtrasadas} atrasadas`;
+                }
+              }
+
+              const waLink = getWhatsAppLink(loan);
+              const recLink = getRecordatorioLink(loan);
+
+              // Vencimiento representation
+              let dueDateStr = "No est.";
+              if (loan.tipo_prestamo === "Alquiler de Casa") {
+                const day = loan.fecha_emision ? parseInt(loan.fecha_emision.split("-")[2]) : "";
+                dueDateStr = `Día ${day} de c/mes`;
+              } else if (loan.fecha_vencimiento) {
+                dueDateStr = formatDateShort(loan.fecha_vencimiento);
+              }
+
+              // Plazo restante representation
+              let remainingBadge = null;
+              if (loan.estado === "pagado") {
+                remainingBadge = <Badge variant="neutral" className="text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 bg-slate-100 text-slate-500">Liquidado</Badge>;
+              } else if (mora && mora.fechaCuotaActual) {
+                const days = Math.max(0, Math.ceil((new Date(mora.fechaCuotaActual + "T00:00:00").getTime() - today.getTime()) / (24 * 60 * 60 * 1000)));
+                const isMora = ["mora_mes", "mora_acumulada"].includes(mora.estadoCuotaMes);
+                if (isMora) {
+                  remainingBadge = <Badge variant="danger" className="text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5">Mora -{Math.abs(mora.diasAtraso)}d</Badge>;
+                } else if (days === 0) {
+                  remainingBadge = <Badge variant="warning" className="text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 animate-pulse">Vence hoy</Badge>;
+                } else if (days <= 5) {
+                  remainingBadge = <Badge variant="info" className="text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5">En {days}d</Badge>;
+                } else {
+                  remainingBadge = <Badge variant="neutral" className="text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 text-slate-550">{days}d</Badge>;
+                }
+              }
+
+              return (
+                <div key={loan.id} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 select-none min-h-[125px]">
+                  {/* ACCIONES DETRÁS (SWIPE REVEAL) */}
+                  <div className="absolute inset-0 flex items-center justify-end px-4 gap-2 bg-slate-100/80 z-0">
+                    {loan.estado === "activo" && waLink && (
+                      <a
+                        href={waLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center hover:bg-emerald-700 transition"
+                        title="Cobrar vía WhatsApp"
+                      >
+                        <MessageSquare size={16} />
+                      </a>
+                    )}
+                    {loan.estado === "activo" && recLink && (
+                      <a
+                        href={recLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center hover:bg-amber-600 transition"
+                        title="Enviar recordatorio"
+                      >
+                        <Bell size={16} />
+                      </a>
+                    )}
+                    <button
+                      onClick={(e) => handleOpenEditModal(loan, e)}
+                      className="w-10 h-10 bg-indigo-650 text-white rounded-xl flex items-center justify-center hover:bg-indigo-750 transition border-none cursor-pointer"
+                      title="Editar Parámetros"
+                    >
+                      <Edit size={16} />
+                    </button>
+                  </div>
+
+                  {/* TARJETA DELANTERA DESLIZABLE */}
+                  <motion.div
+                    drag="x"
+                    dragConstraints={{ left: -150, right: 0 }}
+                    dragElastic={0.05}
+                    dragTransition={{ bounceStiffness: 600, bounceDamping: 25 }}
+                    onTap={() => navigate(`/prestamos/${loan.id}`)}
+                    className="relative bg-white p-3.5 z-10 flex flex-col gap-2.5 border-b border-slate-200 cursor-pointer hover:bg-slate-50/50 touch-pan-y"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${indicatorColor}`} />
+                        <h4 className="font-extrabold text-slate-900 text-[13px] tracking-tight truncate max-w-[150px] leading-tight">
+                          {loan.cliente_nombre}
+                        </h4>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`badge text-[8px] font-black border ${statusBadgeColor}`}>
+                          {statusLabel}
+                        </span>
+                        {remainingBadge}
+                      </div>
+                    </div>
+
+                    {/* Fila 1: Resumen de saldos */}
+                    <div className="grid grid-cols-3 gap-2 border-b border-slate-100 pb-2.5">
+                      <div className="flex flex-col">
+                        <span className="text-[7.5px] text-slate-400 font-bold uppercase tracking-wider">Capital Inic.</span>
+                        <span className="font-financial text-slate-700 text-[11px] font-bold mt-0.5 leading-none">
+                          {formatCurrency(loan.monto_capital)}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[7.5px] text-rose-500 font-black uppercase tracking-wider">Falta Cobrar</span>
+                        <span className="font-financial text-rose-600 text-[11px] font-extrabold mt-0.5 leading-none">
+                          {mora ? formatCurrency(mora.saldoPendiente) : formatCurrency(0)}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[7.5px] text-indigo-500 font-black uppercase tracking-wider">Cuota Mín.</span>
+                        <span className="font-financial text-indigo-650 text-[11px] font-extrabold mt-0.5 leading-none">
+                          {mora ? formatCurrency(mora.estadoCuotaMes === "mora_mes" || mora.estadoCuotaMes === "mora_acumulada" ? mora.montoTotalAtrasado : mora.montoCuotaActual) : formatCurrency(0)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Fila 2: Detalles de pago y fechas */}
+                    <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-550 pt-0.5">
+                      <div>
+                        <span className="text-[7.5px] text-slate-400 font-bold uppercase block tracking-wider">Último Abono</span>
+                        <span className="font-medium text-slate-750 block leading-tight mt-0.5">
+                          {mora && mora.ultimoPagoMonto 
+                            ? `${formatCurrency(mora.ultimoPagoMonto)} (${formatDateShort(mora.ultimoPagoFecha!)})` 
+                            : "Ninguno"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[7.5px] text-slate-400 font-bold uppercase block tracking-wider">Próx. Vencimiento</span>
+                        <span className="font-mono text-slate-750 font-bold block leading-tight mt-0.5 truncate">
+                          {dueDateStr}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-[8.5px]">
+                      <span className="text-slate-450 font-bold uppercase">{loan.tipo_prestamo}</span>
+                      <div className="flex items-center gap-1 text-slate-400 font-bold">
+                        <span>Deslizar</span>
+                        <MoreHorizontal size={12} className="opacity-60" />
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* MODAL MÓVIL DE FILTROS */}
+        {showMobileFilters && (
+          <Modal
+            isOpen={showMobileFilters}
+            onClose={() => setShowMobileFilters(false)}
+            title="Filtros y Estados"
+          >
+            <div className="space-y-4 font-sans text-xs">
+              {/* Quick Status Filter (Segmented control) */}
+              <div className="space-y-1.5">
+                <label className="text-[9.5px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">
+                  Estado rápido
+                </label>
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/80">
+                  {([
+                    { value: "todos", label: "Todos" },
+                    { value: "al_dia", label: "Al día" },
+                    { value: "pendiente_mes", label: "Por vencer" },
+                    { value: "mora_mes", label: "Mora" },
+                    { value: "mora_acumulada", label: "Mora Acum." },
+                    { value: "pagado", label: "Pagados" }
+                  ] as const).map((est) => (
+                    <button
+                      type="button"
+                      key={est.value}
+                      onClick={() => setFilterEstado(est.value)}
+                      className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer border-none transition-all duration-150 ${
+                        filterEstado === est.value
+                          ? ["mora_mes", "mora_acumulada"].includes(est.value)
+                            ? "bg-rose-600 text-white shadow-sm"
+                            : est.value === "pagado"
+                            ? "bg-slate-700 text-white"
+                            : "bg-indigo-650 text-white shadow-md"
+                          : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      {est.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Categoría */}
+              <div className="space-y-1.5">
+                <label className="text-[9.5px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">
+                  Categoría de Crédito
+                </label>
+                <select
+                  value={filterTipo}
+                  onChange={(e) => setFilterTipo(e.target.value)}
+                  className="glass-input w-full px-3 h-11 rounded-xl border border-slate-200 bg-white text-slate-800 text-xs font-bold cursor-pointer"
+                >
+                  <option value="todos">Todas las categorías</option>
+                  {loanTypes.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Rango de Emisión */}
+              <div className="space-y-1.5">
+                <label className="text-[9.5px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">
+                  Rango de Emisión (Fecha)
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    value={fechaMin}
+                    onChange={(e) => setFechaMin(e.target.value)}
+                    className="glass-input px-3 h-11 rounded-xl border border-slate-200 bg-white text-slate-800 text-xs font-bold"
+                  />
+                  <input
+                    type="date"
+                    value={fechaMax}
+                    onChange={(e) => setFechaMax(e.target.value)}
+                    className="glass-input px-3 h-11 rounded-xl border border-slate-200 bg-white text-slate-800 text-xs font-bold"
+                  />
+                </div>
+              </div>
+
+              {/* Monto Capital */}
+              <div className="space-y-1.5">
+                <label className="text-[9.5px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">
+                  Monto Capital (S/.)
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    placeholder="Mínimo"
+                    value={montoMin}
+                    onChange={(e) => setMontoMin(e.target.value)}
+                    className="glass-input px-3 h-11 rounded-xl border border-slate-200 bg-white text-slate-800 text-xs font-bold"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Máximo"
+                    value={montoMax}
+                    onChange={(e) => setMontoMax(e.target.value)}
+                    className="glass-input px-3 h-11 rounded-xl border border-slate-200 bg-white text-slate-800 text-xs font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-3 border-t border-slate-100 justify-end">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    clearFilters();
+                    setShowMobileFilters(false);
+                  }}
+                  className="h-11 text-rose-600 border border-slate-200 bg-white font-bold text-xs"
+                >
+                  Limpiar todo
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={() => setShowMobileFilters(false)}
+                  className="h-11 font-bold text-xs px-5"
+                >
+                  Aplicar Filtros
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        )}
       </Card>
 
       {/* EDIT LOAN MODAL */}

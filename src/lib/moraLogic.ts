@@ -11,6 +11,9 @@ export interface EstadoMoraCliente {
   fechaCuotaActual: string;
   diasAtraso: number;
   montoTotalAtrasado: number;
+  saldoPendiente: number;
+  ultimoPagoFecha?: string;
+  ultimoPagoMonto?: number;
 }
 
 export function calcularEstadoMora(
@@ -25,6 +28,10 @@ export function calcularEstadoMora(
   const schedule = buildPaymentSchedule(prestamo, pagosDelPrestamo, [], hoy);
   const cuotas = schedule.cuotas;
 
+  // Buscar último pago registrado
+  const pagosSorted = [...pagosDelPrestamo].sort((a, b) => new Date(a.fecha_pago).getTime() - new Date(b.fecha_pago).getTime());
+  const ultimoPago = pagosSorted[pagosSorted.length - 1] || null;
+
   if (cuotas.length === 0) {
     return {
       prestamoId: prestamo.id,
@@ -34,7 +41,10 @@ export function calcularEstadoMora(
       montoCuotaActual: 0,
       fechaCuotaActual: "",
       diasAtraso: 0,
-      montoTotalAtrasado: 0
+      montoTotalAtrasado: 0,
+      saldoPendiente: 0,
+      ultimoPagoFecha: ultimoPago?.fecha_pago,
+      ultimoPagoMonto: ultimoPago ? Number(ultimoPago.monto) : undefined
     };
   }
 
@@ -73,6 +83,9 @@ export function calcularEstadoMora(
     montoCuotaActual: cuotaActual ? cuotaActual.montoExigible || 0 : 0,
     fechaCuotaActual: cuotaActual?.fechaVencimiento || "",
     diasAtraso,
-    montoTotalAtrasado
+    montoTotalAtrasado,
+    saldoPendiente: schedule.resumen.saldoPendiente || 0,
+    ultimoPagoFecha: ultimoPago?.fecha_pago,
+    ultimoPagoMonto: ultimoPago ? Number(ultimoPago.monto) : undefined
   };
 }
