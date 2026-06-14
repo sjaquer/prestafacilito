@@ -139,18 +139,7 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
                               </button>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-1.5 group/date">
-                              <span>{formatDateShort(pago.fecha_pago)}</span>
-                              {onUpdateFechaPago && (
-                                <button
-                                  onClick={() => startEdit(pago)}
-                                  className="opacity-0 group-hover/date:opacity-100 focus:opacity-100 text-indigo-600 hover:text-indigo-800 p-1 hover:bg-indigo-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center justify-center"
-                                  title="Editar fecha de pago"
-                                >
-                                  <Calendar size={12} />
-                                </button>
-                              )}
-                            </div>
+                            <span>{formatDateShort(pago.fecha_pago)}</span>
                           )}
                         </td>
                         <td className="px-4 py-3 uppercase">
@@ -181,6 +170,15 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
                         {/* Compartir recibo */}
                         <td className="px-4 py-3 text-right">
                           <div className="flex justify-end gap-1.5">
+                            {onUpdateFechaPago && !isEditing && (
+                              <button
+                                onClick={() => startEdit(pago)}
+                                className="text-indigo-600 hover:text-indigo-800 p-1 hover:bg-indigo-50 rounded-lg transition border-none bg-transparent cursor-pointer"
+                                title="Editar fecha de abono"
+                              >
+                                <Calendar size={13} />
+                              </button>
+                            )}
                             <button
                               onClick={() => onVoucherClick(pago)}
                               className="text-slate-500 hover:text-slate-800 p-1 hover:bg-slate-50 rounded-lg transition border-none bg-transparent cursor-pointer"
@@ -246,20 +244,9 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
                           </button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] text-slate-550 font-mono">
-                            {formatDateShort(pago.fecha_pago)}
-                          </span>
-                          {onUpdateFechaPago && (
-                            <button
-                              onClick={() => startEdit(pago)}
-                              className="text-indigo-600 hover:text-indigo-800 p-1 hover:bg-indigo-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center justify-center"
-                              title="Editar fecha de pago"
-                            >
-                              <Calendar size={11} />
-                            </button>
-                          )}
-                        </div>
+                        <span className="text-[10px] text-slate-550 font-mono">
+                          {formatDateShort(pago.fecha_pago)}
+                        </span>
                       )}
                       <span className="text-emerald-700 font-mono font-extrabold text-sm">
                         {formatCurrency(pago.monto)}
@@ -287,6 +274,16 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {onUpdateFechaPago && editingPagoId !== pago.id && (
+                          <button
+                            onClick={() => startEdit(pago)}
+                            className="text-indigo-650 hover:text-indigo-850 p-1 hover:bg-indigo-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center gap-1 font-bold"
+                            title="Editar fecha de abono"
+                          >
+                            <Calendar size={12} />
+                            <span>Fecha</span>
+                          </button>
+                        )}
                         <button
                           onClick={() => onVoucherClick(pago)}
                           className="text-slate-500 hover:text-slate-800 p-1 hover:bg-slate-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center gap-1 font-bold"
