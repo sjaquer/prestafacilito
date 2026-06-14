@@ -1,5 +1,5 @@
-import React from "react";
-import { MessageSquare, Eye, FileText, Image } from "lucide-react";
+import React, { useState } from "react";
+import { MessageSquare, Eye, FileText, Image, Calendar, Check, X } from "lucide-react";
 import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
@@ -12,6 +12,7 @@ interface PaymentHistoryProps {
   onVoucherClick: (pago: any) => void;
   onViewComprobante: (url: string) => void;
   resolveVoucherUrl: (url: string | null | undefined) => string;
+  onUpdateFechaPago?: (pagoId: string, nuevaFecha: string) => Promise<boolean>;
 }
 
 export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
@@ -20,7 +21,39 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
   onVoucherClick,
   onViewComprobante,
   resolveVoucherUrl,
+  onUpdateFechaPago,
 }) => {
+  const [editingPagoId, setEditingPagoId] = useState<string | null>(null);
+  const [editFecha, setEditFecha] = useState<string>("");
+  const [saving, setSaving] = useState<boolean>(false);
+
+  const startEdit = (pago: Amortizacion) => {
+    setEditingPagoId(pago.id);
+    setEditFecha(pago.fecha_pago ? pago.fecha_pago.split("T")[0] : "");
+  };
+
+  const handleSave = async (pagoId: string) => {
+    if (!editFecha) return;
+    if (!onUpdateFechaPago) return;
+
+    const confirmSave = window.confirm(
+      "⚠️ ¿Estás seguro de cambiar la fecha de pago? Esto recalculará los intereses y la mora del préstamo de forma permanente."
+    );
+    if (!confirmSave) return;
+
+    setSaving(true);
+    try {
+      const success = await onUpdateFechaPago(pagoId, editFecha);
+      if (success) {
+        setEditingPagoId(null);
+      }
+    } catch (err) {
+      console.error("Error al actualizar la fecha:", err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const isAlquiler = prestamo.tipo_prestamo === "Alquiler de Casa";
   const getWhatsAppShare = (pago: any) => {
     const phone = prestamo.cliente_telefono?.replace(/\D/g, "").trim();
@@ -70,11 +103,55 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
                   {pagos.map((pago) => {
                     const waShare = getWhatsAppShare(pago);
                     const hasVoucher = !!pago.comprobante_url;
+                    const isEditing = editingPagoId === pago.id;
                     
                     return (
                       <tr key={pago.id} className="hover:bg-slate-50/50 transition duration-150">
                         <td className="px-4 py-3 font-mono">
-                          {formatDateShort(pago.fecha_pago)}
+                          {isEditing ? (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="date"
+                                value={editFecha}
+                                onChange={(e) => setEditFecha(e.target.value)}
+                                disabled={saving}
+                                className="bg-white border border-slate-250 rounded px-1.5 py-0.5 text-xs font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              />
+                              <button
+                                onClick={() => handleSave(pago.id)}
+                                disabled={saving}
+                                className="text-emerald-600 hover:text-emerald-800 p-1 hover:bg-emerald-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center justify-center"
+                                title="Guardar fecha"
+                              >
+                                {saving ? (
+                                  <span className="w-3.5 h-3.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <Check size={13} />
+                                )}
+                              </button>
+                              <button
+                                onClick={() => setEditingPagoId(null)}
+                                disabled={saving}
+                                className="text-rose-600 hover:text-rose-800 p-1 hover:bg-rose-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center justify-center"
+                                title="Cancelar"
+                              >
+                                <X size={13} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 group/date">
+                              <span>{formatDateShort(pago.fecha_pago)}</span>
+                              {onUpdateFechaPago && (
+                                <button
+                                  onClick={() => startEdit(pago)}
+                                  className="opacity-0 group-hover/date:opacity-100 focus:opacity-100 text-indigo-600 hover:text-indigo-800 p-1 hover:bg-indigo-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center justify-center"
+                                  title="Editar fecha de pago"
+                                >
+                                  <Calendar size={12} />
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3 uppercase">
                           {pago.metodo_pago}
@@ -140,9 +217,50 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
                 return (
                   <div key={pago.id} className="bg-slate-50/50 border border-slate-200 rounded-2xl p-4 space-y-2 text-xs font-semibold">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] text-slate-550 font-mono">
-                        {formatDateShort(pago.fecha_pago)}
-                      </span>
+                      {editingPagoId === pago.id ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="date"
+                            value={editFecha}
+                            onChange={(e) => setEditFecha(e.target.value)}
+                            disabled={saving}
+                            className="bg-white border border-slate-250 rounded px-1.5 py-0.5 text-[10px] font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                          <button
+                            onClick={() => handleSave(pago.id)}
+                            disabled={saving}
+                            className="text-emerald-600 hover:text-emerald-800 p-1 hover:bg-emerald-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center justify-center"
+                          >
+                            {saving ? (
+                              <span className="w-3 h-3 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Check size={12} />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setEditingPagoId(null)}
+                            disabled={saving}
+                            className="text-rose-600 hover:text-rose-800 p-1 hover:bg-rose-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center justify-center"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-slate-550 font-mono">
+                            {formatDateShort(pago.fecha_pago)}
+                          </span>
+                          {onUpdateFechaPago && (
+                            <button
+                              onClick={() => startEdit(pago)}
+                              className="text-indigo-600 hover:text-indigo-800 p-1 hover:bg-indigo-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center justify-center"
+                              title="Editar fecha de pago"
+                            >
+                              <Calendar size={11} />
+                            </button>
+                          )}
+                        </div>
+                      )}
                       <span className="text-emerald-700 font-mono font-extrabold text-sm">
                         {formatCurrency(pago.monto)}
                       </span>

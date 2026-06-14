@@ -26,7 +26,7 @@ export const PrestamoDetallePage: React.FC = () => {
     toggleAdjustmentActive
   } = usePrestamos();
 
-  const { registerPago } = usePagos();
+  const { registerPago, updatePagoFecha } = usePagos();
 
   const [data, setData] = useState<any>(null);
   const [schedule, setSchedule] = useState<any>(null);
@@ -131,6 +131,17 @@ export const PrestamoDetallePage: React.FC = () => {
       return true;
     } else {
       alert(result.error || "No se pudo registrar la amortización.");
+      return false;
+    }
+  };
+
+  const handleUpdateFechaPago = async (pagoId: string, nuevaFecha: string) => {
+    const res = await updatePagoFecha(pagoId, nuevaFecha);
+    if (res.success) {
+      await loadData();
+      return true;
+    } else {
+      alert(res.error || "No se pudo actualizar la fecha de pago.");
       return false;
     }
   };
@@ -266,6 +277,7 @@ export const PrestamoDetallePage: React.FC = () => {
               }
               return url;
             }}
+            onUpdateFechaPago={handleUpdateFechaPago}
           />
         </div>
 

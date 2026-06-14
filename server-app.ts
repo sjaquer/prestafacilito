@@ -1522,6 +1522,108 @@ app.get("/api/amortizaciones", requireAuth, async (req, res) => {
   }
 });
 
+app.put("/api/amortizaciones/:id", requireAuth, async (req, res) => {
+  try {
+    const amortizacionId = req.params.id;
+    const { fecha_pago } = req.body;
+
+    if (!fecha_pago) {
+      res.status(400).json({ error: "La fecha de pago es requerida." });
+      return;
+    }
+
+    // 1. Obtener la amortización actual
+    const { data: amortizacion, error: amortErr } = await supabase
+      .from("amortizaciones")
+      .select("*")
+      .eq("id", amortizacionId)
+      .single();
+
+    if (amortErr || !amortizacion) {
+      res.status(404).json({ error: "No se encontró la amortización solicitada o no existe." });
+      return;
+    }
+
+    const fechaAnterior = amortizacion.fecha_pago;
+    const prestamoId = amortizacion.prestamo_id;
+
+    // 2. Actualizar la fecha de pago en Supabase
+    const { data: updatedAmort, error: updateErr } = await supabase
+      .from("amortizaciones")
+      .update({ fecha_pago })
+      .eq("id", amortizacionId)
+      .select()
+      .single();
+
+    if (updateErr) throw updateErr;
+
+    // 3. Obtener el préstamo
+    const { data: prestamo, error: pErr } = await supabase
+      .from("prestamos")
+      .select("*")
+      .eq("id", prestamoId)
+      .single();
+
+    if (pErr) throw pErr;
+
+    // 4. Obtener todos los pagos actualizados y ajustes para recalcular la deuda/estado
+    const [aRes, ajRes] = await Promise.all([
+      supabase.from("amortizaciones").select("*").eq("prestamo_id", prestamoId),
+      supabase.from("ajustes_prestamo").select("*").eq("prestamo_id", prestamoId)
+    ]);
+
+    if (aRes.error) throw aRes.error;
+    if (ajRes.error) throw ajRes.error;
+
+    const pagosActualizados = aRes.data || [];
+    const ajustes = ajRes.data || [];
+
+    const deudaDespues = buildPaymentSchedule(prestamo, pagosActualizados, ajustes, new Date());
+
+    let nuevoEstado = prestamo.estado;
+    if (deudaDespues.resumen.saldoPendiente <= 0.01) {
+      nuevoEstado = "pagado";
+      await supabase
+        .from("prestamos")
+        .update({ estado: "pagado" })
+        .eq("id", prestamoId);
+    } else if (prestamo.estado === "pagado") {
+      nuevoEstado = "activo";
+      await supabase
+        .from("prestamos")
+        .update({ estado: "activo" })
+        .eq("id", prestamoId);
+    }
+
+    // 5. Loguear la acción en bitácora de auditoría
+    const { data: cliente } = await supabase.from("clientes").select("*").eq("id", prestamo.cliente_id).single();
+    const username = (req as any).user?.username || "sistema";
+    await logAction(
+      username,
+      "EDITAR_FECHA_PAGO",
+      `Editó la fecha de pago de la amortización de S/. ${amortizacion.monto} del contrato de ${cliente ? cliente.nombre_completo : prestamo.cliente_id}. Cambió de ${fechaAnterior} a ${fecha_pago}.`,
+      req,
+      { prestamo_id: prestamoId, cliente_id: prestamo.cliente_id, amortizacion_id: amortizacionId }
+    );
+
+    // 6. Sincronizar cuotas actualizadas en Google Calendar
+    syncLoanScheduleToGoogleCalendar(prestamoId).catch((calErr) => {
+      console.error("Error al sincronizar cuotas tras edición de pago en Google Calendar:", calErr);
+    });
+
+    res.json({
+      success: true,
+      amortizacion: updatedAmort,
+      estado_prestamo: nuevoEstado,
+      deuda_actualizada: deudaDespues.resumen,
+      cuotas_actualizadas: deudaDespues.cuotas
+    });
+  } catch (err: any) {
+    console.error("Error al editar fecha de pago:", err);
+    res.status(500).json({ error: "Error al editar fecha de pago", detail: err.message });
+  }
+});
+
 app.post("/api/amortizaciones/:id/voucher", requireAuth, async (req, res) => {
   try {
     const amortizacionId = req.params.id;
