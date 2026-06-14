@@ -1,5 +1,6 @@
 import "dotenv/config";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
 export const getEnv = (name: string): string => {
   return process.env[name]?.trim() || "";
@@ -14,8 +15,23 @@ export const requireEnv = (name: string, throwOnMissing = false): string => {
 };
 
 // Variables cacheadas o dinámicas
+let fallbackJwtSecret: string | null = null;
+
 export const config = {
-  get jwtSecret() { return getEnv("JWT_SECRET") || "fallback-secret-para-evitar-crashes"; },
+  get jwtSecret() {
+    const secret = getEnv("JWT_SECRET");
+    if (!secret) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("CRITICAL: La variable de entorno JWT_SECRET no está configurada. Operación abortada por seguridad.");
+      }
+      if (!fallbackJwtSecret) {
+        fallbackJwtSecret = crypto.randomBytes(32).toString("hex");
+        console.warn("⚠️ Advertencia: JWT_SECRET no está configurada en desarrollo. Generada clave aleatoria temporal.");
+      }
+      return fallbackJwtSecret;
+    }
+    return secret;
+  },
   get adminUser() { return getEnv("ADMIN_USER"); },
   get adminPass() { return getEnv("ADMIN_PASS"); },
   get isProduction() { return process.env.NODE_ENV === "production"; }

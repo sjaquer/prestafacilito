@@ -18,7 +18,25 @@ function getEnv(name: string) {
 }
 
 // Variables cacheadas dinámicamente para no crashear en Vercel
-const getJwtSecret = () => getEnv("JWT_SECRET") || "fallback-secret-para-evitar-crashes-500";
+let fallbackJwtSecret: string | null = null;
+const getJwtSecret = () => {
+  const secret = getEnv("JWT_SECRET");
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("CRITICAL: La variable de entorno JWT_SECRET no está configurada. Operación abortada por seguridad.");
+    }
+    if (!fallbackJwtSecret) {
+      fallbackJwtSecret = crypto.randomBytes ? crypto.randomBytes(32).toString("hex") : "dev-fallback-insecure-string-backup";
+      console.warn("⚠️ Advertencia: JWT_SECRET no está configurada en desarrollo. Generada clave aleatoria temporal.");
+    }
+    return fallbackJwtSecret;
+  }
+  return secret;
+};
+
+// Validar JWT_SECRET inmediatamente al iniciar el servidor
+getJwtSecret();
+
 const getAdminUser = () => getEnv("ADMIN_USER");
 const getAdminPass = () => getEnv("ADMIN_PASS");
 const getDriveFolderId = () => getEnv("GOOGLE_DRIVE_FOLDER_ID");
@@ -347,8 +365,8 @@ async function logPaymentToGoogleCalendar(
   }
 }
 
-// ID de la carpeta raíz en Google Drive para documentos de clientes
-const GOOGLE_DRIVE_CLIENTES_FOLDER_ID = "12xYCUm9UULixGlauvbYdeUHRaEzTNJyq";
+// ID de la carpeta raíz en Google Drive para documentos de clientes (configurable)
+const GOOGLE_DRIVE_CLIENTES_FOLDER_ID = getEnv("GOOGLE_DRIVE_CLIENTES_FOLDER_ID") || "12xYCUm9UULixGlauvbYdeUHRaEzTNJyq";
 
 /**
  * Crea una subcarpeta en Google Drive para el cliente.
@@ -633,8 +651,12 @@ app.post("/api/auth/login", async (req, res) => {
   const cleanUser = username.trim().toLowerCase();
   const expectedPin = getPinForUser(cleanUser);
 
-  const isValid = (expectedPin && password === expectedPin) ||
-    (cleanUser === getAdminUser().toLowerCase() && password === getAdminPass());
+  const adminUser = getAdminUser();
+  const adminPass = getAdminPass();
+  const isAdminValid = !!(adminUser && adminPass &&
+    cleanUser === adminUser.toLowerCase() && password === adminPass);
+
+  const isValid = !!((expectedPin && password === expectedPin) || isAdminValid);
 
   if (isValid) {
     const token = jwt.sign({ username: cleanUser }, getJwtSecret(), { expiresIn: "24h" });
@@ -1514,7 +1536,7 @@ app.post("/api/amortizaciones/:id/voucher", requireAuth, async (req, res) => {
     if (!isDriveConfigured()) {
       res.status(503).json({
         error: "El almacenamiento de comprobantes (Google Drive) no esta configurado en este servidor.",
-        detail: "Configura GOOGLE_SERVICE_ACCOUNT_EMAIL y GOOGLE_PRIVATE_KEY en el archivo .env para habilitar la subida de vouchers.",
+        detail: "Configura GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y GOOGLE_REFRESH_TOKEN en el archivo .env para habilitar la subida de vouchers.",
         driveConfigured: false
       });
       return;
