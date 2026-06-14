@@ -74,12 +74,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   }, [password, username]);
 
   return (
-    <div id="login-container" className="min-h-screen relative flex items-center justify-center p-4 sm:p-6 overflow-hidden font-sans select-none bg-[#050811]">
+    <div id="login-container" className="min-h-screen relative flex items-center justify-center p-4 sm:p-6 overflow-hidden font-sans select-none bg-slate-50">
       {/* Fondo Gradiente Premium & Elementos Decorativos */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#050811] via-[#070b16] to-[#0b1020] z-0" />
+      <div className="absolute inset-0 bg-gradient-to-b from-slate-50 via-slate-100 to-slate-200 z-0" />
       
       {/* Círculos Brillantes de Fondo (Glow Effect) */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl z-0" />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl z-0" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl z-0" />
       
       <motion.div
@@ -88,7 +88,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         transition={{ duration: 0.8, ease: "easeOut" }}
         className="w-full max-w-md relative z-10"
       >
-        <div id="login-card" className="bento-card rounded-3xl p-6 sm:p-8 shadow-[0_24px_60px_rgba(0,0,0,0.8)] border border-white/5 bg-[#080c16]/90">
+        <div id="login-card" className="bento-card rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-250 bg-white/95">
           
           {/* Logo & Encabezado */}
           <div id="logo-header" className="text-center mb-6">
@@ -96,11 +96,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               initial={{ scale: 0.8, rotate: -10 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-              className="mx-auto w-14 h-14 bg-black/40 border border-white/10 rounded-2xl flex items-center justify-center mb-3 shadow-[0_8px_24px_rgba(0,0,0,0.4)] overflow-hidden shrink-0"
+              className="mx-auto w-14 h-14 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center mb-3 shadow-sm overflow-hidden shrink-0"
             >
               <img src="/brand_logo_icon.png" alt="PrestaFacilito" className="w-full h-full object-cover" />
             </motion.div>
-            <h1 className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-emerald-300 tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
               PrestaFacilito
             </h1>
             <p className="text-slate-500 text-[10px] sm:text-xs mt-1.5 font-bold uppercase tracking-wider">
@@ -111,9 +111,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           {error && (
             <div
               id="login-error"
-              className="flex items-start gap-2.5 p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-350 rounded-2xl text-xs mb-4"
+              className="flex items-start gap-2.5 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-xs mb-4"
             >
-              <AlertCircle size={16} className="shrink-0 text-rose-455 mt-0.5" />
+              <AlertCircle size={16} className="shrink-0 text-rose-600 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
@@ -130,21 +130,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 onClick={() => setOperator("sjaquer")}
                 className={`p-3 rounded-2xl border text-left transition-all duration-200 cursor-pointer relative overflow-hidden flex flex-col justify-between h-20 ${
                   operator === "sjaquer"
-                    ? "bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)] text-white"
-                    : "bg-white/[0.02] border-white/5 text-slate-400 hover:bg-white/[0.04]"
+                    ? "bg-emerald-50 border-emerald-300 shadow-sm text-emerald-950"
+                    : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
                 }`}
               >
                 <div className="flex justify-between items-start w-full">
                   <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black ${
-                    operator === "sjaquer" ? "bg-emerald-500/20 text-emerald-300" : "bg-white/[0.04] text-slate-500"
+                    operator === "sjaquer" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
                   }`}>
                     SJ
                   </div>
-                  {operator === "sjaquer" && <UserCheck size={14} className="text-emerald-400" />}
+                  {operator === "sjaquer" && <UserCheck size={14} className="text-emerald-600" />}
                 </div>
                 <div className="mt-2">
                   <span className="text-xs font-black block leading-none">Sebastián</span>
-                  <span className="text-[8px] font-bold text-slate-550 block mt-1">sjaquer</span>
+                  <span className="text-[8px] font-bold text-slate-500 block mt-1">sjaquer</span>
                 </div>
               </button>
 
@@ -154,21 +154,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 onClick={() => setOperator("rjaque")}
                 className={`p-3 rounded-2xl border text-left transition-all duration-200 cursor-pointer relative overflow-hidden flex flex-col justify-between h-20 ${
                   operator === "rjaque"
-                    ? "bg-indigo-500/10 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)] text-white"
-                    : "bg-white/[0.02] border-white/5 text-slate-400 hover:bg-white/[0.04]"
+                    ? "bg-indigo-50 border-indigo-300 shadow-sm text-indigo-950"
+                    : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
                 }`}
               >
                 <div className="flex justify-between items-start w-full">
                   <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black ${
-                    operator === "rjaque" ? "bg-indigo-500/20 text-indigo-300" : "bg-white/[0.04] text-slate-500"
+                    operator === "rjaque" ? "bg-indigo-100 text-indigo-800" : "bg-slate-100 text-slate-500"
                   }`}>
                     RJ
                   </div>
-                  {operator === "rjaque" && <UserCheck size={14} className="text-indigo-400" />}
+                  {operator === "rjaque" && <UserCheck size={14} className="text-indigo-600" />}
                 </div>
                 <div className="mt-2">
                   <span className="text-xs font-black block leading-none">Roberto</span>
-                  <span className="text-[8px] font-bold text-slate-550 block mt-1">rjaque</span>
+                  <span className="text-[8px] font-bold text-slate-500 block mt-1">rjaque</span>
                 </div>
               </button>
             </div>
@@ -177,7 +177,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               <button
                 type="button"
                 onClick={() => setOperator(operator === "custom" ? "sjaquer" : "custom")}
-                className="text-[9px] font-black text-slate-500 hover:text-slate-300 uppercase tracking-wider transition-colors cursor-pointer border-none bg-transparent"
+                className="text-[9px] font-black text-slate-500 hover:text-slate-800 uppercase tracking-wider transition-colors cursor-pointer border-none bg-transparent"
               >
                 {operator === "custom" ? "Volver a operadores" : "Otro usuario de acceso"}
               </button>
@@ -192,7 +192,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   Nombre de Usuario
                 </label>
                 <div className="relative group">
-                  <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-500 group-focus-within:text-emerald-400 transition-colors">
+                  <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 group-focus-within:text-emerald-600 transition-colors">
                     <User size={16} />
                   </span>
                   <input
@@ -218,7 +218,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   <button
                     type="button"
                     onClick={handleKeypadClear}
-                    className="text-[8px] font-black text-rose-455 hover:text-rose-350 uppercase tracking-wider border-none bg-transparent cursor-pointer"
+                    className="text-[8px] font-black text-rose-600 hover:text-rose-700 uppercase tracking-wider border-none bg-transparent cursor-pointer"
                   >
                     Borrar Todo
                   </button>
@@ -226,7 +226,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </div>
               
               <div className="relative group">
-                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-500 group-focus-within:text-emerald-400 transition-colors">
+                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 group-focus-within:text-emerald-600 transition-colors">
                   <Lock size={16} />
                 </span>
                 <input
@@ -234,7 +234,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   value={password}
                   readOnly
                   placeholder="••••••"
-                  className="w-full glass-input pl-10 pr-4 py-3 rounded-xl text-sm font-mono font-bold tracking-[0.4em] text-center bg-[#070912]"
+                  className="w-full glass-input pl-10 pr-4 py-3 rounded-xl text-sm font-mono font-bold tracking-[0.4em] text-center bg-slate-50 border-slate-200"
                   required
                 />
               </div>
@@ -242,14 +242,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
             {/* Teclado Virtual Numérico (Premium ATM Style) */}
             <div className="pt-2">
-              <div className="grid grid-cols-3 gap-2 bg-black/20 p-2.5 rounded-2xl border border-white/[0.03]">
+              <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-2xl border border-slate-200">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
                   <button
                     key={num}
                     type="button"
                     onClick={() => handleKeypadPress(num)}
                     disabled={loading || password.length >= 6}
-                    className="h-10 rounded-xl bg-white/[0.02] border border-white/[0.04] text-xs font-mono font-black text-slate-200 hover:bg-white/[0.06] active:scale-95 transition-all cursor-pointer flex items-center justify-center animate-none"
+                    className="h-10 rounded-xl bg-white border border-slate-200 text-xs font-mono font-black text-slate-800 hover:bg-slate-100 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
                   >
                     {num}
                   </button>
@@ -260,7 +260,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   type="button"
                   onClick={handleKeypadClear}
                   disabled={loading || password.length === 0}
-                  className="h-10 rounded-xl bg-rose-500/5 border border-rose-500/10 text-[9px] font-black text-rose-400 hover:bg-rose-500/10 active:scale-95 transition-all cursor-pointer flex items-center justify-center uppercase"
+                  className="h-10 rounded-xl bg-rose-50 border border-rose-200 text-[9px] font-black text-rose-700 hover:bg-rose-100 active:scale-95 transition-all cursor-pointer flex items-center justify-center uppercase"
                 >
                   C
                 </button>
@@ -270,7 +270,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   type="button"
                   onClick={() => handleKeypadPress("0")}
                   disabled={loading || password.length >= 6}
-                  className="h-10 rounded-xl bg-white/[0.02] border border-white/[0.04] text-xs font-mono font-black text-slate-200 hover:bg-white/[0.06] active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+                  className="h-10 rounded-xl bg-white border border-slate-200 text-xs font-mono font-black text-slate-800 hover:bg-slate-100 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
                 >
                   0
                 </button>
@@ -280,7 +280,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   type="button"
                   onClick={handleKeypadDelete}
                   disabled={loading || password.length === 0}
-                  className="h-10 rounded-xl bg-slate-550/5 border border-white/[0.04] text-xs font-black text-slate-400 hover:bg-white/[0.06] active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+                  className="h-10 rounded-xl bg-slate-100 border border-slate-200 text-xs font-black text-slate-600 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
                   title="Retroceso"
                 >
                   <Delete size={14} />
@@ -308,8 +308,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           </div>
 
           {/* Pie de Página del Login */}
-          <div id="login-footer" className="text-center mt-6 pt-5 border-t border-white/5 select-none">
-            <p className="text-[10px] text-slate-550 font-bold uppercase tracking-wider">
+          <div id="login-footer" className="text-center mt-6 pt-5 border-t border-slate-200 select-none">
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
               Acceso Restringido a Administradores
             </p>
           </div>

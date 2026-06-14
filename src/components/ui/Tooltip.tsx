@@ -31,7 +31,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
       {children}
       {visible && (
         <div 
-          className={`absolute z-50 px-2.5 py-1.5 text-[10px] md:text-[11px] font-bold text-slate-100 bg-[#0d1020] border border-white/10 rounded-lg shadow-xl backdrop-blur-md max-w-xs w-max pointer-events-none animate-fadeIn ${positions[position]}`}
+          className={`absolute z-50 px-2.5 py-1.5 text-[10px] md:text-[11px] font-bold text-slate-100 bg-slate-900 border border-slate-800 rounded-lg shadow-xl backdrop-blur-md max-w-xs w-max pointer-events-none animate-fadeIn ${positions[position]}`}
           role="tooltip"
         >
           {content}

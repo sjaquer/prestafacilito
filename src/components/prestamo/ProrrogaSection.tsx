@@ -75,39 +75,39 @@ export const ProrrogaSection: React.FC<ProrrogaSectionProps> = ({
       <div>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-sm md:text-base font-black text-white tracking-tight leading-none">Solicitar Prórroga de Plazo</h2>
+            <h2 className="text-sm md:text-base font-black text-slate-900 tracking-tight leading-none">Solicitar Prórroga de Plazo</h2>
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
               Extender el vencimiento de la {isAlquiler ? "mensualidad" : "cuota"} por 7 días
             </p>
           </div>
-          <HeartHandshake className="text-indigo-400 shrink-0" size={16} />
+          <HeartHandshake className="text-indigo-650 shrink-0" size={16} />
         </div>
 
         {error && (
-          <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold rounded-2xl mb-3">
+          <div className="p-3 bg-rose-50 border border-rose-100 text-rose-700 text-xs font-bold rounded-2xl mb-3">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold rounded-2xl mb-3 flex items-center gap-1">
-            <ShieldCheck size={14} className="shrink-0 text-emerald-450" />
+          <div className="p-3 bg-emerald-50 border border-emerald-250/70 text-emerald-700 text-xs font-bold rounded-2xl mb-3 flex items-center gap-1">
+            <ShieldCheck size={14} className="shrink-0 text-emerald-600" />
             <span>¡Prórroga de plazo concedida y {isAlquiler ? "mensualidades" : "cuotas"} recalculadas de forma correcta!</span>
           </div>
         )}
 
         {/* Resumen Prórrogas */}
-        <div className="grid grid-cols-2 gap-3 text-xs font-semibold mb-4 bg-white/[0.01] border border-white/5 p-3 rounded-2xl">
+        <div className="grid grid-cols-2 gap-3 text-xs font-semibold mb-4 bg-slate-50 border border-slate-200 p-3 rounded-2xl">
           <div className="flex flex-col">
             <span className="text-slate-500 text-[10px] uppercase">Prórrogas Concedidas</span>
-            <span className="text-white mt-0.5 font-bold">
+            <span className="text-slate-800 mt-0.5 font-bold">
               {totalProrrogasCount} de {maxProrrogasPermitidas}
             </span>
           </div>
 
           <div className="flex flex-col">
             <span className="text-slate-500 text-[10px] uppercase">Elegibilidad</span>
-            <span className={`mt-0.5 font-black ${isElegible ? "text-emerald-400" : "text-rose-455"}`}>
+            <span className={`mt-0.5 font-black ${isElegible ? "text-emerald-600" : "text-rose-600"}`}>
               {isElegible ? "ELEGIBLE" : "NO APTO"}
             </span>
           </div>
@@ -115,26 +115,26 @@ export const ProrrogaSection: React.FC<ProrrogaSectionProps> = ({
 
         {isElegible && proximaCuota ? (
           <div className="space-y-4">
-            <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl text-[11px] md:text-xs font-medium text-slate-300 leading-relaxed">
+            <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-2xl text-[11px] md:text-xs font-medium text-slate-700 leading-relaxed">
               <strong>Nota de Accesibilidad:</strong> Al otorgar esta prórroga, la fecha de vencimiento de la {isAlquiler ? "mensualidad" : "cuota"} actual ({formatDateShort(proximaCuota.fechaVencimiento)}) se desplazará **7 días adicionales** ({formatDateShort(nuevaFechaEstimada)}), y todas las {isAlquiler ? "mensualidades" : "cuotas"} futuras también se recalcularán automáticamente para no acortar sus ventanas de pago.
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
-                Motivo de la Prórroga <span className="text-rose-500 font-bold">*</span>
+              <label className="text-[11px] font-black text-slate-550 uppercase tracking-wider block">
+                Motivo de la Prórroga <span className="text-rose-650 font-bold">*</span>
               </label>
               <textarea
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value)}
                 placeholder="Ej: Retraso de mercadería de calzado..."
-                className="glass-input w-full p-4 rounded-xl border border-white/8 font-medium bg-[#080c18] text-[#f8fafc] focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 min-h-[70px] outline-none text-xs"
+                className="glass-input w-full p-4 rounded-xl border border-slate-200 font-medium bg-white text-slate-800 focus:border-indigo-550 focus:ring-2 focus:ring-indigo-500/10 min-h-[70px] outline-none text-xs"
               />
             </div>
           </div>
         ) : (
-          <div className="p-4 bg-white/[0.01] border border-white/5 rounded-2xl text-center select-none py-8">
-            <AlertCircle size={24} className="text-slate-600 mx-auto mb-2" />
-            <p className="text-xs font-bold text-slate-400">
+          <div className="p-4 bg-slate-50/50 border border-slate-200 rounded-2xl text-center select-none py-8">
+            <AlertCircle size={24} className="text-slate-400 mx-auto mb-2" />
+            <p className="text-xs font-bold text-slate-500">
               {!proximaCuota 
                 ? (isAlquiler ? "Contrato totalmente saldado" : "Crédito totalmente saldado")
                 : totalProrrogasCount >= maxProrrogasPermitidas 
@@ -147,7 +147,7 @@ export const ProrrogaSection: React.FC<ProrrogaSectionProps> = ({
       </div>
 
       {isElegible && (
-        <div className="mt-4 pt-4 border-t border-white/[0.04]">
+        <div className="mt-4 pt-4 border-t border-slate-200/80">
           <Button
             onClick={handleApply}
             variant="warning"

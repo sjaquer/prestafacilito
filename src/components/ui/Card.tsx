@@ -17,12 +17,12 @@ export const Card: React.FC<CardProps> = ({
   
   const variants = {
     bento: "bento-card",
-    glass: "bg-[#0d1224]/45 border border-white/[0.08] backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
-    simple: "bg-[#080c16] border border-white/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+    glass: "bg-white/80 border border-slate-200/80 backdrop-blur-md shadow-sm",
+    simple: "bg-white border border-slate-200 shadow-sm",
   };
 
   const hoverStyles = hoverable && variant !== "bento" 
-    ? "hover:border-white/[0.09] hover:bg-[#0c1020]/60 hover:shadow-lg hover:shadow-black/20" 
+    ? "hover:border-slate-300 hover:bg-slate-50/90 hover:shadow-md transition-all duration-300" 
     : "";
 
   return (

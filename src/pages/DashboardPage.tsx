@@ -317,18 +317,18 @@ export const DashboardPage: React.FC = () => {
     <div id="dashboard-view" className="space-y-8 max-w-7xl mx-auto pb-12 select-none">
       
       {/* 1. SECCIÓN DE OPERACIONES RÁPIDAS Y BIENVENIDA */}
-      <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl shadow-black/20">
+      <div className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm">
         <div>
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_6px_rgba(99,102,241,0.5)]"></span>
-            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">
+            <span className="w-2 h-2 rounded-full bg-indigo-600 shadow-[0_0_6px_rgba(79,70,229,0.3)]"></span>
+            <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">
               {todayFormatted}
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white mt-1.5 tracking-tight leading-none">
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1.5 tracking-tight leading-none">
             {getGreeting()} 🇵🇪
           </h1>
-          <p className="text-[10px] sm:text-xs text-slate-550 font-bold uppercase tracking-wider mt-1.5">
+          <p className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-1.5">
             PrestaFacilito Business Intelligence · Panel Ejecutivo
           </p>
         </div>
@@ -377,9 +377,9 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {driveStatus && !driveStatus.configured && (
-        <div className="bg-amber-500/10 border border-amber-500/20 text-amber-300 p-4 rounded-2xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fadeIn">
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-2xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fadeIn">
           <div className="flex items-start gap-2.5">
-            <ShieldAlert className="shrink-0 text-amber-400 mt-0.5" size={18} />
+            <ShieldAlert className="shrink-0 text-amber-600 mt-0.5" size={18} />
             <div>
               <span className="font-bold block text-sm">Google Drive Desconectado / Error de Token</span>
               <span className="opacity-90 leading-normal mt-0.5 block">
@@ -393,7 +393,7 @@ export const DashboardPage: React.FC = () => {
                 window.location.href = "/api/auth/google/login";
               }
             }}
-            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-[#0c1020] font-black rounded-xl transition duration-150 text-xs shrink-0 select-none cursor-pointer border-none"
+            className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl transition duration-150 text-xs shrink-0 select-none cursor-pointer border-none"
           >
             Conectar Google Drive
           </button>
@@ -470,7 +470,7 @@ export const DashboardPage: React.FC = () => {
         >
           {/* Vista previa del voucher */}
           <div
-            className="flex flex-col items-center justify-center bg-black/30 border border-white/5 rounded-3xl p-4 min-h-[300px] cursor-pointer"
+            className="flex flex-col items-center justify-center bg-slate-50 border border-slate-200 rounded-3xl p-4 min-h-[300px] cursor-pointer"
             onClick={() => fileInputRef.current?.click()}
           >
             {selectedVcrFile && selectedVcrFile.type.startsWith("image/") ? (
@@ -481,16 +481,16 @@ export const DashboardPage: React.FC = () => {
                   className="max-w-full max-h-[290px] object-contain rounded-2xl shadow-lg cursor-pointer hover:opacity-90 transition"
                   onClick={() => setLightboxImage(`data:${selectedVcrFile.type};base64,${selectedVcrBase64}`)}
                 />
-                <span className="text-[9px] text-indigo-400 font-extrabold uppercase tracking-wider text-center block mt-1">
+                <span className="text-[9px] text-indigo-700 font-extrabold uppercase tracking-wider text-center block mt-1">
                   💡 Haz clic para ampliar · Presiona Ctrl+V para cambiar imagen
                 </span>
               </div>
             ) : (
-              <div className="text-center text-slate-550 flex flex-col items-center gap-2">
-                <UploadCloud size={48} className="text-slate-655" />
+              <div className="text-center text-slate-500 flex flex-col items-center gap-2">
+                <UploadCloud size={48} className="text-slate-400" />
                 <span className="font-bold">Comprobante no visualizable</span>
                 <span className="text-[10px] uppercase font-bold tracking-wider">{selectedVcrFile?.name}</span>
-                <span className="text-[9px] text-indigo-400 font-extrabold uppercase tracking-wider block mt-1">
+                <span className="text-[9px] text-indigo-700 font-extrabold uppercase tracking-wider block mt-1">
                   📋 Presiona Ctrl+V para pegar comprobante
                 </span>
               </div>
@@ -515,10 +515,10 @@ export const DashboardPage: React.FC = () => {
                   setVcrShowDropdown(true);
                 }}
                 onFocus={() => setVcrShowDropdown(true)}
-                className="glass-input w-full px-4 rounded-xl border border-white/8 font-medium"
+                className="glass-input w-full px-4 rounded-xl border border-slate-200 font-medium"
               />
               {vcrShowDropdown && vcrSearchText && (
-                <div className="absolute z-50 left-0 right-0 mt-1 bg-[#0d1020] border border-white/10 rounded-xl shadow-2xl max-h-40 overflow-y-auto">
+                <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-40 overflow-y-auto">
                   {clientes
                     .filter(c => c.nombre_completo.toLowerCase().includes(vcrSearchText.toLowerCase()))
                     .map(c => (
@@ -529,7 +529,7 @@ export const DashboardPage: React.FC = () => {
                           setVcrSearchText(c.nombre_completo);
                           setVcrShowDropdown(false);
                         }}
-                        className="px-4 py-2.5 hover:bg-indigo-650 hover:text-white text-xs text-slate-350 cursor-pointer transition font-semibold"
+                        className="px-4 py-2.5 hover:bg-slate-100 hover:text-slate-900 text-xs text-slate-700 cursor-pointer transition font-semibold"
                       >
                         {c.nombre_completo}
                       </div>
@@ -556,19 +556,19 @@ export const DashboardPage: React.FC = () => {
                   Vincular al Crédito <span className="text-rose-500 font-bold">*</span>
                 </label>
                 {vcrAutoMatching ? (
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500 p-3 bg-white/[0.02] border border-white/5 rounded-xl font-bold">
-                    <Loader2 size={13} className="animate-spin text-indigo-400" />
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold">
+                    <Loader2 size={13} className="animate-spin text-indigo-700" />
                     <span>Buscando coincidencias de saldo...</span>
                   </div>
                 ) : vcrMatchingLoans.length === 0 ? (
-                  <div className="text-xs text-rose-400 p-3 bg-rose-500/5 border border-rose-500/10 rounded-xl font-bold">
+                  <div className="text-xs text-rose-700 p-3 bg-rose-50 border border-rose-200 rounded-xl font-bold">
                     Este cliente no posee préstamos activos a vincular.
                   </div>
                 ) : (
                   <select
                     value={vcrLoanId}
                     onChange={(e) => setVcrLoanId(e.target.value)}
-                    className="glass-input w-full px-4 rounded-xl border border-white/8 font-medium bg-[#080c18] text-[#f8fafc] cursor-pointer h-12"
+                    className="glass-input w-full px-4 rounded-xl border border-slate-200 font-medium bg-white text-slate-900 cursor-pointer h-12"
                   >
                     <option value="">Seleccione el préstamo...</option>
                     {vcrMatchingLoans.map(cand => (
@@ -589,7 +589,7 @@ export const DashboardPage: React.FC = () => {
               <select
                 value={vcrMetodo}
                 onChange={(e) => setVcrMetodo(e.target.value)}
-                className="glass-input w-full px-4 rounded-xl border border-white/8 font-medium bg-[#080c18] text-[#f8fafc] cursor-pointer h-12"
+                className="glass-input w-full px-4 rounded-xl border border-slate-200 font-medium bg-white text-slate-900 cursor-pointer h-12"
               >
                 <option value="Yape">Yape</option>
                 <option value="Plin">Plin</option>
@@ -635,7 +635,7 @@ export const DashboardPage: React.FC = () => {
       {lightboxImage && (
         <div 
           onClick={() => setLightboxImage(null)}
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
+          className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
         >
           <img
             src={lightboxImage}

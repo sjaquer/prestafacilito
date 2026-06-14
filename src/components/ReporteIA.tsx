@@ -199,9 +199,9 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
       : 0);
 
   const getRiskDetails = (tasa: number) => {
-    if (tasa > 15) return { color: "text-rose-400", bg: "bg-rose-500/10 border-rose-500/20", label: "RIESGO CRÍTICO", ringColor: "#f43f5e" };
-    if (tasa > 5) return { color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20", label: "RIESGO MODERADO", ringColor: "#f59e0b" };
-    return { color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20", label: "RIESGO BAJO", ringColor: "#10b981" };
+    if (tasa > 15) return { color: "text-rose-600", bg: "bg-rose-50 border border-rose-200", label: "RIESGO CRÍTICO", ringColor: "#e11d48" };
+    if (tasa > 5) return { color: "text-amber-700", bg: "bg-amber-50 border border-amber-200", label: "RIESGO MODERADO", ringColor: "#d97706" };
+    return { color: "text-emerald-650", bg: "bg-emerald-50 border border-emerald-200", label: "RIESGO BAJO", ringColor: "#059669" };
   };
 
   const risk = getRiskDetails(tasaMorosidad);
@@ -281,7 +281,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
             {onBack && (
               <button
                 onClick={onBack}
-                className="w-11 h-11 flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white rounded-2xl transition duration-150 cursor-pointer shadow-sm"
+                className="w-11 h-11 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-900 rounded-2xl transition duration-150 cursor-pointer shadow-sm"
               >
                 <ArrowLeft size={16} />
               </button>
@@ -297,10 +297,10 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                 </span>
               </div>
               <div className="space-y-1">
-                <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+                <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900">
                   Informe de Inteligencia Financiera
                 </h1>
-                <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
+                <p className="text-sm text-slate-600 max-w-2xl leading-relaxed">
                   Un cockpit ejecutivo para priorizar riesgos, visualizar caja y tomar decisiones de cobranza con contexto.
                 </p>
               </div>
@@ -310,7 +310,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
           <button
             onClick={() => fetchReport(true)}
             disabled={loading}
-            className="w-full md:w-auto px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-cyan-500 text-white font-extrabold text-xs rounded-2xl transition duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/15 disabled:opacity-50 min-h-[44px]"
+            className="w-full md:w-auto px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs rounded-2xl transition duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/15 disabled:opacity-50 min-h-[44px]"
           >
             <RefreshCw className={`shrink-0 ${loading ? "animate-spin" : ""}`} size={14} />
             <span>{loading ? "Calculando Diagnóstico..." : "Refrescar Auditoría de IA"}</span>
@@ -320,22 +320,22 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
         <div className="relative grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="ai-panel p-4">
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.18em] mb-1">Morosidad estimada</p>
-            <p className="text-xl font-black text-white font-mono">{tasaMorosidad}%</p>
+            <p className="text-xl font-black text-slate-900 font-mono">{tasaMorosidad}%</p>
           </div>
           <div className="ai-panel p-4">
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.18em] mb-1">Recuperación</p>
-            <p className="text-xl font-black text-white font-mono">{porcentajeRecup}%</p>
+            <p className="text-xl font-black text-slate-900 font-mono">{porcentajeRecup}%</p>
           </div>
           <div className="ai-panel p-4">
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.18em] mb-1">Saldo pendiente</p>
-            <p className="text-xl font-black text-white font-mono">{formatCurrency(saldoPendiente)}</p>
+            <p className="text-xl font-black text-slate-900 font-mono">{formatCurrency(saldoPendiente)}</p>
           </div>
         </div>
       </div>
 
       {error && (
-        <div className="ai-panel p-4 border-amber-500/20 text-amber-300 text-xs flex items-start gap-2.5">
-          <AlertTriangle className="shrink-0 text-amber-400 animate-bounce" size={16} />
+        <div className="ai-panel p-4 border-amber-550/20 text-amber-700 text-xs flex items-start gap-2.5">
+          <AlertTriangle className="shrink-0 text-amber-600 animate-bounce" size={16} />
           <div>
             <span className="font-bold block">Error al generar informe con Inteligencia Artificial</span>
             <span className="opacity-95 leading-normal">{error}</span>
@@ -348,11 +348,11 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl" />
           <div className="relative w-16 h-16 flex items-center justify-center">
             <div className="absolute inset-0 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin" />
-            <Sparkles className="text-emerald-400 animate-pulse" size={24} />
+            <Sparkles className="text-emerald-600 animate-pulse" size={24} />
           </div>
           <div className="text-center space-y-1 relative z-10">
-            <h4 className="text-sm font-extrabold text-white">Analizando métricas corporativas...</h4>
-            <p className="text-xs text-slate-400 max-w-xs leading-normal">
+            <h4 className="text-sm font-extrabold text-slate-900">Analizando métricas corporativas...</h4>
+            <p className="text-xs text-slate-500 max-w-xs leading-normal">
               Gemini está evaluando los balances, deudas cruzadas y proyecciones de cobro de tus clientes.
             </p>
           </div>
@@ -423,36 +423,36 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                         {report.kpis?.map((kpi: KPIItem, idx: number) => (
                           <div key={idx} className="bento-card p-5 rounded-2xl relative overflow-hidden group">
-                            <div className="flex items-center justify-between border-b border-white/5 pb-2.5 mb-2.5">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{kpi.label}</span>
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 mb-2.5">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">{kpi.label}</span>
                               <span className={`text-[10px] font-black px-1.5 py-0.5 rounded flex items-center gap-0.5 ${
-                                kpi.indicator === "up" ? "bg-emerald-500/10 text-emerald-400" :
-                                kpi.indicator === "down" ? "bg-rose-500/10 text-rose-400" :
-                                "bg-indigo-500/10 text-indigo-400"
+                                kpi.indicator === "up" ? "bg-emerald-50 text-emerald-700" :
+                                kpi.indicator === "down" ? "bg-rose-50 text-rose-700" :
+                                "bg-indigo-55/10 text-indigo-700"
                               }`}>
                                 {kpi.indicator === "up" ? "▲" : kpi.indicator === "down" ? "▼" : "■"}
                               </span>
                             </div>
-                            <span className="text-2xl font-black text-white block font-mono tracking-tight">{kpi.value}</span>
-                            <p className="text-[10px] text-slate-455 leading-normal mt-1">{kpi.descripcion}</p>
+                            <span className="text-2xl font-black text-slate-900 block font-mono tracking-tight">{kpi.value}</span>
+                            <p className="text-[10px] text-slate-500 leading-normal mt-1">{kpi.descripcion}</p>
                           </div>
                         ))}
                       </div>
 
                       {/* Gráfico de Proyección de Caja */}
                         <div className="ai-panel ai-panel-accent p-6 rounded-[1.75rem] relative overflow-hidden">
-                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-white/5 pb-4 mb-4">
+                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-100 pb-4 mb-4">
                           <div>
-                            <h3 className="font-black text-white text-sm">Flujo de Caja Proyectado a 4 Semanas</h3>
-                            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Proyección por IA en base a fechas de vencimiento</p>
+                            <h3 className="font-black text-slate-900 text-sm">Flujo de Caja Proyectado a 4 Semanas</h3>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Proyección por IA en base a fechas de vencimiento</p>
                           </div>
                           <div className="flex gap-4 text-[10px] font-bold">
-                            <span className="flex items-center gap-1.5 text-indigo-400">
-                              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                            <span className="flex items-center gap-1.5 text-indigo-600">
+                              <span className="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
                               <span>Cobro Estimado (S/.)</span>
                             </span>
-                            <span className="flex items-center gap-1.5 text-rose-400">
-                              <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                            <span className="flex items-center gap-1.5 text-rose-600">
+                              <span className="w-2.5 h-2.5 rounded-full bg-rose-600"></span>
                               <span>Mora Estimada (%)</span>
                             </span>
                           </div>
@@ -462,19 +462,19 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                         <div className="relative w-full h-48 mt-2">
                           <svg className="w-full h-full" viewBox="0 0 500 180" preserveAspectRatio="none">
                             {/* Gridlines */}
-                            <line x1="50" y1="30" x2="450" y2="30" stroke="#1e293b" strokeWidth="0.5" strokeDasharray="3" />
-                            <line x1="50" y1="70" x2="450" y2="70" stroke="#1e293b" strokeWidth="0.5" strokeDasharray="3" />
-                            <line x1="50" y1="110" x2="450" y2="110" stroke="#1e293b" strokeWidth="0.5" strokeDasharray="3" />
-                            <line x1="50" y1="150" x2="450" y2="150" stroke="#1e293b" strokeWidth="0.5" />
+                            <line x1="50" y1="30" x2="450" y2="30" stroke="#e2e8f0" strokeWidth="0.5" strokeDasharray="3" />
+                            <line x1="50" y1="70" x2="450" y2="70" stroke="#e2e8f0" strokeWidth="0.5" strokeDasharray="3" />
+                            <line x1="50" y1="110" x2="450" y2="110" stroke="#e2e8f0" strokeWidth="0.5" strokeDasharray="3" />
+                            <line x1="50" y1="150" x2="450" y2="150" stroke="#e2e8f0" strokeWidth="0.5" />
 
                             <defs>
                               <linearGradient id="area-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" stopColor="#6366f1" stopOpacity="0.25" />
-                                <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
+                                <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.15" />
+                                <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.0" />
                               </linearGradient>
                               <linearGradient id="mora-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.15" />
-                                <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.0" />
+                                <stop offset="0%" stopColor="#e11d48" stopOpacity="0.10" />
+                                <stop offset="100%" stopColor="#e11d48" stopOpacity="0.0" />
                               </linearGradient>
                             </defs>
 
@@ -485,20 +485,20 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
 
                             {/* Línea Cobro */}
                             {graphPoints.length > 0 && (
-                              <path d={pathD} fill="none" stroke="#6366f1" strokeWidth="3" strokeLinecap="round" />
+                              <path d={pathD} fill="none" stroke="#4f46e5" strokeWidth="3" strokeLinecap="round" />
                             )}
 
                             {/* Línea Mora */}
                             {graphMoraPoints.length > 0 && (
-                              <path d={pathMoraD} fill="none" stroke="#f43f5e" strokeWidth="1.5" strokeDasharray="4" strokeLinecap="round" />
+                              <path d={pathMoraD} fill="none" stroke="#e11d48" strokeWidth="1.5" strokeDasharray="4" strokeLinecap="round" />
                             )}
 
                             {/* Puntos y Etiquetas Cobro */}
                             {graphPoints.map((pt, idx) => (
                               <g key={`c-${idx}`} className="group/dot cursor-pointer">
-                                <circle cx={pt.x} cy={pt.y} r="4.5" fill="#0f172a" stroke="#6366f1" strokeWidth="3" />
-                                <circle cx={pt.x} cy={pt.y} r="8" fill="#6366f1" opacity="0" className="hover:opacity-20 transition-opacity" />
-                                <text x={pt.x} y={pt.y - 12} fill="#ffffff" fontSize="8" fontWeight="bold" textAnchor="middle" className="font-mono">
+                                <circle cx={pt.x} cy={pt.y} r="4.5" fill="#ffffff" stroke="#4f46e5" strokeWidth="3" />
+                                <circle cx={pt.x} cy={pt.y} r="8" fill="#4f46e5" opacity="0" className="hover:opacity-20 transition-opacity" />
+                                <text x={pt.x} y={pt.y - 12} fill="#0f172a" fontSize="8" fontWeight="bold" textAnchor="middle" className="font-mono">
                                   {formatCurrency(pt.value)}
                                 </text>
                                 <text x={pt.x} y="168" fill="#64748b" fontSize="8" fontWeight="bold" textAnchor="middle">
@@ -509,13 +509,13 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
 
                             {/* Puntos Mora */}
                             {graphMoraPoints.map((pt, idx) => (
-                              <circle key={`m-${idx}`} cx={pt.x} cy={pt.y} r="3" fill="#f43f5e" />
+                              <circle key={`m-${idx}`} cx={pt.x} cy={pt.y} r="3" fill="#e11d48" />
                             ))}
                           </svg>
                         </div>
                         
-                        <div className="mt-4 p-3 bg-white/[0.02] border border-white/5 rounded-2xl flex gap-2 items-start text-[11px] text-slate-350 leading-relaxed">
-                          <Info className="text-emerald-400 shrink-0 mt-0.5" size={13} />
+                        <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-2xl flex gap-2 items-start text-[11px] text-slate-700 leading-relaxed">
+                          <Info className="text-emerald-600 shrink-0 mt-0.5" size={13} />
                             <p>
                             <strong>Insight Ejecutivo:</strong> La proyección indica que la **{topProjection?.period || "semana de mayor volumen"}** será el pico de recaudo más alto, acumulando una amortización estimada de cobro óptima. Se sugiere desplegar notificaciones masivas 48h antes de este lapso.
                           </p>
@@ -529,7 +529,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                       
                       {/* Gauge de Morosidad */}
                       <div className="bento-card p-6 rounded-3xl flex flex-col items-center">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider text-center block mb-4">
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider text-center block mb-4">
                           Tasa de Morosidad
                         </span>
 
@@ -538,7 +538,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                             <path
                               d="M 10 50 A 40 40 0 0 1 90 50"
                               fill="none"
-                              stroke="#1e293b"
+                              stroke="#f1f5f9"
                               strokeWidth="8"
                               strokeLinecap="round"
                             />
@@ -555,7 +555,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                           </svg>
                           
                           <div className="absolute bottom-0 text-center">
-                            <span className="text-3xl font-black text-white font-mono block leading-none">
+                            <span className="text-3xl font-black text-slate-900 font-mono block leading-none">
                               {tasaMorosidad}%
                             </span>
                             <span className={`text-[9px] font-black tracking-widest uppercase block mt-1.5 ${risk.color}`}>
@@ -564,8 +564,8 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                           </div>
                         </div>
 
-                        <div className={`w-full mt-4 p-3 rounded-2xl border ${risk.bg} text-center`}>
-                          <p className="text-[10.5px] font-semibold text-slate-350 leading-relaxed">
+                        <div className={`w-full mt-4 p-3 rounded-2xl ${risk.bg} text-center`}>
+                          <p className="text-[10.5px] font-semibold text-slate-700 leading-relaxed">
                             {tasaMorosidad > 15 
                               ? "Alta incidencia de mora. Prioriza congelar colocaciones nuevas y activar visitas domiciliarias."
                               : tasaMorosidad > 5
@@ -578,7 +578,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
 
                       {/* Círculo de Recuperación */}
                       <div className="bento-card p-6 rounded-3xl flex flex-col items-center">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider text-center block mb-4">
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider text-center block mb-4">
                           Eficiencia de Cobro
                         </span>
 
@@ -589,7 +589,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                               cy="50"
                               r="40"
                               fill="transparent"
-                              stroke="#1e293b"
+                              stroke="#f1f5f9"
                               strokeWidth="7"
                             />
                             <circle
@@ -613,23 +613,23 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                           </svg>
                           
                           <div className="absolute text-center">
-                            <span className="text-2xl font-black text-white font-mono leading-none block">
+                            <span className="text-2xl font-black text-slate-900 font-mono leading-none block">
                               {porcentajeRecup}%
                             </span>
-                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mt-1">
+                            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block mt-1">
                               Recuperado
                             </span>
                           </div>
                         </div>
 
-                        <div className="w-full mt-4 space-y-1.5 pt-3 border-t border-white/5">
+                        <div className="w-full mt-4 space-y-1.5 pt-3 border-t border-slate-100">
                           <div className="flex justify-between text-[11px] font-semibold">
-                            <span className="text-slate-400">Deuda Global Emitida:</span>
-                            <span className="text-slate-200 font-mono">{formatCurrency(totalExigible)}</span>
+                            <span className="text-slate-500">Deuda Global Emitida:</span>
+                            <span className="text-slate-800 font-mono">{formatCurrency(totalExigible)}</span>
                           </div>
                           <div className="flex justify-between text-[11px] font-semibold">
-                            <span className="text-slate-400">Total Amortizado:</span>
-                            <span className="text-emerald-400 font-mono font-bold">{formatCurrency(totalRecuperado)}</span>
+                            <span className="text-slate-500">Total Amortizado:</span>
+                            <span className="text-emerald-650 font-mono font-bold">{formatCurrency(totalRecuperado)}</span>
                           </div>
                         </div>
                       </div>
@@ -645,22 +645,22 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                     
                     {/* Diagnóstico Resumen */}
                     <div className="ai-panel ai-panel-accent p-6 rounded-[1.75rem] relative overflow-hidden group">
-                      <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-4">
-                        <div className="w-10 h-10 bg-emerald-500/15 rounded-xl flex items-center justify-center text-emerald-400">
+                      <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-4">
+                        <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
                           <Award size={20} />
                         </div>
                         <div>
-                          <h3 className="font-black text-white text-sm">Resumen Estratégico General</h3>
-                          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold font-mono">Dictamen de Cartera AI</p>
+                          <h3 className="font-black text-slate-900 text-sm">Resumen Estratégico General</h3>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold font-mono">Dictamen de Cartera AI</p>
                         </div>
                       </div>
-                      <p className="text-sm font-semibold text-slate-200 leading-relaxed">
+                      <p className="text-sm font-semibold text-slate-700 leading-relaxed">
                         {report.saludFinanciera}
                       </p>
                       {report.resumenDesempeño && (
-                        <div className="mt-4 p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
-                          <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wider block font-mono">Recomendación a la Dirección</span>
-                          <p className="text-xs text-indigo-200 italic mt-1 leading-relaxed">
+                        <div className="mt-4 p-4 bg-emerald-55/70 border border-emerald-100 rounded-2xl">
+                          <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-wider block font-mono">Recomendación a la Dirección</span>
+                          <p className="text-xs text-indigo-950 italic mt-1 leading-relaxed">
                             "{report.resumenDesempeño}"
                           </p>
                         </div>
@@ -671,35 +671,35 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                     {report.analisisDetallado && (
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         
-                        <div className="bento-card p-5 rounded-2xl border border-white/5 space-y-3 relative">
+                        <div className="bento-card p-5 rounded-2xl space-y-3 relative">
                           <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500/70" />
-                          <div className="flex items-center gap-2 text-indigo-400 font-extrabold text-xs">
+                          <div className="flex items-center gap-2 text-indigo-650 font-extrabold text-xs">
                             <Activity size={15} />
                             <span>1. ANÁLISIS DE LIQUIDEZ</span>
                           </div>
-                          <p className="text-xs text-slate-300 leading-relaxed">
+                          <p className="text-xs text-slate-600 leading-relaxed">
                             {report.analisisDetallado.liquidez}
                           </p>
                         </div>
 
-                        <div className="bento-card p-5 rounded-2xl border border-white/5 space-y-3 relative">
+                        <div className="bento-card p-5 rounded-2xl space-y-3 relative">
                           <div className="absolute top-0 left-0 w-1 h-full bg-rose-500/70" />
-                          <div className="flex items-center gap-2 text-rose-400 font-extrabold text-xs">
+                          <div className="flex items-center gap-2 text-rose-600 font-extrabold text-xs">
                             <ShieldAlert size={15} />
                             <span>2. CONTROL DE IMPAGO & MORA</span>
                           </div>
-                          <p className="text-xs text-slate-300 leading-relaxed">
+                          <p className="text-xs text-slate-600 leading-relaxed">
                             {report.analisisDetallado.riesgos}
                           </p>
                         </div>
 
-                        <div className="bento-card p-5 rounded-2xl border border-white/5 space-y-3 relative">
+                        <div className="bento-card p-5 rounded-2xl space-y-3 relative">
                           <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500/70" />
-                          <div className="flex items-center gap-2 text-emerald-400 font-extrabold text-xs">
+                          <div className="flex items-center gap-2 text-emerald-600 font-extrabold text-xs">
                             <ShieldCheck size={15} />
                             <span>3. EFICIENCIA OPERATIVA</span>
                           </div>
-                          <p className="text-xs text-slate-300 leading-relaxed">
+                          <p className="text-xs text-slate-600 leading-relaxed">
                             {report.analisisDetallado.eficiencia}
                           </p>
                         </div>
@@ -709,7 +709,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
 
                     {/* Distribución de Métodos de Pago */}
                     <div className="ai-panel p-6 rounded-[1.75rem] max-w-2xl">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-4 text-center">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-4 text-center">
                         Distribución de Canales de Cobro Utilizados
                       </span>
 
@@ -722,12 +722,12 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                           metodosList.map((m, idx) => (
                             <div key={idx} className="space-y-1.5">
                               <div className="flex justify-between items-center text-[10px] font-extrabold uppercase">
-                                <span className="text-slate-200">{m.name}</span>
-                                <span className="text-indigo-400 font-mono">{m.qty} abono(s) ({m.pct}%)</span>
+                                <span className="text-slate-700">{m.name}</span>
+                                <span className="text-indigo-650 font-mono">{m.qty} abono(s) ({m.pct}%)</span>
                               </div>
-                              <div className="w-full bg-slate-900 rounded-full h-2.5 overflow-hidden border border-white/[0.02]">
+                              <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200/50">
                                 <div
-                                  className="bg-gradient-to-r from-indigo-500 to-indigo-650 h-full rounded-full transition-all duration-1000 ease-out"
+                                  className="bg-gradient-to-r from-indigo-500 to-indigo-600 h-full rounded-full transition-all duration-1000 ease-out"
                                   style={{ width: `${m.pct}%` }}
                                 />
                               </div>
@@ -744,11 +744,11 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                 {activeTab === "estrategias" && (
                   <div className="space-y-5">
                     
-                    <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 rounded-2xl text-xs flex items-start gap-2.5">
-                      <Sparkles className="shrink-0 text-emerald-400 mt-0.5" size={16} />
+                    <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-850 rounded-2xl text-xs flex items-start gap-2.5">
+                      <Sparkles className="shrink-0 text-emerald-650 mt-0.5" size={16} />
                       <div>
-                        <span className="font-bold block">Hoja de Ruta Estratégica</span>
-                        <span className="opacity-90 leading-normal">
+                        <span className="font-bold block text-emerald-900">Hoja de Ruta Estratégica</span>
+                        <span className="opacity-90 leading-normal text-slate-700">
                           Estas medidas de contingencia y prevención han sido personalizadas en tiempo real por Gemini basándose en la salud del recaudo y los retrasos históricos.
                         </span>
                       </div>
@@ -756,32 +756,32 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {report.estrategiasCobranza?.map((est: StrategyItem, idx: number) => (
-                        <div key={idx} className="bento-card p-6 rounded-3xl border border-white/5 hover:border-white/10 transition-all duration-200 flex flex-col justify-between space-y-4">
+                        <div key={idx} className="bento-card p-6 rounded-3xl flex flex-col justify-between space-y-4">
                           
                           <div className="space-y-3">
-                            <div className="flex justify-between items-start border-b border-white/5 pb-2.5 gap-2">
-                              <span className="text-xs font-black text-white">{est.titulo}</span>
+                            <div className="flex justify-between items-start border-b border-slate-100 pb-2.5 gap-2">
+                              <span className="text-xs font-black text-slate-900">{est.titulo}</span>
                               <div className="flex gap-1.5">
                                 <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase font-mono ${
-                                  est.prioridad === "Alta" ? "bg-rose-500/10 text-rose-400 border border-rose-500/20" :
-                                  est.prioridad === "Media" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
-                                  "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                                  est.prioridad === "Alta" ? "bg-rose-55 text-rose-700 border border-rose-200" :
+                                  est.prioridad === "Media" ? "bg-amber-55 text-amber-700 border border-amber-200" :
+                                  "bg-blue-55 text-blue-700 border border-blue-200"
                                 }`}>
                                   Prioridad: {est.prioridad}
                                 </span>
-                                <span className="text-[8px] font-black px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 uppercase font-mono">
+                                <span className="text-[8px] font-black px-2 py-0.5 rounded bg-purple-55 text-purple-700 border border-purple-200 uppercase font-mono">
                                   Impacto: {est.impacto}
                                 </span>
                               </div>
                             </div>
-                            <p className="text-xs text-slate-300 leading-relaxed font-semibold">
+                            <p className="text-xs text-slate-600 leading-relaxed font-semibold">
                               {est.descripcion}
                             </p>
                           </div>
 
-                          <div className="pt-3 border-t border-white/5 flex items-center justify-between text-[10px] text-slate-500">
+                          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
                             <span className="font-bold">Acción Recomendada #{idx + 1}</span>
-                            <span className="text-emerald-500 font-extrabold flex items-center gap-1">
+                            <span className="text-emerald-600 font-extrabold flex items-center gap-1">
                               <CheckCircle2 size={11} />
                               <span>Ejecución Inmediata</span>
                             </span>
@@ -799,15 +799,15 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                   <div className="space-y-6">
                     
                     <div className="bento-card p-6 rounded-3xl">
-                      <div className="flex items-center gap-2 border-b border-white/5 pb-3 mb-4">
-                        <ShieldAlert className="text-rose-400 animate-pulse shrink-0" size={18} />
-                        <h4 className="text-xs font-black text-rose-300">Créditos Expirados en Alta Prioridad ({finCtx.prestamosVencidosDetalle?.length || 0})</h4>
+                      <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-4">
+                        <ShieldAlert className="text-rose-600 animate-pulse shrink-0" size={18} />
+                        <h4 className="text-xs font-black text-rose-700">Créditos Expirados en Alta Prioridad ({finCtx.prestamosVencidosDetalle?.length || 0})</h4>
                       </div>
 
                       {(!finCtx.prestamosVencidosDetalle || finCtx.prestamosVencidosDetalle.length === 0) ? (
                         <div className="text-center py-10 text-slate-500">
                           <ShieldCheck className="mx-auto text-emerald-500 mb-2.5" size={32} />
-                          <p className="text-sm font-bold text-slate-300">¡Ningún préstamo vencido en la cartera!</p>
+                          <p className="text-sm font-bold text-slate-800">¡Ningún préstamo vencido en la cartera!</p>
                           <p className="text-xs text-slate-500 mt-0.5">Todos los clientes activos están dentro de sus plazos de pago ordinarios.</p>
                         </div>
                       ) : (
@@ -815,14 +815,14 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                           {finCtx.prestamosVencidosDetalle.map((p: OverdueLoanItem, idx: number) => (
                             <div 
                               key={idx} 
-                              className="p-4 bg-[#0f172a]/80 border border-rose-500/10 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition hover:border-rose-500/25"
+                              className="p-4 bg-white border border-slate-200 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition hover:border-rose-200"
                             >
                               <div className="space-y-1">
-                                <span className="font-extrabold text-slate-205 block text-sm">{p.cliente}</span>
+                                <span className="font-extrabold text-slate-900 block text-sm">{p.cliente}</span>
                                 <div className="flex flex-wrap gap-2 items-center text-[10.5px]">
-                                  <span className="text-slate-400 font-medium">{p.tipo || "Personal"}</span>
-                                  <span className="text-slate-600 font-bold">•</span>
-                                  <span className="text-rose-400 font-semibold flex items-center gap-1">
+                                  <span className="text-slate-500 font-medium">{p.tipo || "Personal"}</span>
+                                  <span className="text-slate-305 font-bold">•</span>
+                                  <span className="text-rose-600 font-semibold flex items-center gap-1">
                                     <TrendingDown size={11} />
                                     <span>Venció el {p.vencimiento}</span>
                                   </span>
@@ -832,7 +832,7 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                               <div className="flex items-center justify-between md:justify-end gap-4">
                                 <div className="text-right">
                                   <span className="text-[9px] font-bold text-slate-500 uppercase block">Saldo Vencido</span>
-                                  <span className="text-rose-400 font-mono font-bold text-sm">{formatCurrency(Number(p.capital) || 0)}</span>
+                                  <span className="text-rose-600 font-mono font-bold text-sm">{formatCurrency(Number(p.capital) || 0)}</span>
                                 </div>
 
                                 <div className="flex flex-col gap-1.5 min-w-[160px]">
@@ -842,14 +842,14 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                                         href={`https://web.whatsapp.com/send?text=${encodeURIComponent(generatedMsgText[p.cliente])}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="w-full px-3 py-2 bg-emerald-650 hover:bg-emerald-550 text-white font-extrabold text-[10px] rounded-lg transition flex items-center justify-center gap-1 cursor-pointer"
+                                        className="w-full px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] rounded-lg transition flex items-center justify-center gap-1 cursor-pointer"
                                       >
                                         <Send size={11} />
                                         <span>Enviar por WhatsApp</span>
                                       </a>
                                       <button
                                         onClick={() => generateWhatsAppMessage(p)}
-                                        className="w-full text-center text-[9px] font-bold text-slate-500 hover:text-slate-300 underline cursor-pointer"
+                                        className="w-full text-center text-[9px] font-bold text-slate-500 hover:text-slate-800 underline cursor-pointer"
                                       >
                                         Redactar otra opción
                                       </button>
@@ -858,11 +858,11 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
                                     <button
                                       onClick={() => generateWhatsAppMessage(p)}
                                       disabled={generatingMsgId === p.cliente}
-                                      className="px-3.5 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-cyan-500 text-white font-extrabold text-[10.5px] rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer border border-emerald-400/20 disabled:opacity-50 min-h-[36px]"
+                                      className="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-650 hover:from-emerald-700 hover:to-teal-750 text-white font-extrabold text-[10.5px] rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer border border-emerald-600/10 disabled:opacity-50 min-h-[36px]"
                                     >
                                       {generatingMsgId === p.cliente ? (
                                         <>
-                                          <RefreshCw className="animate-spin text-purple-200" size={12} />
+                                          <RefreshCw className="animate-spin text-emerald-100" size={12} />
                                           <span>Redactando...</span>
                                         </>
                                       ) : (
@@ -878,9 +878,9 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
 
                               {/* Vista previa del mensaje redactado */}
                               {generatedMsgText[p.cliente] && (
-                                <div className="w-full md:hidden mt-2 p-3 bg-black/35 rounded-xl border border-white/5">
+                                <div className="w-full md:hidden mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200/60">
                                   <span className="text-[8px] font-black text-slate-500 uppercase tracking-wider block mb-1">Recordatorio Formateado</span>
-                                  <p className="text-[10px] text-slate-300 whitespace-pre-wrap italic font-semibold leading-relaxed">
+                                  <p className="text-[10px] text-slate-700 whitespace-pre-wrap italic font-semibold leading-relaxed">
                                     "{generatedMsgText[p.cliente]}"
                                   </p>
                                 </div>
@@ -894,17 +894,17 @@ export function ReporteIA({ onBack }: ReporteIAProps) {
 
                     {/* Pre-visualización global de mensajes generados (Desktop) */}
                     {Object.keys(generatedMsgText).length > 0 && (
-                      <div className="hidden md:block bento-card p-5 rounded-3xl max-w-2xl border border-emerald-500/10">
-                        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5 mb-3">
+                      <div className="hidden md:block bento-card p-5 rounded-3xl max-w-2xl border border-emerald-200">
+                        <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider flex items-center gap-1.5 mb-3">
                           <CheckCircle2 size={13} />
                           <span>Mensajes de Cobro Redactados por Gemini ({Object.keys(generatedMsgText).length})</span>
                         </span>
                         
                         <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
                           {Object.entries(generatedMsgText).map(([name, text]) => (
-                            <div key={name} className="p-3 bg-black/20 border border-white/5 rounded-2xl space-y-1.5 text-xs">
-                              <span className="font-extrabold text-slate-350 block">Destinatario: {name}</span>
-                              <p className="text-[11px] text-slate-300 font-medium italic leading-relaxed whitespace-pre-wrap bg-white/[0.01] p-2.5 rounded-xl border border-white/3">
+                            <div key={name} className="p-3 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-1.5 text-xs">
+                              <span className="font-extrabold text-slate-800 block">Destinatario: {name}</span>
+                              <p className="text-[11px] text-slate-700 font-medium italic leading-relaxed whitespace-pre-wrap bg-white p-2.5 rounded-xl border border-slate-200/60">
                                 "{text}"
                               </p>
                             </div>

@@ -1,9 +1,7 @@
 import React, { useState } from "react";
-import { Scissors, AlertCircle, CheckCircle2, HelpCircle } from "lucide-react";
+import { Scissors } from "lucide-react";
 import { Card } from "../ui/Card";
-import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
-import { Tooltip } from "../ui/Tooltip";
 import { formatCurrency, formatDateShort } from "../../lib/formatters";
 import { CuotaPrestamo } from "../../types";
 
@@ -20,7 +18,8 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
   loanState,
   loanType,
 }) => {
-  const [showPaid, setShowPaid] = useState(true);
+  // Ocultar por defecto las cuotas históricas ya pagadas en préstamos activos para limpiar la pantalla
+  const [showPaid, setShowPaid] = useState(loanState !== "activo");
   const isAlquiler = loanType === "Alquiler de Casa";
 
   // Filtrar cuotas saldadas si se ocultan
@@ -31,15 +30,15 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
   const cuotasSaldadasCount = cuotas.filter(c => c.estado === "Saldada").length;
 
   return (
-    <Card variant="simple" className="flex flex-col select-none font-sans">
+    <Card variant="simple" className="flex flex-col select-none font-sans bg-white border border-slate-200 shadow-sm rounded-3xl p-5 md:p-6">
       
       {/* Header con toggle de cuotas pagadas */}
-      <div className="p-1 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
+      <div className="p-1 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
         <div>
-          <h2 className="font-black text-white text-base tracking-tight leading-none">
+          <h2 className="font-black text-slate-900 text-base tracking-tight leading-none">
             {isAlquiler ? "Calendario de Alquileres" : "Cronograma de Pagos"}
           </h2>
-          <p className="text-[10px] text-slate-555 font-bold uppercase tracking-wider mt-1.5">
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
             {isAlquiler 
               ? "Registro de mensualidades vencidas y canceladas del contrato"
               : "Calendario de cuotas mensuales amortizables en el tiempo"
@@ -50,7 +49,7 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
         {cuotasSaldadasCount > 0 && (
           <button
             onClick={() => setShowPaid(!showPaid)}
-            className="text-[10px] font-black uppercase tracking-widest px-3.5 py-2 rounded-xl bg-white/5 border border-white/8 hover:bg-white/10 text-slate-300 hover:text-white transition duration-150 cursor-pointer"
+            className="text-[10px] font-black uppercase tracking-widest px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 transition duration-150 cursor-pointer"
           >
             {showPaid 
               ? (isAlquiler ? "Ocultar Mensualidades Canceladas" : "Ocultar Cuotas Saldadas") 
@@ -62,7 +61,7 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
 
       <div className="mt-5">
         {displayedCuotas.length === 0 ? (
-          <div className="text-center py-16 text-slate-500 font-bold text-sm">
+          <div className="text-center py-16 text-slate-400 font-bold text-sm">
             {isAlquiler 
               ? "Todas las mensualidades de este contrato de alquiler se encuentran saldadas. 🎉"
               : "Todas las cuotas de este crédito se encuentran saldadas. 🎉"
@@ -71,10 +70,10 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
         ) : (
           <>
             {/* DESKTOP TABLE */}
-            <div className="hidden md:block table-scroll-x">
+            <div className="hidden md:block table-scroll-x rounded-2xl border border-slate-150 overflow-hidden">
               <table className="w-full text-left border-collapse data-table font-sans">
                 <thead>
-                  <tr className="bg-white/2 text-[10px] font-black text-gray-500 uppercase tracking-widest border-b border-white/5 select-none">
+                  <tr className="bg-slate-50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 select-none">
                     <th className="px-4 py-3">N° Mes</th>
                     <th className="px-4 py-3">Vencimiento</th>
                     <th className="px-4 py-3">{isAlquiler ? "Mensualidad" : "Interés Esperado"}</th>
@@ -83,10 +82,14 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                     <th className="px-4 py-3">Total Pagado</th>
                     <th className="px-4 py-3">Saldo Restante</th>
                     <th className="px-4 py-3">Estado Plazo</th>
-                    {loanState === "activo" && !isAlquiler && <th className="px-4 py-3 text-right">Ajuste</th>}
+                    {loanState === "activo" && !isAlquiler && (
+                      <th className="sticky right-0 px-4 py-3 bg-slate-50 border-l border-slate-200 z-10 w-12 shadow-[-8px_0_15px_-5px_rgba(0,0,0,0.05)] text-center">
+                        <span className="sr-only">Ajuste</span>
+                      </th>
+                    )}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5 text-gray-300 text-xs md:text-sm font-semibold">
+                <tbody className="divide-y divide-slate-100 text-slate-700 text-xs md:text-sm font-medium">
                   {displayedCuotas.map((cuota) => {
                     const isVencida = cuota.estado === "Vencida";
                     const isCongelada = cuota.congelada;
@@ -94,25 +97,25 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                     return (
                       <tr 
                         key={cuota.numero} 
-                        className={`transition duration-150 hover:bg-white/[0.015] ${
-                          isVencida ? "bg-rose-500/[0.01] hover:bg-rose-500/[0.02]" : ""
+                        className={`transition duration-150 group hover:bg-slate-50/80 ${
+                          isVencida ? "bg-red-500/[0.015] hover:bg-red-500/[0.03]" : ""
                         }`}
                       >
                         <td className="px-4 py-3 text-slate-400 font-bold text-center">
                           {cuota.numero}
                         </td>
-                        <td className="px-4 py-3 font-mono">
+                        <td className="px-4 py-3 font-mono text-slate-800 font-semibold">
                           {formatDateShort(cuota.fechaVencimiento)}
                         </td>
                         
                         {/* Interés esperado (con tachado si está congelado) */}
-                        <td className="px-4 py-3 font-mono">
+                        <td className="px-4 py-3 font-mono text-slate-800">
                           {isCongelada ? (
                             <div className="flex flex-col">
-                              <span className="line-through text-slate-500 text-[11px]">
+                              <span className="line-through text-slate-400 text-[11px]">
                                 {formatCurrency(cuota.interesOriginal || 0)}
                               </span>
-                              <span className="text-emerald-450 text-xs font-black uppercase">
+                              <span className="text-emerald-600 text-xs font-black uppercase">
                                 Congelado
                               </span>
                             </div>
@@ -125,26 +128,26 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                         <td className="px-4 py-3 font-mono">
                           {cuota.moraOriginal > 0 ? (
                             <div className="flex flex-col">
-                              <span className={cuota.moraPendiente === 0 ? "text-slate-400 font-semibold" : "text-rose-400 font-extrabold"}>
+                              <span className={cuota.moraPendiente === 0 ? "text-slate-500 font-semibold" : "text-red-600 font-extrabold"}>
                                 {formatCurrency(cuota.moraOriginal)}
                               </span>
                               {cuota.moraPendiente > 0 ? (
-                                <span className="text-[9px] text-rose-500/80 font-bold">
+                                <span className="text-[9px] text-red-500 font-bold">
                                   {formatCurrency(cuota.moraPendiente)} pend.
                                 </span>
                               ) : (
-                                <span className="text-[9px] text-emerald-455 font-bold uppercase">
+                                <span className="text-[9px] text-emerald-600 font-bold uppercase">
                                   Saldada
                                 </span>
                               )}
                             </div>
                           ) : (
-                            <span className="text-slate-500">S/. 0.00</span>
+                            <span className="text-slate-400">S/. 0.00</span>
                           )}
                         </td>
 
                         {/* Total programado */}
-                        <td className="px-4 py-3 font-mono text-slate-350 font-semibold">
+                        <td className="px-4 py-3 font-mono text-slate-700 font-semibold">
                           {formatCurrency((cuota.interesOriginal || 0) + (cuota.moraOriginal || 0))}
                         </td>
 
@@ -152,7 +155,7 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                         <td className="px-4 py-3 font-mono">
                           {cuota.pagado > 0 || cuota.capitalAmortizado > 0 ? (
                             <div className="flex flex-col">
-                              <span className="text-emerald-450 font-extrabold">
+                              <span className="text-emerald-650 font-extrabold">
                                 {formatCurrency(cuota.pagado + (cuota.capitalAmortizado || 0))}
                               </span>
                               <div className="flex flex-col text-[9px] text-slate-500 font-sans font-semibold mt-0.5 space-y-0.5">
@@ -163,21 +166,21 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                                   <span>{formatCurrency(cuota.moraPagado)} Mora</span>
                                 )}
                                 {cuota.capitalAmortizado > 0 && (
-                                  <span className="text-blue-400 font-bold">+{formatCurrency(cuota.capitalAmortizado)} Cap.</span>
+                                  <span className="text-blue-600 font-bold">+{formatCurrency(cuota.capitalAmortizado)} Cap.</span>
                                 )}
                               </div>
                             </div>
                           ) : (
-                            <span className="text-slate-550">S/. 0.00</span>
+                            <span className="text-slate-400">S/. 0.00</span>
                           )}
                         </td>
 
                         {/* Saldo restante */}
-                        <td className="px-4 py-3 font-mono text-white font-extrabold">
+                        <td className="px-4 py-3 font-mono text-slate-900 font-extrabold">
                           {cuota.saldoPendiente > 0 ? (
-                            <span className="text-white">{formatCurrency(cuota.saldoPendiente)}</span>
+                            <span className="text-slate-900">{formatCurrency(cuota.saldoPendiente)}</span>
                           ) : (
-                            <span className="text-slate-500">S/. 0.00</span>
+                            <span className="text-slate-400">S/. 0.00</span>
                           )}
                         </td>
 
@@ -185,24 +188,24 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider text-[9px] border ${
                             cuota.estado === "Saldada" 
-                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-450" 
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-700" 
                               : cuota.estado === "Vencida" 
-                                ? "bg-rose-500/10 border-rose-500/20 text-rose-350 animate-pulse" 
+                                ? "bg-red-50 border-red-200 text-red-650 animate-pulse" 
                                 : cuota.estado === "Parcial"
-                                  ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
-                                  : "bg-white/5 border-white/8 text-slate-300"
+                                  ? "bg-amber-50 border-amber-250 text-amber-700"
+                                  : "bg-slate-100 border-slate-200 text-slate-600"
                           }`}>
                             {cuota.estado === "Saldada" ? "Saldada" : cuota.estado === "Vencida" ? "Vencida" : cuota.estado === "Parcial" ? "Parcial" : "Pendiente"}
                           </span>
                         </td>
 
-                        {/* Ajuste rápido */}
+                        {/* Ajuste rápido sticky */}
                         {loanState === "activo" && !isAlquiler && (
-                          <td className="px-4 py-3 text-right">
+                          <td className="sticky right-0 px-2 py-3 bg-white group-hover:bg-slate-50 border-l border-slate-100 z-10 text-center shadow-[-8px_0_15px_-5px_rgba(0,0,0,0.02)]">
                             {cuota.estado !== "Saldada" && (
                               <button
                                 onClick={() => onQuickAjuste(cuota.numero)}
-                                className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/15 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 transition duration-150 cursor-pointer border-none"
+                                className="p-1.5 rounded-lg bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-600 transition duration-150 cursor-pointer border-none flex items-center justify-center mx-auto"
                                 title="Ajuste rápido: condonar interés de cuota"
                               >
                                 <Scissors size={12} />
@@ -227,40 +230,40 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                 return (
                   <div 
                     key={cuota.numero}
-                    className={`bg-white/[0.015] border rounded-2xl p-4 space-y-3 transition duration-150 ${
-                      isVencida ? "border-rose-500/20 bg-rose-500/[0.02]" : "border-white/5"
+                    className={`bg-white border rounded-2xl p-4 space-y-3.5 transition duration-150 shadow-sm ${
+                      isVencida ? "border-red-200 bg-red-50/10" : "border-slate-200"
                     }`}
                   >
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-black text-indigo-455">
+                      <span className="text-xs font-black text-indigo-700">
                         {isAlquiler ? `MENSUALIDAD N° ${cuota.numero}` : `CUOTA N° ${cuota.numero}`}
                       </span>
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider text-[9px] border ${
                         cuota.estado === "Saldada" 
-                          ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-450" 
+                          ? "bg-emerald-50 border-emerald-250 text-emerald-700" 
                           : cuota.estado === "Vencida" 
-                            ? "bg-rose-500/10 border-rose-500/20 text-rose-350" 
+                            ? "bg-red-50 border-red-200 text-red-650" 
                             : cuota.estado === "Parcial"
-                              ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
-                              : "bg-white/5 border-white/8 text-slate-300"
+                              ? "bg-amber-50 border-amber-250 text-amber-700"
+                              : "bg-slate-100 border-slate-200 text-slate-600"
                       }`}>
                         {cuota.estado === "Saldada" ? "Saldada" : cuota.estado === "Vencida" ? "Vencida" : cuota.estado === "Parcial" ? "Parcial" : "Pendiente"}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-y-2.5 text-xs font-semibold">
+                    <div className="grid grid-cols-2 gap-y-2.5 text-xs font-medium">
                       <div className="flex flex-col">
-                        <span className="text-slate-500 text-[10px] uppercase tracking-wide">Vencimiento</span>
-                        <span className="text-white mt-0.5 font-mono">{formatDateShort(cuota.fechaVencimiento)}</span>
+                        <span className="text-slate-400 text-[10px] uppercase tracking-wide">Vencimiento</span>
+                        <span className="text-slate-800 mt-0.5 font-mono font-semibold">{formatDateShort(cuota.fechaVencimiento)}</span>
                       </div>
                       
                       <div className="flex flex-col">
-                        <span className="text-slate-500 text-[10px] uppercase tracking-wide">
+                        <span className="text-slate-400 text-[10px] uppercase tracking-wide">
                           {isAlquiler ? "Mensualidad" : "Interés"}
                         </span>
-                        <span className="text-white mt-0.5 font-mono">
+                        <span className="text-slate-800 mt-0.5 font-mono font-semibold">
                           {isCongelada ? (
-                            <span className="text-emerald-450 font-black uppercase text-[10px]">Congelado</span>
+                            <span className="text-emerald-600 font-black uppercase text-[10px]">Congelado</span>
                           ) : (
                             formatCurrency(cuota.interesOriginal || 0)
                           )}
@@ -268,30 +271,30 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                       </div>
 
                       <div className="flex flex-col">
-                        <span className="text-slate-500 text-[10px] uppercase tracking-wide">Mora Generada</span>
-                        <span className="text-white mt-0.5 font-mono">
+                        <span className="text-slate-400 text-[10px] uppercase tracking-wide">Mora Generada</span>
+                        <span className="text-slate-800 mt-0.5 font-mono font-semibold">
                           {cuota.moraOriginal > 0 ? (
-                            <span className={cuota.moraPendiente === 0 ? "text-slate-400 font-semibold" : "text-rose-450 font-bold"}>
+                            <span className={cuota.moraPendiente === 0 ? "text-slate-500 font-semibold" : "text-red-600 font-bold"}>
                               {formatCurrency(cuota.moraOriginal)}
                               {cuota.moraPendiente > 0 && ` (${formatCurrency(cuota.moraPendiente)} pend.)`}
                             </span>
                           ) : (
-                            <span className="text-slate-500">S/. 0.00</span>
+                            <span className="text-slate-450">S/. 0.00</span>
                           )}
                         </span>
                       </div>
 
                       <div className="flex flex-col">
-                        <span className="text-slate-500 text-[10px] uppercase tracking-wide">Total Programado</span>
-                        <span className="text-slate-355 mt-0.5 font-mono">
+                        <span className="text-slate-400 text-[10px] uppercase tracking-wide">Total Programado</span>
+                        <span className="text-slate-700 mt-0.5 font-mono font-semibold">
                           {formatCurrency((cuota.interesOriginal || 0) + (cuota.moraOriginal || 0))}
                         </span>
                       </div>
 
-                      <div className="flex flex-col col-span-2 pt-2 border-t border-white/5 flex flex-row justify-between items-start">
+                      <div className="flex flex-row justify-between items-start col-span-2 pt-2.5 border-t border-slate-100">
                         <div className="flex flex-col">
-                          <span className="text-slate-500 text-[10px] uppercase tracking-wide">Total Pagado</span>
-                          <span className="text-emerald-450 font-mono font-extrabold mt-0.5">
+                          <span className="text-slate-400 text-[10px] uppercase tracking-wide">Total Pagado</span>
+                          <span className="text-emerald-650 font-mono font-black mt-0.5">
                             {formatCurrency(cuota.pagado + (cuota.capitalAmortizado || 0))}
                           </span>
                           <div className="flex flex-col text-[9px] text-slate-500 font-sans font-semibold mt-1 space-y-0.5">
@@ -302,14 +305,14 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                               <span>{formatCurrency(cuota.moraPagado)} Mora</span>
                             )}
                             {cuota.capitalAmortizado > 0 && (
-                              <span className="text-blue-400 font-bold">+{formatCurrency(cuota.capitalAmortizado)} Cap.</span>
+                              <span className="text-blue-600 font-bold">+{formatCurrency(cuota.capitalAmortizado)} Cap.</span>
                             )}
                           </div>
                         </div>
 
                         <div className="flex flex-col items-end">
-                          <span className="text-slate-500 text-[10px] uppercase tracking-wide">Saldo Pendiente</span>
-                          <span className="text-white text-sm font-black font-mono mt-0.5">
+                          <span className="text-slate-400 text-[10px] uppercase tracking-wide">Saldo Pendiente</span>
+                          <span className="text-slate-900 text-sm font-black font-mono mt-0.5">
                             {formatCurrency(cuota.saldoPendiente)}
                           </span>
                         </div>
@@ -321,8 +324,8 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                             onClick={() => onQuickAjuste(cuota.numero)}
                             variant="secondary"
                             size="sm"
-                            className="w-full h-8 font-bold border-none"
-                            icon={<Scissors size={11} />}
+                            className="w-full h-11 font-bold border-slate-200 text-slate-700 bg-slate-50 hover:bg-slate-100 flex items-center justify-center gap-1.5"
+                            icon={<Scissors size={12} />}
                           >
                             Condonar Interés de Cuota
                           </Button>

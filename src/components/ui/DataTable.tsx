@@ -116,13 +116,13 @@ export function DataTable<T extends { id: string | number }>({
       {showSearch && (
         <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 shrink-0" size={16} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 shrink-0" size={16} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={searchPlaceholder}
-              className="glass-input w-full pl-10.5 pr-4 rounded-2xl border-white/6 focus:border-indigo-500/80 font-medium"
+              className="glass-input w-full pl-10.5 pr-4 rounded-2xl border-slate-200 focus:border-emerald-600 font-medium"
             />
           </div>
 
@@ -141,25 +141,32 @@ export function DataTable<T extends { id: string | number }>({
       )}
 
       {/* Contenedor de la Tabla */}
-      <div className="w-full bg-[#0c1020]/45 border border-white/[0.055] rounded-3xl overflow-hidden shadow-xl table-scroll-x">
+      <div className="w-full bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm table-scroll-x">
         <table className="w-full data-table border-collapse select-none">
           <thead>
-            <tr className="bg-white/[0.015]">
+            <tr className="bg-slate-50">
               {renderExpandedRow && <th className="w-10"></th>}
-              {columns.map((col, idx) => (
-                <th 
-                  key={idx}
-                  onClick={() => col.sortable && col.accessorKey && handleSort(String(col.accessorKey))}
-                  className={`${col.sortable ? "cursor-pointer hover:bg-white/5 hover:text-slate-300" : ""} transition-colors select-none text-left`}
-                >
-                  <div className="flex items-center gap-1.5 justify-start">
-                    <span>{col.header}</span>
-                    {col.sortable && col.accessorKey && (
-                      <ArrowUpDown size={11} className="text-slate-500" />
-                    )}
-                  </div>
-                </th>
-              ))}
+              {columns.map((col, idx) => {
+                const isLastCol = idx === columns.length - 1;
+                return (
+                  <th 
+                    key={idx}
+                    onClick={() => col.sortable && col.accessorKey && handleSort(String(col.accessorKey))}
+                    className={`
+                      ${col.sortable ? "cursor-pointer hover:bg-slate-100 hover:text-slate-800" : ""} 
+                      ${isLastCol ? "sticky right-0 bg-slate-50 border-l border-slate-200 z-10 w-12 shadow-[-8px_0_15px_-5px_rgba(0,0,0,0.05)] text-center" : "text-left"}
+                      transition-colors select-none
+                    `}
+                  >
+                    <div className={`flex items-center gap-1.5 ${isLastCol ? "justify-center" : "justify-start"}`}>
+                      <span>{col.header}</span>
+                      {col.sortable && col.accessorKey && (
+                        <ArrowUpDown size={11} className="text-slate-400" />
+                      )}
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -167,7 +174,7 @@ export function DataTable<T extends { id: string | number }>({
               <tr>
                 <td 
                   colSpan={columns.length + (renderExpandedRow ? 1 : 0)} 
-                  className="text-center py-12 text-slate-500 text-xs md:text-sm font-semibold"
+                  className="text-center py-12 text-slate-400 text-xs md:text-sm font-semibold"
                 >
                   {emptyMessage}
                 </td>
@@ -178,15 +185,15 @@ export function DataTable<T extends { id: string | number }>({
                 return (
                   <React.Fragment key={item.id}>
                     <tr 
-                      className={`transition-colors duration-150 ${
-                        isExpanded ? "bg-white/[0.01]" : ""
+                      className={`transition-colors duration-150 group ${
+                        isExpanded ? "bg-slate-50" : ""
                       }`}
                     >
                       {renderExpandedRow && (
                         <td className="text-center">
                           <button
                             onClick={() => toggleRow(item.id)}
-                            className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all cursor-pointer"
+                            className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-all cursor-pointer border border-slate-200"
                           >
                             {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                           </button>
@@ -198,8 +205,15 @@ export function DataTable<T extends { id: string | number }>({
                           : col.accessorKey 
                             ? String((item as any)[col.accessorKey] ?? "") 
                             : "";
+                        const isLast = cIdx === columns.length - 1;
                         return (
-                          <td key={cIdx} className="text-xs md:text-sm font-semibold text-slate-300">
+                          <td 
+                            key={cIdx} 
+                            className={`
+                              text-xs md:text-sm font-semibold text-slate-700
+                              ${isLast ? "sticky right-0 bg-white group-hover:bg-slate-50 border-l border-slate-100 z-10 shadow-[-8px_0_15px_-5px_rgba(0,0,0,0.03)] text-center" : ""}
+                            `}
+                          >
                             {cellContent}
                           </td>
                         );
@@ -211,7 +225,7 @@ export function DataTable<T extends { id: string | number }>({
                       <tr>
                         <td 
                           colSpan={columns.length + 1} 
-                          className="bg-black/15 p-5 md:p-6 border-b border-white/[0.03]"
+                          className="bg-slate-50/50 p-5 md:p-6 border-b border-slate-200"
                         >
                           <div className="animate-fadeIn">
                             {renderExpandedRow(item)}
@@ -252,7 +266,7 @@ export function DataTable<T extends { id: string | number }>({
             >
               Anterior
             </Button>
-            <span className="px-3 py-1 bg-white/5 border border-white/8 rounded-xl text-xs md:text-sm font-bold text-slate-300 min-w-[34px] text-center">
+            <span className="px-3 py-1 bg-slate-100 border border-slate-200 rounded-xl text-xs md:text-sm font-bold text-slate-700 min-w-[34px] text-center">
               {currentPage} / {totalPages}
             </span>
             <Button

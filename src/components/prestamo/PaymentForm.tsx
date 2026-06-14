@@ -99,24 +99,24 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
   return (
     <Card variant="bento" className="select-none font-sans">
       <div className="mb-4">
-        <h2 className="text-sm md:text-base font-black text-white tracking-tight leading-none">
+        <h2 className="text-sm md:text-base font-black text-slate-900 tracking-tight leading-none">
           {isAlquiler ? "Registrar Mensualidad" : "Registrar Amortización"}
         </h2>
-        <p className="text-[10px] text-slate-555 font-bold uppercase tracking-wider mt-1.5">
+        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
           {isAlquiler ? "Registrar abono mensual o saldo del contrato de alquiler" : "Registrar abono de cuota o saldo del prestatario"}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-455 text-xs font-bold rounded-2xl">
+          <div className="p-3 bg-rose-50 border border-rose-100 text-rose-700 text-xs font-bold rounded-2xl">
             {error}
           </div>
         )}
         
         {success && (
-          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold rounded-2xl flex items-center gap-1.5">
-            <CheckCircle size={14} className="shrink-0 text-emerald-400" />
+          <div className="p-3 bg-emerald-50 border border-emerald-250/70 text-emerald-700 text-xs font-bold rounded-2xl flex items-center gap-1.5">
+            <CheckCircle size={14} className="shrink-0 text-emerald-600" />
             <span>¡Pago registrado y comprobante cargado con éxito!</span>
           </div>
         )}
@@ -126,7 +126,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
           <button
             type="button"
             onClick={() => setMonto(round2(expectedAmount).toString())}
-            className="px-3 py-2 bg-white/5 border border-white/8 hover:bg-white/10 text-slate-300 hover:text-white rounded-xl font-bold transition duration-150 cursor-pointer text-center"
+            className="px-3 py-2 bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-xl font-bold transition duration-150 cursor-pointer text-center"
           >
             {isAlquiler ? "Mensualidad" : "Cuota"}: {formatCurrency(expectedAmount)}
           </button>
@@ -134,7 +134,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
           <button
             type="button"
             onClick={() => setMonto(round2(saldoPendiente).toString())}
-            className="px-3 py-2 bg-white/5 border border-white/8 hover:bg-white/10 text-slate-300 hover:text-white rounded-xl font-bold transition duration-150 cursor-pointer text-center"
+            className="px-3 py-2 bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-xl font-bold transition duration-150 cursor-pointer text-center"
           >
             {isAlquiler ? "Total Contrato" : "Total"}: {formatCurrency(saldoPendiente)}
           </button>
@@ -154,13 +154,13 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
 
         {/* Método de pago */}
         <div className="flex flex-col gap-1.5 w-full">
-          <label className="text-[11px] md:text-[12px] font-black text-slate-400 uppercase tracking-wider block">
+          <label className="text-[11px] md:text-[12px] font-black text-slate-500 uppercase tracking-wider block">
             Método de Pago
           </label>
           <select
             value={metodo}
             onChange={(e) => setMetodo(e.target.value)}
-            className="glass-input w-full px-4 rounded-xl border border-white/8 font-medium bg-[#080c18] text-[#f8fafc] cursor-pointer h-12"
+            className="glass-input w-full px-4 rounded-xl border border-slate-200 font-medium bg-white text-slate-800 cursor-pointer h-12"
           >
             {METODOS_PAGO.map((m) => (
               <option key={m} value={m}>
@@ -181,11 +181,11 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
 
         {/* Drag/Drop Voucher Upload */}
         <div className="space-y-1">
-          <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
+          <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider block">
             Comprobante de Pago (Voucher)
           </label>
           
-          <label className="doc-upload-zone flex flex-col items-center justify-center p-5 text-center transition select-none">
+          <label className="doc-upload-zone flex flex-col items-center justify-center p-5 text-center transition select-none border border-dashed border-slate-250 bg-slate-50 rounded-2xl cursor-pointer hover:bg-slate-100">
             <input
               type="file"
               accept="image/*,application/pdf"
@@ -193,16 +193,16 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
               className="hidden"
             />
             {vcrFile ? (
-              <div className="text-emerald-400 flex flex-col items-center gap-1.5 text-xs font-bold">
+              <div className="text-emerald-600 flex flex-col items-center gap-1.5 text-xs font-bold">
                 <FileCheck size={32} />
                 <span>{vcrFile.name}</span>
                 <span className="text-[9px] uppercase text-slate-500">Haz click para cambiar de archivo</span>
               </div>
             ) : (
               <div className="text-slate-500 flex flex-col items-center gap-1.5 text-xs font-bold">
-                <UploadCloud size={32} className="text-slate-600" />
+                <UploadCloud size={32} className="text-slate-400" />
                 <span>Subir o arrastrar comprobante</span>
-                <span className="text-[9px] uppercase text-slate-600">Soporta imagen o PDF</span>
+                <span className="text-[9px] uppercase text-slate-450">Soporta imagen o PDF</span>
               </div>
             )}
           </label>

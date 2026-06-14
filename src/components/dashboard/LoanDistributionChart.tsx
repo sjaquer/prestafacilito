@@ -17,9 +17,9 @@ export const LoanDistributionChart: React.FC<LoanDistributionChartProps> = ({
   const data = useMemo(() => {
     if (total === 0) return [];
     return [
-      { label: "Activos", count: activeCount, pct: (activeCount / total) * 100, color: "#6366f1", strokeClass: "stroke-indigo-500", textClass: "text-indigo-400" },
-      { label: "Pagados", count: paidCount, pct: (paidCount / total) * 100, color: "#10b981", strokeClass: "stroke-emerald-500", textClass: "text-emerald-400" },
-      { label: "En Mora", count: overdueCount, pct: (overdueCount / total) * 100, color: "#f43f5e", strokeClass: "stroke-rose-500", textClass: "text-rose-455" },
+      { label: "Activos", count: activeCount, pct: (activeCount / total) * 100, color: "#6366f1", strokeClass: "stroke-indigo-500", textClass: "text-indigo-600" },
+      { label: "Pagados", count: paidCount, pct: (paidCount / total) * 100, color: "#10b981", strokeClass: "stroke-emerald-500", textClass: "text-emerald-700" },
+      { label: "En Mora", count: overdueCount, pct: (overdueCount / total) * 100, color: "#f43f5e", strokeClass: "stroke-rose-500", textClass: "text-rose-600" },
     ];
   }, [activeCount, paidCount, overdueCount, total]);
 
@@ -48,14 +48,14 @@ export const LoanDistributionChart: React.FC<LoanDistributionChartProps> = ({
     <Card variant="bento" className="w-full select-none font-sans flex flex-col h-full justify-between">
       <div className="flex items-end justify-between gap-3 mb-1">
         <div>
-          <span className="dashboard-chip text-fuchsia-300 border-fuchsia-500/15 bg-fuchsia-500/10 mb-2 w-fit">Cartera</span>
-          <h3 className="font-black text-white text-base tracking-tight">Distribución de préstamos</h3>
+          <span className="badge bg-fuchsia-50 border border-fuchsia-200 text-fuchsia-700 w-fit mb-2">Cartera</span>
+          <h3 className="font-black text-slate-800 text-base tracking-tight">Distribución de préstamos</h3>
           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
             Estado actual de la cartera de créditos
           </p>
         </div>
         <div className="hidden sm:flex flex-col items-end text-[10px] font-black uppercase tracking-widest text-slate-500">
-          <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/5">Total {total}</span>
+          <span className="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600">Total {total}</span>
         </div>
       </div>
 
@@ -69,7 +69,7 @@ export const LoanDistributionChart: React.FC<LoanDistributionChartProps> = ({
                 cy={center}
                 r={radius}
                 fill="transparent"
-                stroke="#1e293b"
+                stroke="#e2e8f0"
                 strokeWidth={strokeWidth}
               />
             </svg>
@@ -94,7 +94,7 @@ export const LoanDistributionChart: React.FC<LoanDistributionChartProps> = ({
                 cy={center}
                 r={radius}
                 fill="transparent"
-                stroke="#0e1324"
+                stroke="#f1f5f9"
                 strokeWidth={strokeWidth}
               />
 
@@ -122,12 +122,12 @@ export const LoanDistributionChart: React.FC<LoanDistributionChartProps> = ({
           {/* Texto central */}
           <div className="absolute inset-0 flex flex-col items-center justify-center font-sans">
             <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Total</span>
-            <span className="text-xl font-black text-white leading-none font-mono mt-0.5">{total}</span>
+            <span className="text-xl font-black text-slate-800 leading-none font-mono mt-0.5">{total}</span>
           </div>
         </div>
 
         {/* Leyenda */}
-        <div className="flex flex-col gap-2 bg-white/[0.02] border border-white/5 rounded-3xl p-4 shrink-0 min-w-[150px] w-full sm:w-auto">
+        <div className="flex flex-col gap-2 bg-slate-50 border border-slate-200 rounded-3xl p-4 shrink-0 min-w-[150px] w-full sm:w-auto">
           {total === 0 ? (
             <div className="text-[10px] font-bold text-slate-500 py-1 text-center">
               Sin préstamos registrados
@@ -140,10 +140,10 @@ export const LoanDistributionChart: React.FC<LoanDistributionChartProps> = ({
                     className="w-2 h-2 rounded-full shrink-0"
                     style={{ backgroundColor: seg.color }}
                   />
-                  <span className="text-slate-400 text-[10px] uppercase font-black">{seg.label}</span>
+                  <span className="text-slate-550 text-[10px] uppercase font-black">{seg.label}</span>
                 </div>
                 <div className="text-right font-mono font-black ml-3">
-                  <span className="text-white block text-[11px]">{seg.count}</span>
+                  <span className="text-slate-800 block text-[11px]">{seg.count}</span>
                   <span className={`block text-[8px] font-bold ${seg.textClass}`}>{seg.pct.toFixed(0)}%</span>
                 </div>
               </div>

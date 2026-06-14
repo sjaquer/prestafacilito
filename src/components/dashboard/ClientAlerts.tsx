@@ -173,10 +173,10 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
       <div className="dashboard-section-title">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="dashboard-chip text-rose-300 border-rose-500/15 bg-rose-500/10 w-fit">
+            <div className="badge-warning w-fit">
               <Bell size={10} /> Radar de cartera
             </div>
-            <h2 className="mt-2 text-lg sm:text-xl font-black text-white tracking-tight leading-none flex items-center gap-2">
+            <h2 className="mt-2 text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-none flex items-center gap-2">
               <span>Control de cartera en tiempo real</span>
             </h2>
           </div>
@@ -189,19 +189,19 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         
         {/* COLUMNA 1: Personas que no pagaron aún (VENCIDOS) */}
-        <Card variant="simple" className={`border-rose-500/10 flex flex-col justify-between ${compact ? 'min-h-[360px]' : 'min-h-[450px]'}`}>
+        <Card variant="simple" className={`border-rose-200 flex flex-col justify-between ${compact ? 'min-h-[360px]' : 'min-h-[450px]'}`}>
           <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between pb-3 border-b border-white/5 mb-1">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-1">
               <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                <div className="w-9 h-9 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600">
                   <AlertTriangle size={15} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-white leading-none">Deudas expiradas</h3>
+                  <h3 className="text-sm font-black text-slate-800 leading-none">Deudas expiradas</h3>
                   <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-1">Personas que no han cancelado</p>
                 </div>
               </div>
-              <span className="badge bg-rose-500/10 border border-rose-500/20 text-rose-400 font-bold font-mono">
+              <span className="badge bg-rose-50 border border-rose-200 text-rose-700 font-bold font-mono">
                 {loansVencidos.length} deudor{loansVencidos.length !== 1 ? "es" : ""}
               </span>
             </div>
@@ -213,10 +213,10 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
               className="flex-1 overflow-y-auto mt-3 pr-1 space-y-3 scrollbar-thin"
             >
               {loansVencidos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center p-6 text-slate-550 select-none py-16 rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
-                  <CheckCircle2 size={32} className="text-rose-400 mb-3" />
-                  <p className="text-xs font-bold text-slate-350">¡Ninguna cuota vencida!</p>
-                  <p className="text-[10px] text-slate-550 mt-1">Todos los créditos están al día en sus fechas</p>
+                <div className="flex flex-col items-center justify-center h-full text-center p-6 text-slate-500 select-none py-16 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50">
+                  <CheckCircle2 size={32} className="text-rose-500 mb-3" />
+                  <p className="text-xs font-bold text-slate-700">¡Ninguna cuota vencida!</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Todos los créditos están al día en sus fechas</p>
                 </div>
               ) : (
                 loansVencidos.map((loan) => {
@@ -226,21 +226,21 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
                     <motion.div
                       key={loan.id}
                       variants={itemVariants}
-                      className="flex items-center justify-between p-4 bg-white/[0.012] border border-white/[0.04] rounded-3xl gap-3 hover:border-white/[0.08] transition duration-150"
+                      className="flex items-center justify-between p-4 bg-slate-50/50 border border-slate-100 rounded-3xl gap-3 hover:border-slate-250 transition duration-150"
                     >
                       <div className="flex flex-col gap-2 min-w-0 flex-1">
-                        <span className="font-black text-slate-50 text-sm leading-tight tracking-tight">{loan.cliente_nombre}</span>
+                        <span className="font-black text-slate-800 text-sm leading-tight tracking-tight">{loan.cliente_nombre}</span>
                         <div className="flex items-center gap-2">
-                          <Clock size={10} className="text-rose-400 shrink-0" />
+                          <Clock size={10} className="text-rose-500 shrink-0" />
                           <span className="text-[10px] text-slate-500 font-semibold">
-                            Venció: <strong className="text-slate-400 font-bold">{formatDateWithDay(loan.fecha_vencimiento)}</strong>
+                            Venció: <strong className="text-slate-600 font-bold">{formatDateWithDay(loan.fecha_vencimiento)}</strong>
                           </span>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
                         <div className="flex flex-col items-end gap-1.5">
-                          <span className="badge bg-rose-500/10 border border-rose-500/15 text-rose-400 font-black uppercase text-[8px] tracking-wider font-financial">
+                          <span className="badge bg-rose-50 border border-rose-200 text-rose-700 font-black uppercase text-[8px] tracking-wider font-financial">
                             Mora +{absOverdue} d{absOverdue !== 1 ? "s" : ""}
                           </span>
                           <div className="flex items-center gap-1">
@@ -249,7 +249,7 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
                                 href={loan.recLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/15 text-amber-400 hover:bg-amber-500/20 transition cursor-pointer"
+                                className="p-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition cursor-pointer"
                                 title="Enviar recordatorio de mora"
                               >
                                 <Bell size={12} />
@@ -260,7 +260,7 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
                                 href={loan.waLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="p-1.5 rounded-lg bg-emerald-600/15 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-600/25 transition cursor-pointer"
+                                className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition cursor-pointer"
                                 title="Cobrar por WhatsApp"
                               >
                                 <MessageSquare size={12} />
@@ -268,7 +268,7 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
                             )}
                             <Link
                               to={`/prestamos/${loan.id}`}
-                              className="p-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-slate-400 hover:text-white transition cursor-pointer"
+                              className="p-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
                             >
                               <ArrowUpRight size={12} />
                             </Link>
@@ -283,10 +283,10 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
           </div>
 
           {compact && originalVencidosLength > 5 && (
-            <div className="pt-2 border-t border-white/5 text-center mt-2">
+            <div className="pt-2 border-t border-slate-200 text-center mt-2">
               <Link
                 to="/cartera"
-                className="text-[9px] font-black text-rose-400 hover:text-rose-350 uppercase tracking-widest inline-flex items-center gap-1 hover:underline"
+                className="text-[9px] font-black text-rose-600 hover:text-rose-700 uppercase tracking-widest inline-flex items-center gap-1 hover:underline"
               >
                 Ver {originalVencidosLength - 5} deudores más en Cartera →
               </Link>
@@ -295,20 +295,20 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
         </Card>
 
         {/* COLUMNA 2: Faltan por pagar / Próximos a Vencer */}
-        <Card variant="simple" className={`border-indigo-500/10 flex flex-col justify-between ${compact ? 'min-h-[360px]' : 'min-h-[450px]'}`}>
+        <Card variant="simple" className={`border-indigo-200 flex flex-col justify-between ${compact ? 'min-h-[360px]' : 'min-h-[450px]'}`}>
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Header Column */}
-            <div className="flex items-center justify-between pb-3 border-b border-white/5 mb-1">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-1">
               <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <div className="w-9 h-9 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
                   <CalendarDays size={15} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-white leading-none">Próximos vencimientos</h3>
+                  <h3 className="text-sm font-black text-slate-800 leading-none">Próximos vencimientos</h3>
                   <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-1">Cuotas vigentes por vencer</p>
                 </div>
               </div>
-              <span className="badge bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-bold font-mono">
+              <span className="badge bg-indigo-55/10 border border-indigo-200 text-indigo-700 font-bold font-mono">
                 {loansProximos.length} activo{loansProximos.length !== 1 ? "s" : ""}
               </span>
             </div>
@@ -321,35 +321,35 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
               className="flex-1 overflow-y-auto mt-3 pr-1 space-y-3 scrollbar-thin"
             >
               {loansProximos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center p-6 text-slate-500 select-none py-16 rounded-2xl border border-dashed border-white/5 bg-white/[0.01]">
-                  <CalendarDays size={32} className="text-slate-650 mb-3" />
-                  <p className="text-xs font-bold text-slate-350">Sin vencimientos futuros</p>
-                  <p className="text-[10px] text-slate-550 mt-1">No hay créditos activos pendientes de vencimiento</p>
+                <div className="flex flex-col items-center justify-center h-full text-center p-6 text-slate-500 select-none py-16 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50">
+                  <CalendarDays size={32} className="text-slate-400 mb-3" />
+                  <p className="text-xs font-bold text-slate-700">Sin vencimientos futuros</p>
+                  <p className="text-[10px] text-slate-500 mt-1">No hay créditos activos pendientes de vencimiento</p>
                 </div>
               ) : (
                 loansProximos.map((loan) => {
                   const remaining = loan.remainingDays;
                   
-                  let timerBadgeColor = "bg-white/5 border-white/8 text-slate-400";
+                  let timerBadgeColor = "bg-slate-100 border-slate-200 text-slate-650";
                   if (remaining === 0) {
-                    timerBadgeColor = "bg-amber-500/10 border-amber-500/15 text-amber-400 animate-pulse";
+                    timerBadgeColor = "bg-amber-50 border-amber-250 text-amber-700 animate-pulse";
                   } else if (remaining <= 3) {
-                    timerBadgeColor = "bg-emerald-500/10 border-emerald-500/15 text-emerald-400";
+                    timerBadgeColor = "bg-emerald-50 border-emerald-250 text-emerald-700";
                   } else if (remaining <= 7) {
-                    timerBadgeColor = "bg-emerald-500/10 border-emerald-500/15 text-emerald-450";
+                    timerBadgeColor = "bg-emerald-50/50 border-emerald-200/80 text-emerald-650";
                   }
 
                   return (
                     <motion.div 
                       key={loan.id} 
                       variants={itemVariants}
-                      className="flex items-center justify-between p-4 bg-white/[0.012] border border-white/[0.04] rounded-3xl gap-3 hover:border-white/[0.08] transition duration-150"
+                      className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-3xl gap-3 hover:border-slate-350 transition duration-150"
                     >
                       <div className="flex flex-col gap-2 min-w-0 flex-1">
-                        <span className="font-black text-slate-50 text-sm leading-tight tracking-tight">{loan.cliente_nombre}</span>
+                        <span className="font-black text-slate-900 text-sm leading-tight tracking-tight">{loan.cliente_nombre}</span>
                         <div className="flex items-center gap-2">
-                          <Clock size={10} className="text-emerald-550 shrink-0" />
-                          <span className="text-[10px] text-slate-500 font-semibold">Monto: <strong className="text-slate-300 font-financial font-bold">{formatCurrency(loan.monto_capital)}</strong></span>
+                          <Clock size={10} className="text-emerald-600 shrink-0" />
+                          <span className="text-[10px] text-slate-500 font-semibold">Monto: <strong className="text-slate-800 font-financial font-bold">{formatCurrency(loan.monto_capital)}</strong></span>
                         </div>
                       </div>
 
@@ -365,7 +365,7 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
                                 href={loan.recLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20 transition cursor-pointer"
+                                className="p-1.5 rounded-lg bg-emerald-55 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition cursor-pointer"
                                 title="Enviar recordatorio amistoso"
                               >
                                 <Bell size={12} />
@@ -373,7 +373,7 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
                             )}
                             <Link
                               to={`/prestamos/${loan.id}`}
-                              className="p-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-slate-400 hover:text-white transition cursor-pointer"
+                              className="p-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-650 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
                             >
                               <ArrowUpRight size={12} />
                             </Link>
@@ -386,10 +386,10 @@ export const ClientAlerts: React.FC<{ activeLoans: any[]; clientes: Cliente[]; c
               )}
             </motion.div>
             {compact && originalProximosLength > 5 && (
-              <div className="pt-2 border-t border-white/5 text-center mt-2">
+              <div className="pt-2 border-t border-slate-200 text-center mt-2">
                 <Link
                   to="/cartera"
-                  className="text-[9px] font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-widest inline-flex items-center gap-1 hover:underline"
+                  className="text-[9px] font-black text-indigo-650 hover:text-indigo-750 uppercase tracking-widest inline-flex items-center gap-1 hover:underline"
                 >
                   Ver {originalProximosLength - 5} vencimientos más en Cartera →
                 </Link>

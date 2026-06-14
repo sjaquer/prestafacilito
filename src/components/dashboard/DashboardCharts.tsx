@@ -45,38 +45,38 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
       <Card variant="bento">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-4 gap-3 text-xs">
           <div>
-            <span className="dashboard-chip text-emerald-300 border-emerald-500/15 bg-emerald-500/10 mb-2 w-fit">Retorno</span>
-            <h3 className="font-black text-white text-base tracking-tight">Visualizador de cartera y retorno</h3>
+            <span className="badge-success mb-2 w-fit">Retorno</span>
+            <h3 className="font-black text-slate-800 text-base tracking-tight">Visualizador de cartera y retorno</h3>
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-              Dinero amortizado frente a saldo restante
+               Dinero amortizado frente a saldo restante
             </p>
           </div>
-          <div className="font-mono text-right text-[11px] md:text-xs bg-white/[0.02] border border-white/5 rounded-2xl px-3 py-2">
-            <span className="text-emerald-450 font-black">{recoveryRate.toFixed(1)}%</span> Cobrado ·{" "}
-            <span className="text-blue-455 font-black">{(100 - recoveryRate).toFixed(1)}%</span> Pendiente
+          <div className="font-mono text-right text-[11px] md:text-xs bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2">
+            <span className="text-emerald-700 font-black">{recoveryRate.toFixed(1)}%</span> Cobrado ·{" "}
+            <span className="text-indigo-650 font-black">{(100 - recoveryRate).toFixed(1)}%</span> Pendiente
           </div>
         </div>
         
         {/* Barra bicolor */}
-        <div className="w-full h-5 bg-black/60 rounded-full overflow-hidden p-1 border border-white/5 flex relative shadow-inner">
+        <div className="w-full h-5 bg-slate-100 rounded-full overflow-hidden p-1 border border-slate-200/80 flex relative shadow-inner">
           <div 
-            className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-700 ease-out rounded-full shadow-[0_0_12px_rgba(16,185,129,0.4)]" 
+            className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-700 ease-out rounded-full shadow-sm" 
             style={{ width: `${recoveryRate}%` }} 
           />
           <div 
-            className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-700 ease-out rounded-full shadow-[0_0_12px_rgba(99,102,241,0.25)] ml-1" 
+            className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-700 ease-out rounded-full shadow-sm ml-1" 
             style={{ width: `calc(${100 - recoveryRate}% - 4px)` }} 
           />
         </div>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-[11px] text-slate-450 mt-4 gap-2.5 font-bold uppercase tracking-wider">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-[11px] text-slate-500 mt-4 gap-2.5 font-bold uppercase tracking-wider">
           <span className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_6px_rgba(16,185,129,0.5)] shrink-0" /> 
-            Amortizado real: <strong className="text-white font-mono">{formatCurrency(totalIngresos)}</strong>
+            Amortizado real: <strong className="text-slate-800 font-mono">{formatCurrency(totalIngresos)}</strong>
           </span>
           <span className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full shadow-[0_0_6px_rgba(99,102,241,0.5)] shrink-0" /> 
-            Saldo pendiente: <strong className="text-white font-mono">{formatCurrency(saldoPendiente)}</strong>
+            Saldo pendiente: <strong className="text-slate-800 font-mono">{formatCurrency(saldoPendiente)}</strong>
           </span>
         </div>
       </Card>
@@ -86,8 +86,8 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base sm:text-lg font-black text-white tracking-tight leading-none">Distribución por Entidad Bancaria</h2>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">Saldo esperado por cuenta según pagos registrados</p>
+              <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-none">Distribución por Entidad Bancaria</h2>
+              <p className="text-[10px] text-slate-550 font-bold uppercase tracking-wider mt-1.5">Saldo esperado por cuenta según pagos registrados</p>
             </div>
             <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500">
               <Building2 size={14} className="text-slate-500" />
@@ -99,13 +99,13 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
             {bancoDist.filter(b => b.total > 0).map((banco) => (
               <div
                 key={banco.nombre}
-                className={`bg-white/[0.02] backdrop-blur-xl border ${banco.borderClass} rounded-3xl p-5 relative overflow-hidden group hover:bg-white/[0.03] transition-all duration-300`}
+                className={`bg-white border ${banco.borderClass} rounded-3xl p-5 relative overflow-hidden group hover:bg-slate-50/50 hover:shadow-md transition-all duration-300`}
               >
                 {/* Barra lateral */}
                 <div className={`absolute top-0 left-0 w-1 h-full ${banco.colorClass} opacity-80`} />
 
                 <div className="flex items-center justify-between mb-3">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center border ${banco.borderClass}`} style={{ background: 'rgba(255,255,255,0.03)' }}>
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center border ${banco.borderClass}`} style={{ background: 'rgba(0,0,0,0.01)' }}>
                     <Landmark size={14} className={banco.textClass} />
                   </div>
                   <span className={`text-[8.5px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${banco.badgeClass}`}>
@@ -121,7 +121,7 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
                 </div>
 
                 {/* Barra de proporción */}
-                <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <div
                     className={`h-full ${banco.colorClass} rounded-full transition-all duration-700`}
                     style={{ width: `${Math.min(100, banco.pct)}%` }}
@@ -130,7 +130,7 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
                 <div className="flex items-center justify-between mt-1.5">
                   <span className={`text-[9px] font-extrabold ${banco.textClass}`}>{banco.pct.toFixed(1)}%</span>
                   {banco.ultimoPago && (
-                    <span className="text-[8px] text-slate-650 font-bold">
+                    <span className="text-[8px] text-slate-500 font-bold">
                       Último: {new Date(`${banco.ultimoPago.fecha_pago}T00:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
                     </span>
                   )}
@@ -139,7 +139,7 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
                 {/* Metodos */}
                 <div className="mt-2.5 flex flex-wrap gap-1">
                   {banco.metodos.map(m => (
-                    <span key={m} className="text-[7px] font-bold text-slate-500 bg-white/[0.03] border border-white/5 px-1.5 py-0.5 rounded-md uppercase tracking-wide">
+                    <span key={m} className="text-[7px] font-bold text-slate-500 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded-md uppercase tracking-wide">
                       {m}
                     </span>
                   ))}
@@ -150,15 +150,15 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
 
           {/* Resumen total proporcional */}
           {totalIngresos > 0 && (
-            <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4">
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest flex items-center gap-1.5">
-                  <Banknote size={12} className="text-emerald-450" />
+                <span className="text-[10px] font-black text-slate-550 uppercase tracking-widest flex items-center gap-1.5">
+                  <Banknote size={12} className="text-emerald-700" />
                   Distribución total de ingresos
                 </span>
-                <span className="text-[11px] font-black text-white font-mono">{formatCurrency(totalIngresos)}</span>
+                <span className="text-[11px] font-black text-slate-900 font-mono">{formatCurrency(totalIngresos)}</span>
               </div>
-              <div className="w-full h-3 bg-black/60 rounded-full overflow-hidden flex gap-0.5 p-0.5">
+              <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden flex gap-0.5 p-0.5">
                 {bancoDist.filter(b => b.total > 0).map((banco) => (
                   <div
                     key={banco.nombre}

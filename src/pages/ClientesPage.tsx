@@ -189,10 +189,10 @@ export const ClientesPage: React.FC = () => {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2 mb-1.5 select-none">
-          <div className="w-1.5 h-5 bg-indigo-550 rounded-full" />
-          <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Directorio</span>
+          <div className="w-1.5 h-5 bg-indigo-600 rounded-full" />
+          <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">Directorio</span>
         </div>
-        <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-none">
+        <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-none">
           Gestión de Clientes
         </h1>
         <p className="text-xs text-slate-500 font-semibold mt-1">
@@ -201,7 +201,7 @@ export const ClientesPage: React.FC = () => {
       </div>
 
       {apiError && (
-        <div className="flex items-start gap-2.5 p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-2xl text-xs font-bold leading-normal">
+        <div className="flex items-start gap-2.5 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-xs font-bold leading-normal">
           <span>⚠️ {apiError}</span>
         </div>
       )}
@@ -211,25 +211,25 @@ export const ClientesPage: React.FC = () => {
         <div className="lg:sticky lg:top-20">
           <Card variant="simple" className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-500/10 border border-indigo-500/15 rounded-2xl flex items-center justify-center">
-                <UserPlus size={18} className="text-indigo-400" />
+              <div className="w-10 h-10 bg-indigo-50 border border-indigo-200 rounded-2xl flex items-center justify-center">
+                <UserPlus size={18} className="text-indigo-700" />
               </div>
               <div>
-                <h2 className="font-black text-white text-sm leading-none">Registrar Cliente</h2>
-                <p className="text-[9px] text-slate-550 font-bold uppercase mt-1">Nuevo prestatario</p>
+                <h2 className="font-black text-slate-800 text-sm leading-none">Registrar Cliente</h2>
+                <p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Nuevo prestatario</p>
               </div>
             </div>
 
-            <div className="border-t border-white/[0.04] pt-2" />
+            <div className="border-t border-slate-100 pt-2" />
 
             {successMsg && (
-              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 rounded-2xl text-xs font-bold">
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl text-xs font-bold">
                 {successMsg}
               </div>
             )}
 
             {errorMsg && !showEditModal && (
-              <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-2xl text-xs font-bold">
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-xs font-bold">
                 {errorMsg}
               </div>
             )}
@@ -246,19 +246,19 @@ export const ClientesPage: React.FC = () => {
           <Card variant="simple" className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Users size={16} className="text-indigo-400 shrink-0" />
-                <h2 className="font-black text-white text-base tracking-tight leading-none">Directorio de Deudores</h2>
+                <Users size={16} className="text-indigo-750 shrink-0" />
+                <h2 className="font-black text-slate-800 text-base tracking-tight leading-none">Directorio de Deudores</h2>
               </div>
-              <span className="text-[10px] font-black bg-white/[0.03] border border-white/[0.06] text-slate-400 px-2.5 py-1 rounded-lg">
+              <span className="text-[10px] font-black bg-slate-100 border border-slate-200 text-slate-600 px-2.5 py-1 rounded-lg">
                 {clientes.length} Clientes
               </span>
             </div>
 
-            <div className="border-t border-white/[0.04]" />
+            <div className="border-t border-slate-100" />
 
             {loading ? (
               <div className="flex flex-col items-center justify-center py-20">
-                <Loader2 className="animate-spin text-indigo-400 mb-3" size={32} />
+                <Loader2 className="animate-spin text-indigo-600 mb-3" size={32} />
                 <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Cargando directorio de deudas...</p>
               </div>
             ) : (
@@ -281,7 +281,7 @@ export const ClientesPage: React.FC = () => {
         {selectedCliente && (
           <div className="space-y-4">
             {errorMsg && (
-              <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-2xl text-xs font-bold">
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-xs font-bold">
                 {errorMsg}
               </div>
             )}
@@ -294,9 +294,9 @@ export const ClientesPage: React.FC = () => {
             />
 
             {/* Documentos del Cliente (Editar) */}
-            <div className="border-t border-white/[0.04] pt-4 space-y-3">
+            <div className="border-t border-slate-100 pt-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1.5 select-none">
+                <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-1.5 select-none">
                   <FileText size={11} /> Documentos Cargados
                 </span>
                 
@@ -304,7 +304,7 @@ export const ClientesPage: React.FC = () => {
                   <select
                     value={selectedDocTipo}
                     onChange={e => setSelectedDocTipo(e.target.value as TipoDocumento)}
-                    className="glass-input rounded-xl px-2 py-1.5 text-[9px] font-black cursor-pointer bg-[#0c0f1d] border-white/5"
+                    className="glass-input rounded-xl px-2 py-1.5 text-[9px] font-black cursor-pointer bg-white border-slate-200"
                   >
                     {(Object.entries(TIPOS_DOCUMENTO_CONFIG) as [TipoDocumento, { label: string; icon: string }][]).map(([k, v]) => (
                       <option key={k} value={k}>{v.icon} {v.label}</option>
@@ -314,7 +314,7 @@ export const ClientesPage: React.FC = () => {
                     type="button"
                     onClick={() => editFileInputRef.current?.click()}
                     disabled={uploadingDoc}
-                    className="px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 transition text-[10px] font-black flex items-center gap-1 cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition text-[10px] font-black flex items-center gap-1 cursor-pointer"
                   >
                     {uploadingDoc ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
                     <span>Subir</span>
@@ -331,17 +331,17 @@ export const ClientesPage: React.FC = () => {
 
               {loadingDocs ? (
                 <div className="flex items-center justify-center py-6">
-                  <Loader2 size={18} className="animate-spin text-indigo-400" />
+                  <Loader2 size={18} className="animate-spin text-indigo-700" />
                 </div>
               ) : editDocs.length === 0 ? (
-                <div className="text-center py-6 text-slate-655 text-[10px] font-bold uppercase tracking-wider bg-white/[0.01] border border-dashed border-white/[0.05] rounded-xl">
+                <div className="text-center py-6 text-slate-500 text-[10px] font-bold uppercase tracking-wider bg-slate-50 border border-dashed border-slate-200 rounded-xl">
                   Sin documentos cargados
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {editDocs.map(doc => (
-                    <div key={doc.id} className="group relative border border-white/[0.04] bg-[#0c101f]/35 rounded-xl overflow-hidden shadow-md">
-                      <div className="aspect-[4/3] bg-black/20 flex items-center justify-center overflow-hidden select-none">
+                    <div key={doc.id} className="group relative border border-slate-200 bg-slate-50/50 rounded-xl overflow-hidden shadow-sm">
+                      <div className="aspect-[4/3] bg-slate-100 flex items-center justify-center overflow-hidden select-none">
                         {doc.mime_type.startsWith("image/") ? (
                           <img src={doc.drive_url} alt="" className="w-full h-full object-cover" />
                         ) : (
@@ -353,14 +353,14 @@ export const ClientesPage: React.FC = () => {
                       </div>
                       
                       <div className="p-2">
-                        <p className="text-[9px] font-black text-indigo-400 uppercase tracking-wide truncate">
+                        <p className="text-[9px] font-black text-indigo-750 uppercase tracking-wide truncate">
                           {TIPOS_DOCUMENTO_CONFIG[doc.tipo_documento]?.icon} {TIPOS_DOCUMENTO_CONFIG[doc.tipo_documento]?.label}
                         </p>
                         <p className="text-[9px] text-slate-500 truncate mt-0.5">{doc.nombre_archivo}</p>
                       </div>
 
                       {/* Overlays */}
-                      <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <div className="absolute inset-0 bg-slate-900/75 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                         <button
                           onClick={() => setPreviewDoc(doc)}
                           className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition cursor-pointer border-none"
@@ -370,7 +370,7 @@ export const ClientesPage: React.FC = () => {
                         </button>
                         <button
                           onClick={() => handleDeleteDoc(doc.id)}
-                          className="p-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/40 text-rose-350 transition cursor-pointer border-none"
+                          className="p-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/40 text-rose-100 transition cursor-pointer border-none"
                           title="Eliminar"
                         >
                           <Trash2 size={13} />
@@ -388,22 +388,22 @@ export const ClientesPage: React.FC = () => {
       {/* Lightbox Preview */}
       {previewDoc && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/90"
           onClick={() => setPreviewDoc(null)}
         >
           <div
-            className="relative max-w-3xl w-full mx-4 rounded-3xl overflow-hidden bg-[#0d1020]/95 border border-white/[0.08]"
+            className="relative max-w-3xl w-full mx-4 rounded-3xl overflow-hidden bg-white border border-slate-200 shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
             {previewDoc.mime_type.startsWith("image/") ? (
-              <img src={previewDoc.drive_url} alt={previewDoc.nombre_archivo} className="w-full max-h-[75vh] object-contain bg-black" />
+              <img src={previewDoc.drive_url} alt={previewDoc.nombre_archivo} className="w-full max-h-[75vh] object-contain bg-slate-100" />
             ) : (
               <iframe src={previewDoc.drive_url} className="w-full h-[70vh] border-none" title={previewDoc.nombre_archivo} />
             )}
             
             <button
               onClick={() => setPreviewDoc(null)}
-              className="absolute top-4 right-4 p-2 rounded-xl bg-black/60 text-white hover:bg-black/80 transition cursor-pointer border-none flex items-center justify-center"
+              className="absolute top-4 right-4 p-2 rounded-xl bg-slate-900/80 text-white hover:bg-slate-950 transition cursor-pointer border-none flex items-center justify-center"
             >
               <X size={16} />
             </button>

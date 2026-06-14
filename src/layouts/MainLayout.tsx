@@ -97,12 +97,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
   return (
     <div
       id="admin-workspace"
-      className="workspace-shell min-h-screen flex flex-col bg-transparent text-[#f8fafc] pb-20 sm:pb-0"
+      className="workspace-shell min-h-screen flex flex-col bg-slate-50 text-slate-900 pb-24 sm:pb-0"
     >
       {/* ── HEADER ── */}
       <header
         id="workspace-header"
-        className="sticky top-0 z-40 bg-[#060913]/78 backdrop-blur-2xl border-b border-white/[0.06] shadow-[0_12px_40px_-24px_rgba(0,0,0,0.8)]"
+        className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center gap-4">
@@ -112,14 +112,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
               onClick={() => navigate("/")} 
               className="flex items-center gap-2.5 shrink-0 cursor-pointer select-none"
             >
-              <div className="w-9 h-9 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0">
+              <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-md shrink-0">
                 <Coins className="text-white" size={16} />
               </div>
               <div className="hidden sm:block leading-none">
-                <span className="font-black text-white text-sm tracking-tight block">
+                <span className="font-black text-slate-900 text-sm tracking-tight block">
                   PrestaFacilito
                 </span>
-                <span className="text-[10px] text-emerald-400/70 font-semibold tracking-wider">
+                <span className="text-[10px] text-emerald-600 font-bold tracking-wider">
                   Panel Administrativo 🇵🇪
                 </span>
               </div>
@@ -128,7 +128,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
             {/* Desktop Nav */}
             <nav
               id="nav-links"
-              className="hidden lg:flex items-center gap-0.5 bg-white/[0.035] p-1 rounded-2xl border border-white/[0.06] flex-1 max-w-md xl:max-w-lg mx-auto select-none"
+              className="hidden lg:flex items-center gap-0.5 bg-slate-100 p-1 rounded-2xl border border-slate-200/60 flex-1 max-w-md xl:max-w-lg mx-auto select-none"
             >
               {navItems.map((item) => {
                 const isActive = isPathActive(item);
@@ -138,8 +138,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                     to={item.path}
                     className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-bold transition-all duration-150 cursor-pointer flex-1 min-w-0 justify-center whitespace-nowrap decoration-none ${
                       isActive
-                        ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/20 border border-emerald-400/20"
-                        : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.05]"
+                        ? "bg-white text-emerald-700 shadow-sm border border-slate-200"
+                        : "text-slate-500 hover:text-slate-800 hover:bg-slate-205/50"
                     }`}
                   >
                     <item.icon size={13} strokeWidth={isActive ? 2.5 : 2} />
@@ -157,24 +157,24 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
               {/* Aa Zoom Control */}
               <FontSizeControl />
 
-              <div className="w-px h-5 bg-white/[0.08] hidden sm:block" />
+              <div className="w-px h-5 bg-slate-200 hidden sm:block" />
 
               {/* Google Drive Status Indicator & Reconnect Link */}
               <div 
                 id="drive-status-indicator"
-                className="flex items-center gap-1.5 bg-white/[0.03] border border-white/[0.08] px-2.5 py-1 rounded-xl select-none"
+                className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-xl select-none"
               >
                 {driveConfigured === null ? (
-                  <Cloud className="text-slate-500 animate-pulse" size={14} />
+                  <Cloud className="text-slate-450 animate-pulse" size={14} />
                 ) : driveConfigured ? (
-                  <Cloud className="text-emerald-450" size={14} />
+                  <Cloud className="text-emerald-600" size={14} />
                 ) : (
                   <CloudOff className="text-amber-500 animate-pulse" size={14} />
                 )}
 
                 <span className={`relative flex h-2 w-2`}>
                   {driveConfigured === null ? (
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-500 animate-pulse" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-450 animate-pulse" />
                   ) : driveConfigured ? (
                     <>
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-450 opacity-70" />
@@ -188,7 +188,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                   )}
                 </span>
                 
-                <span className="text-[10px] font-bold text-slate-400 hidden md:inline">
+                <span className="text-[10px] font-bold text-slate-600 hidden md:inline">
                   {driveConfigured === null ? "Drive..." : driveConfigured ? "Drive Activo" : "Drive Error"}
                 </span>
 
@@ -199,36 +199,36 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                     }
                   }}
                   title="Conectar o volver a vincular Google Drive"
-                  className="p-0.5 hover:bg-white/10 rounded text-slate-400 hover:text-white transition cursor-pointer border-none bg-transparent flex items-center justify-center ml-0.5"
+                  className="p-0.5 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-800 transition cursor-pointer border-none bg-transparent flex items-center justify-center ml-0.5"
                 >
-                  <span className="text-[9px] font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-wider px-1">
+                  <span className="text-[9px] font-black text-indigo-600 hover:text-indigo-700 uppercase tracking-wider px-1">
                     {driveConfigured ? "Reconectar" : "Conectar"}
                   </span>
                 </button>
               </div>
 
-              <div className="w-px h-5 bg-white/[0.08] hidden sm:block" />
+              <div className="w-px h-5 bg-slate-200 hidden sm:block" />
 
               {user && (
                 <div className="hidden lg:flex items-center gap-2 select-none">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center">
-                    <span className="text-[10px] font-black text-emerald-300 uppercase">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+                    <span className="text-[10px] font-black text-emerald-700 uppercase">
                       {user.charAt(0)}
                     </span>
                   </div>
-                  <span className="text-[11px] font-bold text-slate-400">
+                  <span className="text-[11px] font-bold text-slate-700">
                     {user}
                   </span>
                 </div>
               )}
 
-              <div className="w-px h-5 bg-white/[0.08] hidden sm:block" />
+              <div className="w-px h-5 bg-slate-200 hidden sm:block" />
               
               <button
                 id="btn-logout"
                 onClick={onLogout}
                 title="Cerrar sesión segura"
-                className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all duration-150 cursor-pointer border-none"
+                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-150 cursor-pointer border-none bg-transparent"
               >
                 <LogOut size={16} />
               </button>
@@ -245,7 +245,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
         <React.Suspense 
           fallback={
             <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-              <span className="animate-spin text-emerald-450 shrink-0">
+              <span className="animate-spin text-emerald-600 shrink-0">
                 <Coins size={28} />
               </span>
               <span className="text-xs font-bold text-slate-500 tracking-[0.15em] uppercase">
@@ -254,36 +254,35 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
             </div>
           }
         >
-          {/* Aquí se renderizan los hijos (las páginas de las rutas) */}
           <Outlet />
         </React.Suspense>
       </main>
 
-      {/* ── MOBILE BOTTOM NAV ── */}
-      <div className="sm:hidden fixed bottom-3 left-3 right-3 z-40 select-none">
-        <div className="bg-[#0c1020]/92 backdrop-blur-xl border border-white/[0.08] rounded-2xl px-2 py-1.5 shadow-2xl shadow-black/60 flex justify-around items-center">
+      {/* ── MOBILE BOTTOM NAV (44px touch height & pb-safe) ── */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 select-none bg-white border-t border-slate-200 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.03)]">
+        <div className="flex justify-around items-center px-2 py-1">
           {navItems.map((item) => {
             const isActive = isPathActive(item);
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex flex-col items-center gap-0.5 py-1.5 px-4 rounded-xl transition-all duration-200 cursor-pointer flex-1 decoration-none ${
-                  isActive
-                    ? "text-emerald-300"
-                    : "text-slate-600 hover:text-slate-400"
-                }`}
+                className="flex flex-col items-center justify-center min-w-[4.5rem] min-h-[44px] p-2 decoration-none"
               >
                 <div
-                  className={`p-1.5 rounded-lg transition-all ${isActive ? "bg-emerald-500/15" : ""}`}
+                  className={`p-1.5 rounded-full transition-colors ${
+                    isActive ? "bg-emerald-50 text-emerald-600" : "text-slate-400"
+                  }`}
                 >
                   <item.icon
-                    size={18}
-                    strokeWidth={isActive ? 2.5 : 1.8}
+                    size={22}
+                    strokeWidth={isActive ? 2.5 : 2}
                   />
                 </div>
                 <span
-                  className={`text-[9px] font-bold tracking-wide ${isActive ? "text-emerald-450" : "text-slate-600"}`}
+                  className={`text-[10px] font-semibold mt-1 ${
+                    isActive ? "text-emerald-700" : "text-slate-500"
+                  }`}
                 >
                   {item.label === "Análisis IA" ? "IA" : item.label}
                 </span>
@@ -291,21 +290,21 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
             );
           })}
         </div>
-      </div>
+      </nav>
 
       {/* ── FOOTER ── */}
       <footer
         id="workspace-footer"
-        className="bg-[#05070f] border-t border-white/[0.05] py-4 hidden sm:block select-none relative z-[1]"
+        className="bg-white border-t border-slate-200 py-4 hidden sm:block select-none relative z-[1]"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <p className="text-[11px] text-slate-600 font-medium">
+          <p className="text-[11px] text-slate-500 font-medium">
             © 2026 PrestaFacilito · Panel de Administración de Cartera
           </p>
           <div className="flex items-center gap-2 text-[11px] text-slate-500 font-semibold">
             <span>Base de datos activa</span>
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-450 opacity-70" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
           </div>

@@ -21,10 +21,10 @@ interface ClientNotesProps {
 }
 
 const TYPE_CONFIG = {
-  llamada: { label: "Llamada", color: "text-blue-400 bg-blue-500/10 border-blue-500/20", icon: Phone },
-  visita: { label: "Visita", color: "text-amber-400 bg-amber-500/10 border-amber-500/20", icon: MapPin },
-  whatsapp: { label: "WhatsApp", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20", icon: MessageSquare },
-  otra: { label: "Nota Libre", color: "text-slate-400 bg-slate-500/10 border-slate-500/20", icon: Sparkles }
+  llamada: { label: "Llamada", color: "text-blue-700 bg-blue-50 border-blue-200", icon: Phone },
+  visita: { label: "Visita", color: "text-amber-700 bg-amber-50 border-amber-250/80", icon: MapPin },
+  whatsapp: { label: "WhatsApp", color: "text-emerald-700 bg-emerald-50 border-emerald-200", icon: MessageSquare },
+  otra: { label: "Nota Libre", color: "text-slate-600 bg-slate-50 border-slate-200", icon: Sparkles }
 };
 
 export const ClientNotes: React.FC<ClientNotesProps> = ({ cliente, onUpdateClient }) => {
@@ -122,17 +122,17 @@ export const ClientNotes: React.FC<ClientNotesProps> = ({ cliente, onUpdateClien
   return (
     <Card variant="simple" className="space-y-4">
       <div>
-        <h3 className="font-black text-white text-base tracking-tight leading-none">Seguimiento e Interacciones</h3>
+        <h3 className="font-black text-slate-900 text-base tracking-tight leading-none">Seguimiento e Interacciones</h3>
         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
           Registra llamadas, visitas domiciliarias y recordatorios
         </p>
       </div>
 
-      <div className="border-t border-white/[0.04] pt-4" />
+      <div className="border-t border-slate-200/80 pt-4" />
 
       {/* Editor de Nueva Nota */}
-      <form onSubmit={handleAddNote} className="space-y-3 bg-white/[0.015] border border-white/[0.04] rounded-2xl p-4">
-        <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block">Registrar Interacción</span>
+      <form onSubmit={handleAddNote} className="space-y-3 bg-slate-50/50 border border-slate-200 rounded-2xl p-4">
+        <span className="text-[10px] font-black text-indigo-650 uppercase tracking-widest block">Registrar Interacción</span>
         
         <div className="flex flex-col sm:flex-row gap-2">
           {/* Selector de Tipo */}
@@ -140,7 +140,7 @@ export const ClientNotes: React.FC<ClientNotesProps> = ({ cliente, onUpdateClien
             <select
               value={newNoteType}
               onChange={(e) => setNewNoteType(e.target.value as any)}
-              className="w-full glass-input rounded-xl px-3 py-2.5 text-xs font-bold cursor-pointer bg-[#0b0e1b] border-white/6"
+              className="w-full glass-input rounded-xl px-3 py-2.5 text-xs font-bold cursor-pointer bg-white border-slate-200 text-slate-800"
               disabled={saving}
             >
               <option value="otra">📝 Nota General</option>
@@ -157,7 +157,7 @@ export const ClientNotes: React.FC<ClientNotesProps> = ({ cliente, onUpdateClien
               value={newNoteText}
               onChange={(e) => setNewNoteText(e.target.value)}
               placeholder="Ej. Se acordó que pagará el viernes por la tarde..."
-              className="w-full glass-input rounded-xl px-4 py-2.5 text-xs font-semibold border-white/6 focus:border-indigo-500/80 pr-12"
+              className="w-full glass-input rounded-xl px-4 py-2.5 text-xs font-semibold border-slate-200 focus:border-indigo-500 pr-12 text-slate-850 bg-white"
               disabled={saving}
               required
               autoComplete="off"
@@ -171,9 +171,8 @@ export const ClientNotes: React.FC<ClientNotesProps> = ({ cliente, onUpdateClien
             </button>
           </div>
         </div>
-
         {error && (
-          <div className="flex items-center gap-2 text-[10px] text-rose-455 font-bold mt-1">
+          <div className="flex items-center gap-2 text-[10px] text-rose-600 font-bold mt-1">
             <AlertCircle size={12} className="shrink-0" />
             <span>{error}</span>
           </div>
@@ -182,16 +181,16 @@ export const ClientNotes: React.FC<ClientNotesProps> = ({ cliente, onUpdateClien
 
       {/* Historial / Timeline */}
       <div className="space-y-4 pt-2">
-        <span className="text-[10px] font-black text-slate-550 uppercase tracking-widest block">Historial Cronológico</span>
+        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Historial Cronológico</span>
 
         {notesList.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center bg-white/[0.01] border border-dashed border-white/[0.05] rounded-2xl p-4 select-none">
-            <Smile className="text-slate-600 mb-2" size={24} />
-            <p className="text-xs font-bold text-slate-400">Sin notas de seguimiento</p>
-            <p className="text-[10px] text-slate-550 mt-0.5">El historial de interacciones está limpio</p>
+          <div className="flex flex-col items-center justify-center py-8 text-center bg-slate-50/40 border border-dashed border-slate-200 rounded-2xl p-4 select-none">
+            <Smile className="text-slate-400 mb-2" size={24} />
+            <p className="text-xs font-bold text-slate-500">Sin notas de seguimiento</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">El historial de interacciones está limpio</p>
           </div>
         ) : (
-          <div className="relative pl-4 border-l-2 border-white/[0.04] space-y-4 ml-2.5">
+          <div className="relative pl-4 border-l-2 border-slate-200 space-y-4 ml-2.5">
             {notesList.map((note) => {
               const config = TYPE_CONFIG[note.type] || TYPE_CONFIG.otra;
               const Icon = config.icon;
@@ -199,17 +198,17 @@ export const ClientNotes: React.FC<ClientNotesProps> = ({ cliente, onUpdateClien
               return (
                 <div key={note.id} className="relative group animate-fadeIn">
                   {/* Bullet */}
-                  <div className={`absolute -left-[23px] top-1 w-3.5 h-3.5 rounded-full border-2 border-[#090b16] ${config.color} flex items-center justify-center`}>
+                  <div className={`absolute -left-[23px] top-1 w-3.5 h-3.5 rounded-full border-2 border-white bg-white ${config.color} flex items-center justify-center`}>
                     <div className="w-1.5 h-1.5 rounded-full bg-current" />
                   </div>
 
-                  <div className="bg-[#0b0f20]/35 border border-white/[0.035] rounded-xl p-3.5 space-y-2 hover:border-white/[0.06] transition duration-150">
+                  <div className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2 hover:border-slate-300 transition duration-150 shadow-sm">
                     <div className="flex justify-between items-center flex-wrap gap-2">
                       <div className="flex items-center gap-2">
                         <span className={`inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-md border ${config.color}`}>
                           <Icon size={10} /> {config.label}
                         </span>
-                        <span className="text-[10px] text-slate-550 font-semibold font-mono flex items-center gap-1 select-none">
+                        <span className="text-[10px] text-slate-500 font-semibold font-mono flex items-center gap-1 select-none">
                           <Clock size={9} /> {formatDate(note.date)}
                         </span>
                       </div>
@@ -217,7 +216,7 @@ export const ClientNotes: React.FC<ClientNotesProps> = ({ cliente, onUpdateClien
                       {note.id !== "initial-note" && (
                         <button
                           onClick={() => handleDeleteNote(note.id)}
-                          className="p-1 rounded-lg text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 transition opacity-0 group-hover:opacity-100 cursor-pointer border-none shrink-0"
+                          className="p-1 rounded-lg text-slate-550 hover:text-rose-600 hover:bg-rose-50 transition opacity-0 group-hover:opacity-100 cursor-pointer border-none shrink-0"
                           title="Eliminar nota"
                           disabled={saving}
                         >
@@ -226,7 +225,7 @@ export const ClientNotes: React.FC<ClientNotesProps> = ({ cliente, onUpdateClien
                       )}
                     </div>
 
-                    <p className="text-xs text-slate-350 font-medium leading-relaxed break-words whitespace-pre-wrap">
+                    <p className="text-xs text-slate-700 font-medium leading-relaxed break-words whitespace-pre-wrap">
                       {note.text}
                     </p>
                   </div>

@@ -366,7 +366,7 @@ export const CarteraPage: React.FC = () => {
       cell: (loan) => {
         return (
           <Link to={`/clientes/${loan.cliente_id}`} className="flex items-center gap-1 hover:opacity-90 select-none cursor-pointer group decoration-none">
-            <span className="font-bold text-white block group-hover:text-indigo-400 transition leading-tight">{loan.cliente_nombre}</span>
+            <span className="font-bold text-slate-900 block group-hover:text-indigo-600 transition leading-tight">{loan.cliente_nombre}</span>
           </Link>
         );
       },
@@ -376,7 +376,7 @@ export const CarteraPage: React.FC = () => {
       accessorKey: "monto_capital",
       sortable: true,
       cell: (loan) => (
-        <span className="font-extrabold text-white font-mono text-xs sm:text-sm">
+        <span className="font-extrabold text-slate-800 font-mono text-xs sm:text-sm">
           {formatCurrency(loan.monto_capital)}
         </span>
       ),
@@ -386,7 +386,7 @@ export const CarteraPage: React.FC = () => {
       accessorKey: "tasa_interes_porcentaje",
       sortable: true,
       cell: (loan) => (
-        <span className="font-bold text-indigo-300 font-mono text-xs">
+        <span className="font-bold text-indigo-600 font-mono text-xs">
           {loan.tasa_interes_porcentaje}%
         </span>
       ),
@@ -396,7 +396,7 @@ export const CarteraPage: React.FC = () => {
       accessorKey: "fecha_emision",
       sortable: true,
       cell: (loan) => (
-        <span className="text-slate-400 font-mono text-[11px]">
+        <span className="text-slate-600 font-mono text-[11px]">
           {loan.fecha_emision}
         </span>
       ),
@@ -406,7 +406,7 @@ export const CarteraPage: React.FC = () => {
       accessorKey: "fecha_vencimiento",
       sortable: true,
       cell: (loan) => (
-        <span className="text-slate-400 text-[11px] whitespace-normal">
+        <span className="text-slate-600 text-[11px] whitespace-normal">
           {loan.fecha_vencimiento ? formatDateWithDay(loan.fecha_vencimiento) : "No est."}
         </span>
       ),
@@ -415,7 +415,7 @@ export const CarteraPage: React.FC = () => {
       header: "Plazo Restante",
       cell: (loan) => {
         if (loan.estado === "pagado") {
-          return <span className="text-[10px] text-slate-650 font-bold uppercase tracking-wide">Liquidador</span>;
+          return <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Liquidador</span>;
         }
         const days = getRemainingDays(loan.fecha_vencimiento);
         if (days < 0) {
@@ -440,7 +440,7 @@ export const CarteraPage: React.FC = () => {
           );
         }
         return (
-          <Badge variant="neutral" className="text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 text-slate-350">
+          <Badge variant="neutral" className="text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 text-slate-600">
             {days} días
           </Badge>
         );
@@ -463,7 +463,7 @@ export const CarteraPage: React.FC = () => {
         const isMora = loan.estado === "activo" && getRemainingDays(loan.fecha_vencimiento) < 0;
 
         if (isPagado) {
-          return <Badge variant="neutral" className="bg-slate-700/20 text-slate-400 border border-slate-500/10">Pagado</Badge>;
+          return <Badge variant="neutral" className="bg-slate-100 text-slate-700 border border-slate-200">Pagado</Badge>;
         }
         if (isMora) {
           return <Badge variant="danger">En Mora</Badge>;
@@ -483,7 +483,7 @@ export const CarteraPage: React.FC = () => {
                 href={waLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-emerald-500 hover:text-emerald-450 p-1.5 hover:bg-emerald-500/10 rounded-xl transition cursor-pointer"
+                className="text-emerald-600 hover:text-emerald-700 p-1.5 hover:bg-emerald-50 rounded-xl transition cursor-pointer"
                 title="Cobrar vía WhatsApp"
               >
                 <MessageSquare size={14} />
@@ -494,7 +494,7 @@ export const CarteraPage: React.FC = () => {
                 href={recLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-amber-500 hover:text-amber-440 p-1.5 hover:bg-amber-500/10 rounded-xl transition cursor-pointer"
+                className="text-amber-600 hover:text-amber-700 p-1.5 hover:bg-amber-55 rounded-xl transition cursor-pointer"
                 title="Enviar recordatorio de cuota"
               >
                 <Bell size={14} />
@@ -503,7 +503,7 @@ export const CarteraPage: React.FC = () => {
 
             <button
               onClick={(e) => handleOpenEditModal(loan, e)}
-              className="text-slate-500 hover:text-indigo-400 p-1.5 hover:bg-white/5 rounded-xl transition cursor-pointer border-none bg-transparent"
+              className="text-slate-500 hover:text-indigo-650 p-1.5 hover:bg-slate-100 rounded-xl transition cursor-pointer border-none bg-transparent"
               title="Editar Parámetros"
             >
               <Edit size={14} />
@@ -511,7 +511,7 @@ export const CarteraPage: React.FC = () => {
 
             <Link
               to={`/prestamos/${loan.id}`}
-              className="text-[10px] bg-white/5 hover:bg-white/10 border border-white/8 text-white py-1 px-2.5 rounded-lg font-bold transition cursor-pointer inline-flex items-center gap-1 decoration-none"
+              className="text-[10px] bg-slate-100 hover:bg-slate-200 border border-slate-250 text-slate-800 py-1 px-2.5 rounded-lg font-bold transition cursor-pointer inline-flex items-center gap-1 decoration-none"
             >
               <span>Ver</span>
               <ArrowUpRight size={10} />
@@ -529,30 +529,30 @@ export const CarteraPage: React.FC = () => {
     const totalAmortizable = round2(capital * (1 + interest / 100));
 
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs select-none p-2 bg-[#090e1c]/40 border border-white/5 rounded-2xl">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs select-none p-2 bg-slate-50 border border-slate-200 rounded-2xl">
         <div className="flex items-center gap-2">
-          <Info size={14} className="text-indigo-400 shrink-0" />
+          <Info size={14} className="text-indigo-650 shrink-0" />
           <div>
             <span className="text-slate-500 font-bold block uppercase text-[9px] tracking-wider">Flujo Total Estimado:</span>
-            <span className="font-extrabold text-white text-xs">{formatCurrency(totalAmortizable)} (con intereses)</span>
+            <span className="font-extrabold text-slate-800 text-xs">{formatCurrency(totalAmortizable)} (con intereses)</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-indigo-400 shrink-0" />
+          <Calendar size={14} className="text-indigo-650 shrink-0" />
           <div>
             <span className="text-slate-500 font-bold block uppercase text-[9px] tracking-wider">Vencimiento Final:</span>
-            <span className="font-extrabold text-white text-xs">{loan.fecha_vencimiento ? formatDateWithDay(loan.fecha_vencimiento) : "No configurado"}</span>
+            <span className="font-extrabold text-slate-800 text-xs">{loan.fecha_vencimiento ? formatDateWithDay(loan.fecha_vencimiento) : "No configurado"}</span>
           </div>
         </div>
 
         {loan.estado === "activo" && (
           <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0 animate-ping" />
+            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 animate-ping" />
             <div>
               <span className="text-slate-500 font-bold block uppercase text-[9px] tracking-wider">Cronograma:</span>
               <span className={`inline-flex items-center gap-1.5 font-black uppercase tracking-wider text-[9px] ${
-                days < 0 ? "text-rose-400" : days === 0 ? "text-amber-400" : "text-emerald-450"
+                days < 0 ? "text-rose-600" : days === 0 ? "text-amber-600" : "text-emerald-600"
               }`}>
                 {days < 0 ? `Expirado hace ${Math.abs(days)} días` : days === 0 ? "Vence hoy" : `Queda un plazo de ${days} días`}
               </span>
@@ -568,8 +568,8 @@ export const CarteraPage: React.FC = () => {
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-none flex items-center gap-2">
-            <Briefcase className="text-indigo-500 shrink-0" size={24} />
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none flex items-center gap-2">
+            <Briefcase className="text-indigo-650 shrink-0" size={24} />
             <span>Cartera de Deudas</span>
           </h1>
           <p className="text-[11px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-1.5">
@@ -603,69 +603,69 @@ export const CarteraPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KPI 1 */}
         <Card variant="bento" className="relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
+          <div className="absolute top-0 left-0 w-1 h-full bg-indigo-600" />
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-550">Capital Colocado</span>
-            <div className="p-1 bg-indigo-500/10 rounded-lg text-indigo-400">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Capital Colocado</span>
+            <div className="p-1 bg-indigo-50 rounded-lg text-indigo-600">
               <Landmark size={14} />
             </div>
           </div>
           <div className="mt-2.5">
-            <span className="text-lg sm:text-xl font-black text-white font-mono block leading-none">
+            <span className="text-lg sm:text-xl font-black text-slate-900 font-mono block leading-none">
               {formatCurrency(portfolioKPIs.totalColocado)}
             </span>
-            <span className="text-[8px] text-slate-550 font-bold uppercase mt-1 block">Suma de capital directo</span>
+            <span className="text-[8px] text-slate-500 font-bold uppercase mt-1 block">Suma de capital directo</span>
           </div>
         </Card>
 
         {/* KPI 2 */}
         <Card variant="bento" className="relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
+          <div className="absolute top-0 left-0 w-1 h-full bg-emerald-600" />
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-550">Deudas Activas</span>
-            <div className="p-1 bg-emerald-500/10 rounded-lg text-emerald-450">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Deudas Activas</span>
+            <div className="p-1 bg-emerald-50 rounded-lg text-emerald-600">
               <Activity size={14} />
             </div>
           </div>
           <div className="mt-2.5">
-            <span className="text-lg sm:text-xl font-black text-white font-mono block leading-none">
+            <span className="text-lg sm:text-xl font-black text-slate-900 font-mono block leading-none">
               {portfolioKPIs.activasCount} préstamos
             </span>
-            <span className="text-[8px] text-slate-555 font-bold uppercase mt-1 block">Préstamos vigentes</span>
+            <span className="text-[8px] text-slate-500 font-bold uppercase mt-1 block">Préstamos vigentes</span>
           </div>
         </Card>
 
         {/* KPI 3 */}
         <Card variant="bento" className="relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-1 h-full bg-rose-500" />
+          <div className="absolute top-0 left-0 w-1 h-full bg-rose-600" />
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-550">En Mora</span>
-            <div className="p-1 bg-rose-500/10 rounded-lg text-rose-450">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">En Mora</span>
+            <div className="p-1 bg-rose-50 rounded-lg text-rose-600">
               <AlertTriangle size={14} />
             </div>
           </div>
           <div className="mt-2.5">
-            <span className="text-lg sm:text-xl font-black text-rose-400 font-mono block leading-none">
+            <span className="text-lg sm:text-xl font-black text-rose-600 font-mono block leading-none">
               {portfolioKPIs.enMoraCount} ({portfolioKPIs.enMoraPct.toFixed(0)}%)
             </span>
-            <span className="text-[8px] text-rose-400/80 font-bold uppercase mt-1 block">Retraso acumulado</span>
+            <span className="text-[8px] text-rose-600 font-bold uppercase mt-1 block">Retraso acumulado</span>
           </div>
         </Card>
 
         {/* KPI 4 */}
         <Card variant="bento" className="relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
+          <div className="absolute top-0 left-0 w-1 h-full bg-blue-600" />
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-550">Retorno Estimado</span>
-            <div className="p-1 bg-blue-500/10 rounded-lg text-blue-400">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Retorno Estimado</span>
+            <div className="p-1 bg-blue-50 rounded-lg text-blue-600">
               <Target size={14} />
             </div>
           </div>
           <div className="mt-2.5">
-            <span className="text-lg sm:text-xl font-black text-white font-mono block leading-none">
+            <span className="text-lg sm:text-xl font-black text-slate-900 font-mono block leading-none">
               {formatCurrency(portfolioKPIs.totalExigible)}
             </span>
-            <span className="text-[8px] text-slate-550 font-bold uppercase mt-1 block">Capital + Interés total</span>
+            <span className="text-[8px] text-slate-500 font-bold uppercase mt-1 block">Capital + Interés total</span>
           </div>
         </Card>
       </div>
@@ -673,15 +673,15 @@ export const CarteraPage: React.FC = () => {
       {/* TABLA PRINCIPAL Y FILTROS */}
       <Card variant="simple" className="flex flex-col">
         {/* BARRA DE HERRAMIENTAS */}
-        <div className="p-1 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 select-none">
+        <div className="p-1 border-b border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 select-none">
           <div className="flex-1 max-w-md relative">
-            <Search className="absolute left-3.5 top-3.5 text-slate-500" size={16} />
+            <Search className="absolute left-3.5 top-3.5 text-slate-400" size={16} />
             <input
               type="text"
               placeholder="Buscar por prestatario, categoría..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="glass-input pl-10 pr-4 h-11 w-full bg-[#080d1a] border border-white/8 rounded-xl font-bold text-xs"
+              className="glass-input pl-10 pr-4 h-11 w-full bg-white border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:border-indigo-500"
             />
           </div>
 
@@ -690,21 +690,21 @@ export const CarteraPage: React.FC = () => {
               onClick={() => setShowFiltersPanel(!showFiltersPanel)}
               className={`flex items-center gap-1.5 h-11 px-4 border rounded-xl font-black text-[10px] uppercase tracking-widest transition cursor-pointer ${
                 showFiltersPanel
-                  ? "bg-indigo-600 border-indigo-500 text-white"
-                  : "bg-white/5 border-white/8 text-slate-400 hover:text-white"
+                  ? "bg-indigo-650 border-indigo-600 text-white shadow-md shadow-indigo-600/10"
+                  : "bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50"
               }`}
             >
               <Filter size={13} />
               <span>Filtros avanzados</span>
               {(filterEstado !== "todos" || filterTipo !== "todos" || fechaMin || fechaMax || montoMin || montoMax) && (
-                <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />
+                <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
               )}
             </button>
 
             {(filterEstado !== "todos" || filterTipo !== "todos" || fechaMin || fechaMax || montoMin || montoMax || searchTerm) && (
               <button
                 onClick={clearFilters}
-                className="flex items-center gap-1 h-11 px-3 bg-white/5 border border-white/8 text-rose-450 hover:bg-rose-500/10 hover:text-rose-400 rounded-xl font-black text-[10px] uppercase tracking-widest transition cursor-pointer border-none"
+                className="flex items-center gap-1 h-11 px-3 bg-white border border-slate-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl font-black text-[10px] uppercase tracking-widest transition cursor-pointer border-none"
               >
                 <X size={13} />
                 <span>Limpiar</span>
@@ -712,7 +712,7 @@ export const CarteraPage: React.FC = () => {
             )}
 
             {/* SEGMENTED CONTROL: ESTADOS RÁPIDOS */}
-            <div className="flex items-center gap-0.5 bg-[#080c16] p-0.5 rounded-xl border border-white/5">
+            <div className="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-xl border border-slate-200/80">
               {(["todos", "activo", "pagado", "mora"] as const).map((est) => (
                 <button
                   key={est}
@@ -723,8 +723,8 @@ export const CarteraPage: React.FC = () => {
                         ? "bg-rose-600 text-white shadow-md"
                         : est === "pagado"
                         ? "bg-slate-700 text-white"
-                        : "bg-indigo-600 text-white shadow-md shadow-indigo-500/10"
-                      : "text-slate-500 hover:text-slate-350"
+                        : "bg-indigo-650 text-white shadow-md shadow-indigo-650/10"
+                      : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
                   {est === "todos" ? "Todos" : est === "activo" ? "Vigentes" : est === "pagado" ? "Pagados" : "En Mora"}
@@ -736,14 +736,14 @@ export const CarteraPage: React.FC = () => {
 
         {/* PANEL DE FILTROS AVANZADOS EXPANDIBLE */}
         {showFiltersPanel && (
-          <div className="p-4 bg-white/[0.01] border-b border-white/5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 animate-fadeIn select-none">
+          <div className="p-4 bg-slate-50/50 border-b border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 animate-fadeIn select-none">
             {/* Filtro por Categoría */}
             <div className="space-y-1.5">
               <label className="text-[9.5px] font-black text-slate-500 uppercase tracking-widest block">Categoría de Crédito</label>
               <select
                 value={filterTipo}
                 onChange={(e) => setFilterTipo(e.target.value)}
-                className="glass-input w-full px-3 h-10 rounded-xl border border-white/8 bg-[#080c18] text-[#f8fafc] text-xs font-bold cursor-pointer"
+                className="glass-input w-full px-3 h-10 rounded-xl border border-slate-200 bg-white text-slate-800 text-xs font-bold cursor-pointer"
               >
                 <option value="todos">Todas las categorías</option>
                 {loanTypes.map((t) => (
@@ -762,14 +762,14 @@ export const CarteraPage: React.FC = () => {
                   type="date"
                   value={fechaMin}
                   onChange={(e) => setFechaMin(e.target.value)}
-                  className="glass-input flex-1 px-3 h-10 rounded-xl border border-white/8 bg-[#080c18] text-[#f8fafc] text-xs font-bold cursor-pointer"
+                  className="glass-input flex-1 px-3 h-10 rounded-xl border border-slate-200 bg-white text-slate-800 text-xs font-bold cursor-pointer"
                 />
-                <span className="text-slate-600 font-bold self-center text-xs">al</span>
+                <span className="text-slate-550 font-bold self-center text-xs">al</span>
                 <input
                   type="date"
                   value={fechaMax}
                   onChange={(e) => setFechaMax(e.target.value)}
-                  className="glass-input flex-1 px-3 h-10 rounded-xl border border-white/8 bg-[#080c18] text-[#f8fafc] text-xs font-bold cursor-pointer"
+                  className="glass-input flex-1 px-3 h-10 rounded-xl border border-slate-200 bg-white text-slate-800 text-xs font-bold cursor-pointer"
                 />
               </div>
             </div>
@@ -783,15 +783,15 @@ export const CarteraPage: React.FC = () => {
                   placeholder="Min"
                   value={montoMin}
                   onChange={(e) => setMontoMin(e.target.value)}
-                  className="glass-input flex-1 px-3 h-10 rounded-xl border border-white/8 bg-[#080c18] text-[#f8fafc] text-xs font-bold"
+                  className="glass-input flex-1 px-3 h-10 rounded-xl border border-slate-200 bg-white text-slate-800 text-xs font-bold"
                 />
-                <span className="text-slate-600 font-bold self-center text-xs">-</span>
+                <span className="text-slate-550 font-bold self-center text-xs">-</span>
                 <input
                   type="number"
                   placeholder="Max"
                   value={montoMax}
                   onChange={(e) => setMontoMax(e.target.value)}
-                  className="glass-input flex-1 px-3 h-10 rounded-xl border border-white/8 bg-[#080c18] text-[#f8fafc] text-xs font-bold"
+                  className="glass-input flex-1 px-3 h-10 rounded-xl border border-slate-200 bg-white text-slate-800 text-xs font-bold"
                 />
               </div>
             </div>
@@ -821,8 +821,8 @@ export const CarteraPage: React.FC = () => {
             title={isAlquiler ? `Editar Contrato de Alquiler: ${selectedEditLoan.cliente_nombre}` : `Editar Parámetros: ${selectedEditLoan.cliente_nombre}`}
           >
             <form onSubmit={handleEditLoanSubmit} className="space-y-4 font-sans select-none">
-              <div className="p-3 bg-indigo-500/10 border border-indigo-500/15 rounded-2xl text-[10.5px] font-bold text-indigo-300 leading-normal flex items-start gap-2.5">
-                <Info size={14} className="shrink-0 mt-0.5 text-indigo-400" />
+              <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-2xl text-[10.5px] font-bold text-indigo-700 leading-normal flex items-start gap-2.5">
+                <Info size={14} className="shrink-0 mt-0.5 text-indigo-650" />
                 <span>
                   {isAlquiler
                     ? "Editar estos valores recalcula automáticamente la mensualidad y cronograma de cobros para este alquiler. Los cambios se sincronizarán con Google Calendar de inmediato."
@@ -844,16 +844,16 @@ export const CarteraPage: React.FC = () => {
                       onChange={(e) => setEditMontoMensual(e.target.value)}
                     />
                     <div className="flex flex-col gap-1.5 w-full">
-                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block pl-0.5">
+                      <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider block pl-0.5">
                         Duración (Meses) *
                       </label>
                       <select
                         value={editDuracionMeses}
                         onChange={(e) => setEditDuracionMeses(e.target.value)}
-                        className="w-full h-11 px-4 glass-input rounded-xl border border-white/8 outline-none bg-[#080c18] cursor-pointer text-slate-200 text-xs font-bold"
+                        className="w-full h-11 px-4 glass-input rounded-xl border border-slate-200 outline-none bg-white cursor-pointer text-slate-800 text-xs font-bold"
                       >
                         {[1,2,3,4,5,6,7,8,9,10,11,12,18,24].map(m => (
-                          <option key={m} value={m} className="bg-[#0f172a]">{m} {m === 1 ? 'Mes' : 'Meses'}</option>
+                          <option key={m} value={m} className="bg-white text-slate-800">{m} {m === 1 ? 'Mes' : 'Meses'}</option>
                         ))}
                       </select>
                     </div>
@@ -920,7 +920,7 @@ export const CarteraPage: React.FC = () => {
                 </>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/5 mt-4">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/80 mt-4">
                 <Button
                   type="button"
                   variant="secondary"

@@ -46,7 +46,7 @@ export const KPICards: React.FC<KPICardsProps> = ({
           </div>
         </div>
         <div className="mt-4">
-          <span className="text-xl md:text-2xl lg:text-3xl font-black text-white tracking-tight font-mono block">
+          <span className="text-xl md:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight font-mono block">
             {formatCurrency(totalCapitalPrestado)}
           </span>
           <p className="text-[10px] md:text-[11px] text-slate-500 font-bold mt-2.5 uppercase tracking-wider">
@@ -89,7 +89,7 @@ export const KPICards: React.FC<KPICardsProps> = ({
           </div>
         </div>
         <div className="mt-4">
-          <span className="text-xl md:text-2xl lg:text-3xl font-black text-white tracking-tight font-mono block">
+          <span className="text-xl md:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight font-mono block">
             {formatCurrency(saldoPendiente)}
           </span>
           <p className="text-[10px] md:text-[11px] text-slate-500 font-bold mt-2.5 uppercase tracking-wider">
@@ -110,7 +110,7 @@ export const KPICards: React.FC<KPICardsProps> = ({
           </div>
         </div>
         <div className="mt-4">
-          <span className={`text-xl md:text-2xl lg:text-3xl font-black tracking-tight font-mono block ${overdueLoansCount > 0 ? "text-rose-400" : "text-white"}`}>
+          <span className={`text-xl md:text-2xl lg:text-3xl font-black tracking-tight font-mono block ${overdueLoansCount > 0 ? "text-rose-600" : "text-slate-900"}`}>
             {healthRate.toFixed(0)}%
           </span>
           <p className="text-[10px] md:text-[11px] font-bold mt-2.5 flex items-center gap-1.5 uppercase tracking-wider">

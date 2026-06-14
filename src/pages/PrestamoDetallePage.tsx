@@ -211,7 +211,7 @@ export const PrestamoDetallePage: React.FC = () => {
         <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/15 rounded-3xl flex items-center justify-center mx-auto text-rose-400 shadow-md select-none">
           <AlertTriangle size={32} />
         </div>
-        <h2 className="text-lg font-black text-white">Contrato no encontrado</h2>
+        <h2 className="text-lg font-black text-slate-900">Contrato no encontrado</h2>
         <p className="text-xs text-slate-500 font-semibold leading-relaxed">
           {apiError || "No se localizó el contrato solicitado."}
         </p>
@@ -284,24 +284,24 @@ export const PrestamoDetallePage: React.FC = () => {
             <Card variant="simple" className="space-y-4 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl" />
               
-              <h3 className="font-black text-white text-sm tracking-tight leading-none flex items-center gap-1.5 select-none">
+              <h3 className="font-black text-slate-800 text-sm tracking-tight leading-none flex items-center gap-1.5 select-none">
                 <span>🤖 Asistente de Cobros</span>
-                <span className="badge bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 font-bold uppercase tracking-wider text-[8px] py-0.5 px-2">IA Gemini</span>
+                <span className="badge bg-indigo-55 text-indigo-700 border border-indigo-200 font-bold uppercase tracking-wider text-[8px] py-0.5 px-2">IA Gemini</span>
               </h3>
               
               <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
                 Genera textos persuasivos y amigables basados en el estado del préstamo o alquiler del cliente.
               </p>
 
-              <div className="border-t border-white/[0.04] pt-2" />
+              <div className="border-t border-slate-200/65 pt-2" />
 
               {aiError && (
-                <p className="text-[10px] text-rose-455 font-bold leading-normal">⚠️ {aiError}</p>
+                <p className="text-[10px] text-rose-600 font-bold leading-normal">⚠️ {aiError}</p>
               )}
 
               {aiMessage ? (
                 <div className="space-y-3">
-                  <div className="bg-white/[0.015] border border-white/[0.04] p-3 rounded-2xl text-xs font-semibold leading-relaxed text-slate-300 whitespace-pre-wrap font-mono">
+                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-semibold leading-relaxed text-slate-700 whitespace-pre-wrap font-mono">
                     {aiMessage}
                   </div>
                   <div className="flex gap-2">

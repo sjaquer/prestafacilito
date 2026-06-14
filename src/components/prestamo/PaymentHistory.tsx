@@ -37,11 +37,11 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
 
   return (
     <Card variant="simple" className="select-none font-sans flex flex-col h-full">
-      <div className="p-1 border-b border-white/5 pb-4">
-        <h2 className="text-sm md:text-base font-black text-white tracking-tight leading-none">
+      <div className="p-1 border-b border-slate-100 pb-4">
+        <h2 className="text-sm md:text-base font-black text-slate-850 tracking-tight leading-none">
           {isAlquiler ? "Historial de Pagos de Alquiler" : "Historial de Amortizaciones"}
         </h2>
-        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
+        <p className="text-[10px] text-slate-550 font-bold uppercase tracking-wider mt-1.5">
           {isAlquiler ? "Lista cronológica de mensualidades canceladas para este alquiler" : "Lista cronológica de abonos recibidos para este crédito"}
         </p>
       </div>
@@ -57,7 +57,7 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
             <div className="hidden md:block table-scroll-x">
               <table className="w-full text-left border-collapse data-table font-sans">
                 <thead>
-                  <tr className="bg-white/2 text-[10px] font-black text-gray-500 uppercase tracking-widest border-b border-white/5 select-none">
+                  <tr className="bg-slate-50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 select-none">
                     <th className="px-4 py-3">Fecha Pago</th>
                     <th className="px-4 py-3">Método</th>
                     <th className="px-4 py-3">Clasificación</th>
@@ -66,23 +66,23 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
                     <th className="px-4 py-3 text-right">Compartir</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5 text-gray-300 text-xs font-semibold">
+                <tbody className="divide-y divide-slate-100 text-slate-700 text-xs font-semibold">
                   {pagos.map((pago) => {
                     const waShare = getWhatsAppShare(pago);
                     const hasVoucher = !!pago.comprobante_url;
                     
                     return (
-                      <tr key={pago.id} className="hover:bg-white/[0.015] transition duration-150">
+                      <tr key={pago.id} className="hover:bg-slate-50/50 transition duration-150">
                         <td className="px-4 py-3 font-mono">
                           {formatDateShort(pago.fecha_pago)}
                         </td>
                         <td className="px-4 py-3 uppercase">
                           {pago.metodo_pago}
                         </td>
-                        <td className="px-4 py-3 text-slate-400">
+                        <td className="px-4 py-3 text-slate-500">
                           {pago.tipo_movimiento || "Pago Ordinario"}
                         </td>
-                        <td className="px-4 py-3 text-emerald-450 font-mono font-extrabold text-sm">
+                        <td className="px-4 py-3 text-emerald-700 font-mono font-extrabold text-sm">
                           {formatCurrency(pago.monto)}
                         </td>
                         
@@ -91,13 +91,13 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
                           {hasVoucher ? (
                             <button
                               onClick={() => onViewComprobante(resolveVoucherUrl(pago.comprobante_url))}
-                              className="text-emerald-400 hover:text-emerald-300 transition flex items-center gap-1 cursor-pointer bg-transparent border-none font-bold"
+                              className="text-emerald-655 hover:text-emerald-750 transition flex items-center gap-1 cursor-pointer bg-transparent border-none font-bold"
                             >
                               <Eye size={13} />
                               <span>Ver</span>
                             </button>
                           ) : (
-                            <span className="text-slate-600">Ninguno</span>
+                            <span className="text-slate-400">Ninguno</span>
                           )}
                         </td>
 
@@ -106,7 +106,7 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
                           <div className="flex justify-end gap-1.5">
                             <button
                               onClick={() => onVoucherClick(pago)}
-                              className="text-slate-400 hover:text-white p-1 hover:bg-white/5 rounded-lg transition border-none bg-transparent cursor-pointer"
+                              className="text-slate-500 hover:text-slate-800 p-1 hover:bg-slate-50 rounded-lg transition border-none bg-transparent cursor-pointer"
                               title="Ver e Imprimir Recibo Oficial"
                             >
                               <FileText size={13} />
@@ -116,7 +116,7 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
                                 href={waShare}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-emerald-500 hover:text-emerald-400 p-1 hover:bg-emerald-500/10 rounded-lg transition"
+                                className="text-emerald-600 hover:text-emerald-700 p-1 hover:bg-emerald-50 rounded-lg transition"
                                 title="Compartir abono por WhatsApp"
                               >
                                 <MessageSquare size={13} />
@@ -138,40 +138,40 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
                 const hasVoucher = !!pago.comprobante_url;
 
                 return (
-                  <div key={pago.id} className="bg-white/[0.015] border border-white/5 rounded-2xl p-4 space-y-2 text-xs font-semibold">
+                  <div key={pago.id} className="bg-slate-50/50 border border-slate-200 rounded-2xl p-4 space-y-2 text-xs font-semibold">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] text-slate-500 font-mono">
+                      <span className="text-[10px] text-slate-550 font-mono">
                         {formatDateShort(pago.fecha_pago)}
                       </span>
-                      <span className="text-emerald-450 font-mono font-extrabold text-sm">
+                      <span className="text-emerald-700 font-mono font-extrabold text-sm">
                         {formatCurrency(pago.monto)}
                       </span>
                     </div>
 
-                    <div className="flex justify-between items-center text-slate-400">
-                      <span>Método: <strong className="text-slate-200 uppercase">{pago.metodo_pago}</strong></span>
+                    <div className="flex justify-between items-center text-slate-550">
+                      <span>Método: <strong className="text-slate-800 uppercase">{pago.metodo_pago}</strong></span>
                       <span>{pago.tipo_movimiento || "Pago Ordinario"}</span>
                     </div>
 
-                    <div className="flex justify-between items-center pt-2.5 border-t border-white/5">
+                    <div className="flex justify-between items-center pt-2.5 border-t border-slate-100">
                       <div>
                         {hasVoucher ? (
                           <button
                             onClick={() => onViewComprobante(resolveVoucherUrl(pago.comprobante_url))}
-                            className="text-emerald-400 hover:text-emerald-300 font-bold transition flex items-center gap-1 bg-transparent border-none cursor-pointer"
+                            className="text-emerald-655 hover:text-emerald-750 font-bold transition flex items-center gap-1 bg-transparent border-none cursor-pointer"
                           >
                             <Eye size={12} />
                             <span>Ver Voucher</span>
                           </button>
                         ) : (
-                          <span className="text-slate-600">Sin voucher</span>
+                          <span className="text-slate-400">Sin voucher</span>
                         )}
                       </div>
 
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => onVoucherClick(pago)}
-                          className="text-slate-400 hover:text-white p-1 hover:bg-white/5 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center gap-1 font-bold"
+                          className="text-slate-500 hover:text-slate-800 p-1 hover:bg-slate-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center gap-1 font-bold"
                         >
                           <FileText size={12} />
                           <span>Recibo</span>
@@ -181,7 +181,7 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
                             href={waShare}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-emerald-500 hover:text-emerald-400 p-1 hover:bg-emerald-500/10 rounded-lg transition"
+                            className="text-emerald-600 hover:text-emerald-700 p-1 hover:bg-emerald-50 rounded-lg transition"
                           >
                             <MessageSquare size={12} />
                           </a>

@@ -118,10 +118,10 @@ export const ClientList: React.FC<ClientListProps> = ({ clientes, onEditClient }
   };
 
   const riskConfig = {
-    Excelente: { color: "text-emerald-455", bg: "bg-emerald-500/10 border-emerald-500/15", bar: "bg-emerald-500", Icon: ShieldCheck },
-    Bajo: { color: "text-blue-455", bg: "bg-blue-500/10 border-blue-500/15", bar: "bg-blue-500", Icon: Shield },
-    Medio: { color: "text-amber-455", bg: "bg-amber-500/10 border-amber-500/15", bar: "bg-amber-500", Icon: ShieldAlert },
-    Alto: { color: "text-rose-455", bg: "bg-rose-500/10 border-rose-500/15", bar: "bg-rose-500", Icon: ShieldAlert },
+    Excelente: { color: "text-emerald-700", bg: "bg-emerald-50 border border-emerald-200", bar: "bg-emerald-600", Icon: ShieldCheck },
+    Bajo: { color: "text-blue-700", bg: "bg-blue-50 border border-blue-200", bar: "bg-blue-600", Icon: Shield },
+    Medio: { color: "text-amber-700", bg: "bg-amber-50 border border-amber-250", bar: "bg-amber-600", Icon: ShieldAlert },
+    Alto: { color: "text-rose-700", bg: "bg-rose-50 border border-rose-200", bar: "bg-rose-600", Icon: ShieldAlert },
   };
 
   const displayPhone = (phoneNum?: string) => {
@@ -148,8 +148,8 @@ export const ClientList: React.FC<ClientListProps> = ({ clientes, onEditClient }
       cell: (c) => {
         return (
           <div className="flex flex-col py-0.5">
-            <span className="font-bold text-white leading-none">{c.nombre_completo}</span>
-            <span className="text-[10px] text-slate-500 font-semibold mt-1 flex items-center gap-1">
+            <span className="font-bold text-slate-900 leading-none">{c.nombre_completo}</span>
+            <span className="text-[10px] text-slate-550 font-semibold mt-1 flex items-center gap-1">
               <Calendar size={10} className="shrink-0" /> Registrado: {formatDate(c.fecha_registro || "")}
             </span>
           </div>
@@ -162,7 +162,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clientes, onEditClient }
       sortable: true,
       cell: (c) => (
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-slate-300 font-mono font-bold">{displayPhone(c.telefono)}</span>
+          <span className="text-xs text-slate-700 font-mono font-bold">{displayPhone(c.telefono)}</span>
           {c.direccion && (
             <span className="text-[10px] text-slate-500 flex items-center gap-1 max-w-[180px] truncate">
               <MapPin size={9} className="shrink-0" /> {c.direccion}
@@ -185,15 +185,15 @@ export const ClientList: React.FC<ClientListProps> = ({ clientes, onEditClient }
           <div className="flex flex-col gap-1">
             {hasDebt ? (
               <>
-                <span className="font-mono text-rose-400 font-extrabold text-xs md:text-sm">
+                <span className="font-mono text-rose-600 font-extrabold text-xs md:text-sm">
                   {formatCurrency(saldo)}
                 </span>
-                <span className="text-[10px] text-indigo-400 font-bold">
+                <span className="text-[10px] text-indigo-600 font-bold">
                   {c.prestamos_activos} deuda{c.prestamos_activos !== 1 ? "s" : ""} activa{c.prestamos_activos !== 1 ? "s" : ""}
                 </span>
               </>
             ) : (
-              <span className="text-emerald-450 text-xs font-bold flex items-center gap-1 select-none">
+              <span className="text-emerald-650 text-xs font-bold flex items-center gap-1 select-none">
                 <CheckCircle size={11} /> Al día
               </span>
             )}
@@ -234,7 +234,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clientes, onEditClient }
                 href={`https://wa.me/${waPhone}?text=${encodeURIComponent(recordatorio)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 transition min-w-[34px] h-[34px] flex items-center justify-center shrink-0 decoration-none cursor-pointer"
+                className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition min-w-[34px] h-[34px] flex items-center justify-center shrink-0 decoration-none cursor-pointer"
                 title="Enviar recordatorio de cuota"
               >
                 <Bell size={13} />
@@ -246,7 +246,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clientes, onEditClient }
                 href={`https://wa.me/${waPhone}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 rounded-xl bg-emerald-600/15 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-600/25 transition min-w-[34px] h-[34px] flex items-center justify-center shrink-0 decoration-none cursor-pointer"
+                className="p-2 rounded-xl bg-emerald-50 border border-emerald-250/80 text-emerald-700 hover:bg-emerald-100 transition min-w-[34px] h-[34px] flex items-center justify-center shrink-0 decoration-none cursor-pointer"
                 title="WhatsApp Directo"
               >
                 <Phone size={13} />
@@ -255,7 +255,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clientes, onEditClient }
 
             <button
               onClick={() => onEditClient(c)}
-              className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-slate-400 hover:text-white hover:bg-white/[0.08] transition min-w-[34px] h-[34px] flex items-center justify-center shrink-0 border-none cursor-pointer"
+              className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition min-w-[34px] h-[34px] flex items-center justify-center shrink-0 border-none cursor-pointer"
               title="Editar cliente"
             >
               <Edit3 size={13} />
@@ -263,7 +263,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clientes, onEditClient }
 
             <Link
               to={`/clientes/${c.id}`}
-              className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 transition min-w-[34px] h-[34px] flex items-center justify-center shrink-0 decoration-none cursor-pointer"
+              className="p-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition min-w-[34px] h-[34px] flex items-center justify-center shrink-0 decoration-none cursor-pointer"
               title="Ver Perfil y Notas"
             >
               <Eye size={13} />
@@ -283,42 +283,42 @@ export const ClientList: React.FC<ClientListProps> = ({ clientes, onEditClient }
         <div className="flex flex-col md:flex-row gap-4 justify-between">
           <div className="space-y-2 flex-1">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block">Evaluación de Crédito</span>
+              <span className="text-[10px] font-black text-indigo-650 uppercase tracking-widest block">Evaluación de Crédito</span>
               <span className={`text-[10px] font-black font-mono px-2.5 py-0.5 rounded-lg border ${risk.bg} ${risk.color}`}>
                 Score: {assessment.score}/100
               </span>
             </div>
-            <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
+            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
               <div className={`h-full rounded-full transition-all duration-700 ${risk.bar}`} style={{ width: `${assessment.score}%` }} />
             </div>
-            <p className="text-xs text-slate-400 leading-relaxed font-semibold mt-1.5">{assessment.rationale}</p>
+            <p className="text-xs text-slate-650 leading-relaxed font-semibold mt-1.5">{assessment.rationale}</p>
           </div>
 
           {(c.numero_cuenta || c.informacion_adicional) && (
-            <div className="md:w-72 bg-white/[0.02] border border-white/5 rounded-2xl p-3 space-y-2">
+            <div className="md:w-72 bg-slate-50 border border-slate-200/80 rounded-2xl p-3 space-y-2">
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">Datos Financieros</span>
               {c.numero_cuenta && (
                 <div className="flex items-start gap-2 text-xs">
-                  <CreditCard size={12} className="text-indigo-400 shrink-0 mt-0.5" />
-                  <span className="text-slate-300 font-mono break-all">{c.numero_cuenta}</span>
+                  <CreditCard size={12} className="text-indigo-650 shrink-0 mt-0.5" />
+                  <span className="text-slate-750 font-mono break-all">{c.numero_cuenta}</span>
                 </div>
               )}
               {c.informacion_adicional && (
                 <div className="flex items-start gap-2 text-xs">
-                  <Info size={12} className="text-slate-400 shrink-0 mt-0.5" />
-                  <span className="text-slate-400 font-medium">{c.informacion_adicional}</span>
+                  <Info size={12} className="text-slate-550 shrink-0 mt-0.5" />
+                  <span className="text-slate-700 font-medium">{c.informacion_adicional}</span>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        <div className="border-t border-white/[0.05] pt-3">
+        <div className="border-t border-slate-200/60 pt-3">
           <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-2">Recomendaciones del Evaluador</span>
           <ul className="space-y-1.5 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1.5">
             {assessment.recommendations.map((rec, i) => (
-              <li key={i} className="flex items-start gap-2 text-xs text-slate-400 font-semibold leading-relaxed">
-                <CheckCircle size={12} className="text-indigo-400 shrink-0 mt-0.5" />
+              <li key={i} className="flex items-start gap-2 text-xs text-slate-600 font-semibold leading-relaxed">
+                <CheckCircle size={12} className="text-indigo-600 shrink-0 mt-0.5" />
                 <span>{rec}</span>
               </li>
             ))}
@@ -357,15 +357,15 @@ export const ClientList: React.FC<ClientListProps> = ({ clientes, onEditClient }
     <div className="space-y-4">
       {/* Filtros Rápidos */}
       <div className="flex justify-between items-center gap-4">
-        <div className="flex bg-white/[0.03] border border-white/[0.06] rounded-xl p-1 gap-0.5 select-none shrink-0">
+        <div className="flex bg-slate-100 border border-slate-200 p-1 rounded-xl gap-0.5 select-none shrink-0">
           {(["todos", "con_deuda", "sin_deuda"] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilterType(f)}
               className={`px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer border-none ${
                 filterType === f 
-                  ? "bg-indigo-650 text-white shadow-md shadow-indigo-500/10" 
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "bg-indigo-650 text-white shadow-md shadow-indigo-650/10" 
+                  : "text-slate-500 hover:text-slate-700"
               }`}
             >
               {f === "todos" ? "Todos" : f === "con_deuda" ? "Con Deuda" : "Sin Deuda"}

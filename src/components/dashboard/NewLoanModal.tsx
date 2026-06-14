@@ -188,7 +188,7 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
               }}
               onFocus={() => setShowDropdown(true)}
               className={`glass-input w-full px-4 rounded-xl font-medium border ${
-                errors.cliente ? "border-rose-500/50" : "border-white/8"
+                errors.cliente ? "border-rose-500" : "border-slate-200"
               }`}
             />
             {busqueda && (
@@ -199,7 +199,7 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
                   setClienteId("");
                   setShowDropdown(false);
                 }}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900"
               >
                 ✕
               </button>
@@ -207,12 +207,12 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
           </div>
           
           {showDropdown && filteredClientes.length > 0 && (
-            <div className="absolute z-50 left-0 right-0 mt-1 bg-[#0d1020] border border-white/10 rounded-xl shadow-2xl max-h-48 overflow-y-auto font-medium">
+            <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-48 overflow-y-auto font-medium">
               {filteredClientes.map((c) => (
                 <div
                   key={c.id}
                   onClick={() => selectCliente(c)}
-                  className="px-4 py-2.5 hover:bg-emerald-600 hover:text-white text-xs md:text-sm text-slate-350 transition cursor-pointer font-semibold"
+                  className="px-4 py-2.5 hover:bg-emerald-50 hover:text-emerald-900 text-xs md:text-sm text-slate-700 transition cursor-pointer font-semibold"
                 >
                   {c.nombre_completo}
                 </div>
@@ -221,7 +221,7 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
           )}
 
           {errors.cliente && (
-            <span className="text-[10px] md:text-[11px] font-semibold text-rose-400">{errors.cliente}</span>
+            <span className="text-[10px] md:text-[11px] font-semibold text-rose-600">{errors.cliente}</span>
           )}
         </div>
 
@@ -233,7 +233,7 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
           <select
             value={tipo}
             onChange={(e) => setTipo(e.target.value)}
-            className="glass-input w-full px-4 rounded-xl border border-white/8 font-medium bg-[#080c18] text-[#f8fafc] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 cursor-pointer h-12"
+            className="glass-input w-full px-4 rounded-xl border border-slate-200 font-medium bg-white text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 cursor-pointer h-12"
           >
             <option value="Personal">Personal</option>
             <option value="Negocio">Comercio / Negocio</option>
@@ -246,13 +246,13 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
 
         {/* Inputs Condicionales: Modo Alquiler de Casa */}
         {tipo === "Alquiler de Casa" && (
-          <div className="space-y-4 p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl animate-fadeIn">
-            <div className="flex items-center gap-3 border-b border-white/5 pb-3">
-              <div className="w-12 h-12 bg-black/50 border border-white/5 rounded-xl overflow-hidden shrink-0">
+          <div className="space-y-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl animate-fadeIn">
+            <div className="flex items-center gap-3 border-b border-slate-200 pb-3">
+              <div className="w-12 h-12 bg-slate-100 border border-slate-200 rounded-xl overflow-hidden shrink-0">
                 <img src="/housing_rental_icon.png" alt="Alquiler" className="w-full h-full object-cover" />
               </div>
               <div>
-                <span className="text-[9.5px] font-black text-emerald-450 uppercase tracking-widest block">Configuración de Contrato de Alquiler</span>
+                <span className="text-[9.5px] font-black text-emerald-700 uppercase tracking-widest block">Configuración de Contrato de Alquiler</span>
                 <p className="text-[10px] text-slate-500 font-bold uppercase mt-0.5">Control de arrendamiento mensual</p>
               </div>
             </div>
@@ -267,7 +267,7 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
                   placeholder="Ej. 1200"
                   value={montoMensual}
                   onChange={(e) => setMontoMensual(e.target.value)}
-                  className="w-full glass-input rounded-xl px-4 font-medium border border-white/8 outline-none font-mono"
+                  className="w-full glass-input rounded-xl px-4 font-medium border border-slate-200 outline-none font-mono"
                   required
                 />
               </div>
@@ -277,27 +277,27 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
                 <select
                   value={duracionMeses}
                   onChange={(e) => setDuracionMeses(e.target.value)}
-                  className="w-full glass-input rounded-xl px-4 font-medium border border-white/8 outline-none bg-[#080c18] cursor-pointer h-12 text-slate-200"
+                  className="w-full glass-input rounded-xl px-4 font-medium border border-slate-200 outline-none bg-white cursor-pointer h-12 text-slate-800"
                 >
                   {[1,2,3,4,5,6,7,8,9,10,11,12,18,24].map(m => (
-                    <option key={m} value={m} className="bg-[#0f172a]">{m} {m === 1 ? 'Mes' : 'Meses'}</option>
+                    <option key={m} value={m}>{m} {m === 1 ? 'Mes' : 'Meses'}</option>
                   ))}
                 </select>
               </div>
             </div>
 
             {parseFloat(montoMensual) > 0 && (
-              <div className="bg-[#080c16] p-3.5 rounded-xl border border-white/5 text-[11px] text-slate-350 space-y-1.5 font-semibold leading-relaxed">
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-[11px] text-slate-700 space-y-1.5 font-semibold leading-relaxed">
                 <div className="flex justify-between">
                   <span>Período de contrato:</span>
-                  <span className="text-white">{fechaEmision} al {fechaVencimiento}</span>
+                  <span className="text-slate-900">{fechaEmision} al {fechaVencimiento}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Mensualidad:</span>
-                  <span className="text-white font-mono">{formatCurrency(parseFloat(montoMensual))}</span>
+                  <span className="text-slate-900 font-mono">{formatCurrency(parseFloat(montoMensual))}</span>
                 </div>
-                <div className="flex justify-between border-t border-white/5 pt-1.5 mt-1 font-black text-xs md:text-sm text-white">
-                  <span className="text-emerald-400">Capital Total (Deuda de Alquiler):</span>
+                <div className="flex justify-between border-t border-slate-200 pt-1.5 mt-1 font-black text-xs md:text-sm text-slate-900">
+                  <span className="text-emerald-700">Capital Total (Deuda de Alquiler):</span>
                   <span className="font-financial">{formatCurrency(parseFloat(montoMensual) * parseInt(duracionMeses))}</span>
                 </div>
               </div>
@@ -386,12 +386,12 @@ export const NewLoanModal: React.FC<NewLoanModalProps> = ({
 
         {/* Previsualización del total */}
         {tipo !== "Alquiler de Casa" && totalEstimado > 0 && (
-          <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl flex items-center justify-between text-xs md:text-sm">
-            <span className="font-bold text-slate-400 flex items-center gap-1.5">
-              <Coins size={14} className="text-emerald-400" />
+          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs md:text-sm">
+            <span className="font-bold text-slate-500 flex items-center gap-1.5">
+              <Coins size={14} className="text-emerald-700" />
               Deuda Total Estimada:
             </span>
-            <span className="font-financial text-emerald-300 text-sm md:text-base">
+            <span className="font-financial text-emerald-700 text-sm md:text-base">
               {formatCurrency(totalEstimado)}
             </span>
           </div>

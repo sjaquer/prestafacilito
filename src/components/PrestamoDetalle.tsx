@@ -15,17 +15,13 @@ import {
   ExternalLink,
   UploadCloud,
   Calendar,
-  Scissors,
-  Snowflake,
-  Pencil,
-  WifiOff,
-  ServerCrash
+  Scissors
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 import { buildPaymentSchedule } from "../lib/loanLogic";
-import { formatDateWithDay } from "../lib/formatters";
-import { AjustePrestamo, PlanAyudaCliente } from "../types";
+import { formatDateWithDay, formatDateShort } from "../lib/formatters";
+import { AjustePrestamo } from "../types";
 import { METODOS_PAGO } from "../lib/constants";
 
 const resolveVoucherUrl = (url: string) => {
@@ -556,49 +552,53 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
   const interesMensual = (prestamo.monto_capital * prestamo.tasa_interes_porcentaje) / 100;
 
   return (
-    <div id="loan-details-view" className="space-y-6 font-sans">
+    <div id="loan-details-view" className="space-y-6 font-sans text-slate-800">
       
       {/* Botón Volver */}
       <div className="flex justify-between items-center">
         <button
           id="btn-back-to-dashboard"
           onClick={onBack}
-          className="inline-flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-blue-400 transition cursor-pointer group py-2"
+          className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition cursor-pointer group py-2 border-none bg-transparent"
         >
           <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
           <span>Volver al Panel Principal</span>
         </button>
       </div>
 
-      {/* Header Info Principal - Bento Glass */}
-      <div id="loan-header-card" className="bento-card p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-5 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-2.5 h-full bg-gradient-to-b from-indigo-500 to-indigo-600" />
-        <div className="space-y-2 pl-3">
+      {/* Header Info Principal - Rediseño Hero */}
+      <div id="loan-header-card" className="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-sm relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        {/* Indicador de estado en el borde superior */}
+        <div className={`absolute top-0 left-0 w-full h-1.5 ${resumenDeuda.cuotasVencidas > 0 ? 'bg-red-600' : 'bg-emerald-600'}`} />
+        
+        <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2.5">
-            <span className="text-[10px] bg-white/[0.03] text-indigo-300 border border-white/5 px-3 py-1 rounded-lg font-mono uppercase tracking-wider font-bold">
+            <span className="text-[10px] bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 rounded-lg font-mono uppercase tracking-wider font-bold">
               ID: {prestamo.id.substring(0, 8)}
             </span>
             <span
               className={`text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider ${
                 prestamo.estado === "activo"
-                  ? "bg-emerald-500/10 text-green-400 border border-emerald-500/20"
-                  : "bg-slate-800 text-gray-400 border border-slate-700"
+                  ? resumenDeuda.cuotasVencidas > 0
+                    ? "bg-red-50 text-red-700 border border-red-200"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : "bg-slate-100 text-slate-500 border border-slate-200"
               }`}
             >
-              {prestamo.estado === "activo" ? "Activo / Cobranza" : "Cancelado"}
+              {prestamo.estado === "activo" ? (resumenDeuda.cuotasVencidas > 0 ? "En Mora" : "Al día / Activo") : "Cancelado"}
             </span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-none mt-1">
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-none">
             {prestamo.cliente_nombre}
           </h1>
-          <div className="flex items-center gap-2 mt-2">
-            <div className="flex items-center gap-1.5 text-xs text-blue-400 font-bold uppercase tracking-wider">
-              <Landmark size={14} className="text-blue-400" />
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 text-xs text-indigo-650 font-bold uppercase tracking-wider">
+              <Landmark size={14} />
               <span>Préstamo {prestamo.tipo_prestamo}</span>
             </div>
             <button
               onClick={handleShareDisbursement}
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-green-400 hover:bg-emerald-500/20 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors ml-4 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors ml-2 cursor-pointer"
             >
               <Send size={11} />
               <span>Compartir Desembolso</span>
@@ -606,11 +606,23 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
           </div>
         </div>
 
-        <div className="text-left md:text-right border-t border-white/5 md:border-0 pt-4 md:pt-0 w-full md:w-auto">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">Saldo por Amortizar</span>
-          <p className="text-3xl md:text-4xl font-black text-blue-400 mt-1 tracking-tight font-mono">
-            {formatCurrency(resumenDeuda.saldoPendiente)}
-          </p>
+        <div className="flex flex-col sm:flex-row gap-4 md:gap-8 md:items-center w-full md:w-auto">
+          {cuotaSiguiente && (
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex-1 sm:flex-initial">
+              <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Próxima Cuota</p>
+              <p className="text-2xl text-slate-900 font-black tabular-nums">{formatCurrency(cuotaRapida)}</p>
+              <p className="text-[10px] text-slate-500 font-medium mt-1">
+                Vence: {formatDateShort(cuotaSiguiente.fechaVencimiento)}
+              </p>
+            </div>
+          )}
+          
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Saldo Pendiente</span>
+            <p className="text-3xl font-black text-emerald-600 tracking-tight font-mono">
+              {formatCurrency(resumenDeuda.saldoPendiente)}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -618,89 +630,88 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
       <div id="loan-grid" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Infografía de Estado Financiero & Progreso - Columna 2/3 */}
-        <div id="financial-info-card" className="bento-card p-6 rounded-3xl space-y-6 lg:col-span-2 flex flex-col justify-between">
+        <div id="financial-info-card" className="bg-white border border-slate-200 p-6 rounded-3xl space-y-6 lg:col-span-2 flex flex-col justify-between shadow-sm">
           <div className="space-y-5">
-            <div className="flex items-center gap-2 pb-3 border-b border-white/5">
-              <div className="w-8 h-8 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center text-blue-400">
+            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+              <div className="w-8 h-8 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-center text-blue-600">
                 <CreditCard size={16} />
               </div>
-              <h2 className="font-extrabold text-white text-base tracking-tight">
+              <h2 className="font-extrabold text-slate-900 text-base tracking-tight">
                 Estado Financiero del Préstamo
               </h2>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-white/[0.04] p-4 rounded-2xl border border-white/5">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Capital recibido</span>
-                <span className="text-lg font-black text-slate-200 font-mono">{formatCurrency(prestamo.monto_capital)}</span>
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Capital recibido</span>
+                <span className="text-lg font-black text-slate-800 font-mono">{formatCurrency(prestamo.monto_capital)}</span>
               </div>
-              <div className="bg-white/[0.04] p-4 rounded-2xl border border-white/5">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Interes mensual</span>
-                <span className="text-lg font-black text-slate-200 font-mono">{formatCurrency(interesMensual)}</span>
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Interés mensual</span>
+                <span className="text-lg font-black text-slate-800 font-mono">{formatCurrency(interesMensual)}</span>
                 <span className="text-[10px] text-slate-500 font-semibold block mt-1">Tasa {prestamo.tasa_interes_porcentaje}%</span>
               </div>
-              <div className="bg-indigo-500/5 p-4 rounded-2xl border border-indigo-500/10">
-                <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider block mb-1">Total exigible actualizado</span>
-                <span className="text-lg font-black text-blue-400 font-mono">{formatCurrency(deudaTotalActual)}</span>
+              <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl border">
+                <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block mb-1">Total exigible actualizado</span>
+                <span className="text-lg font-black text-indigo-800 font-mono">{formatCurrency(deudaTotalActual)}</span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white/[0.03] p-4 rounded-2xl border border-white/5">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Capital pendiente</span>
-                <span className="text-2xl font-black text-slate-100 font-mono">{formatCurrency(resumenDeuda.capitalPendiente)}</span>
+              <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Capital pendiente</span>
+                <span className="text-2xl font-black text-slate-800 font-mono">{formatCurrency(resumenDeuda.capitalPendiente)}</span>
               </div>
-              <div className="bg-white/[0.03] p-4 rounded-2xl border border-white/5">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Cuotas vencidas</span>
-                <span className="text-2xl font-black text-rose-400 font-mono">{resumenDeuda.cuotasVencidas}</span>
+              <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Cuotas vencidas</span>
+                <span className={`text-2xl font-black font-mono ${resumenDeuda.cuotasVencidas > 0 ? "text-red-600" : "text-slate-700"}`}>{resumenDeuda.cuotasVencidas}</span>
               </div>
-              <div className="bg-white/[0.03] p-4 rounded-2xl border border-white/5">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Cuotas pendientes</span>
-                <span className="text-2xl font-black text-amber-400 font-mono">{resumenDeuda.cuotasPendientes}</span>
+              <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Cuotas pendientes</span>
+                <span className="text-2xl font-black text-amber-600 font-mono">{resumenDeuda.cuotasPendientes}</span>
               </div>
-              <div className="bg-white/[0.03] p-4 rounded-2xl border border-white/5">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Mora acumulada</span>
-                <span className="text-2xl font-black text-orange-400 font-mono">{formatCurrency(resumenDeuda.moraAcumulada)}</span>
+              <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Mora acumulada</span>
+                <span className="text-2xl font-black text-orange-600 font-mono">{formatCurrency(resumenDeuda.moraAcumulada)}</span>
               </div>
             </div>
 
             {/* Barra de Progreso */}
             <div className="space-y-2 pt-2">
-              <div className="flex justify-between text-xs font-bold text-slate-350">
+              <div className="flex justify-between text-xs font-bold text-slate-600">
                 <span>Porcentaje Amortizado</span>
-                <span className="font-mono text-green-400">{progressPercent.toFixed(1)}%</span>
+                <span className="font-mono text-emerald-600">{progressPercent.toFixed(1)}%</span>
               </div>
-              <div className="w-full bg-white/[0.03] h-4 rounded-full overflow-hidden p-0.5 border border-white/5">
+              <div className="w-full bg-slate-100 h-4 rounded-full overflow-hidden p-0.5 border border-slate-200">
                 <motion.div 
                   initial={{ width: 0 }}
                   animate={{ width: `${progressPercent}%` }}
                   transition={{ duration: 0.8, ease: "easeOut" }}
-                  className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-full rounded-full" 
+                  className="bg-gradient-to-r from-emerald-600 to-emerald-550 h-full rounded-full" 
                 />
               </div>
-              <div className="flex justify-between text-[10px] text-gray-500 font-bold uppercase tracking-wider pt-1">
+              <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase tracking-wider pt-1">
                 <span>Pagado: {formatCurrency(resumenDeuda.totalPagado)}</span>
                 <span>Pendiente: {formatCurrency(resumenDeuda.saldoPendiente)}</span>
               </div>
             </div>
           </div>
-
         </div>
 
         {/* Formulario Registrar Pago - Columna 1/3 */}
-        <div id="payment-form-card" className="bento-card p-6 rounded-3xl h-fit">
+        <div id="payment-form-card" className="bg-white border border-slate-200 p-6 rounded-3xl h-fit shadow-sm">
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center text-green-400">
+            <div className="w-8 h-8 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-center text-emerald-600">
               <HandCoins size={16} />
             </div>
-            <h2 className="font-extrabold text-white text-base tracking-tight">Abonar a Cuenta</h2>
+            <h2 className="font-extrabold text-slate-900 text-base tracking-tight">Abonar a Cuenta</h2>
           </div>
 
           {prestamo.estado === "pagado" ? (
-            <div className="p-6 bg-emerald-500/5 text-green-400 rounded-2xl text-center text-xs space-y-3 border border-emerald-500/10">
-              <CheckCircle2 className="text-green-400 mx-auto" size={32} />
-              <p className="font-extrabold text-slate-100 text-sm">Crédito Cancelado</p>
-              <p className="leading-relaxed text-gray-400">
+            <div className="p-6 bg-emerald-50 text-emerald-700 rounded-2xl text-center text-xs space-y-3 border border-emerald-250">
+              <CheckCircle2 className="text-emerald-600 mx-auto" size={32} />
+              <p className="font-extrabold text-slate-800 text-sm">Crédito Cancelado</p>
+              <p className="leading-relaxed text-slate-500">
                 Este préstamo ya se encuentra completamente pagado e inactivo. No requiere abonos adicionales.
               </p>
             </div>
@@ -712,7 +723,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 text-green-400 rounded-2xl text-xs font-semibold"
+                    className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl text-xs font-semibold"
                   >
                     {pagoSuccess}
                   </motion.div>
@@ -720,9 +731,9 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
               </AnimatePresence>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase block pl-1">Monto de Abono (S/.) *</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase block pl-1">Monto de Abono (S/.) *</label>
                 <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400 text-xs font-bold font-mono">S/.</span>
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 text-xs font-bold font-mono">S/.</span>
                   <input
                     type="number"
                     min="0.01"
@@ -730,7 +741,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                     placeholder="Ej. 150"
                     value={monto}
                     onChange={(e) => setMonto(e.target.value)}
-                    className="w-full pl-9 pr-3.5 py-3 glass-input rounded-2xl text-xs font-bold font-mono"
+                    className="w-full pl-9 pr-3.5 py-3 glass-input rounded-2xl text-xs font-bold font-mono border-slate-200 focus:border-emerald-600"
                     required
                   />
                 </div>
@@ -739,44 +750,44 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                   <button
                     type="button"
                     onClick={() => setMonto(String(Math.round(cuotaRapida * 100) / 100))}
-                    className="px-2.5 py-1.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-xl text-[9px] font-extrabold uppercase hover:bg-indigo-500/20 transition cursor-pointer select-none"
+                    className="px-2.5 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl text-[9px] font-extrabold uppercase hover:bg-blue-100 transition cursor-pointer select-none"
                   >
-                    {cuotaSiguiente ? `Siguiente Cuota #${cuotaSiguiente.numero} (${formatCurrency(cuotaRapida)})` : `Aplicar Pago (${formatCurrency(cuotaRapida)})`}
+                    {cuotaSiguiente ? `Cuota #${cuotaSiguiente.numero} (${formatCurrency(cuotaRapida)})` : `Abono (${formatCurrency(cuotaRapida)})`}
                   </button>
                   <button
                     type="button"
                     onClick={() => setMonto(String(Math.round(resumenDeuda.saldoPendiente * 100) / 100))}
-                    className="px-2.5 py-1.5 bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-xl text-[9px] font-extrabold uppercase hover:bg-purple-500/20 transition cursor-pointer select-none"
+                    className="px-2.5 py-1.5 bg-purple-50 border border-purple-200 text-purple-700 rounded-xl text-[9px] font-extrabold uppercase hover:bg-purple-100 transition cursor-pointer select-none"
                   >
-                    Liquidar Saldo ({formatCurrency(resumenDeuda.saldoPendiente)})
+                    Liquidar ({formatCurrency(resumenDeuda.saldoPendiente)})
                   </button>
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase block pl-1">Medio de Pago</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase block pl-1">Medio de Pago</label>
                 <select
                   value={metodoPago}
                   onChange={(e) => setMetodoPago(e.target.value)}
-                  className="w-full glass-input rounded-2xl p-3 bg-[#0A0A0C] text-xs font-bold text-slate-200 cursor-pointer"
+                  className="w-full glass-input rounded-2xl p-3 bg-white text-xs font-bold text-slate-800 cursor-pointer border-slate-200"
                 >
                   {METODOS_PAGO.map((m) => (
-                    <option key={m} value={m} className="bg-[#0f172a]">{m}</option>
+                    <option key={m} value={m} className="bg-white text-slate-800">{m}</option>
                   ))}
                 </select>
               </div>
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between pl-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase">Fecha de Operación</label>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Fecha de Operación</label>
                   <div className="flex gap-1.5">
                     <button
                       type="button"
                       onClick={() => setFechaPago(new Date().toISOString().split("T")[0])}
                       className={`px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-wider transition cursor-pointer select-none ${
                         fechaPago === new Date().toISOString().split("T")[0]
-                          ? "bg-indigo-500/20 border border-indigo-500/30 text-indigo-300"
-                          : "bg-white/[0.04] border border-white/5 text-gray-400 hover:text-slate-200 hover:border-white/10"
+                          ? "bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold"
+                          : "bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-800 hover:border-slate-300"
                       }`}
                     >
                       Hoy
@@ -790,8 +801,8 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                       }}
                       className={`px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-wider transition cursor-pointer select-none ${
                         (() => { const y = new Date(); y.setDate(y.getDate() - 1); return fechaPago === y.toISOString().split("T")[0]; })()
-                          ? "bg-indigo-500/20 border border-indigo-500/30 text-indigo-300"
-                          : "bg-white/[0.04] border border-white/5 text-gray-400 hover:text-slate-200 hover:border-white/10"
+                          ? "bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold"
+                          : "bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-800 hover:border-slate-300"
                       }`}
                     >
                       Ayer
@@ -802,10 +813,10 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                   type="date"
                   value={fechaPago}
                   onChange={(e) => setFechaPago(e.target.value)}
-                  className="w-full glass-input rounded-2xl p-3 text-xs font-bold text-slate-200"
+                  className="w-full glass-input rounded-2xl p-3 text-xs font-bold text-slate-700 border-slate-200"
                 />
                 {fechaPago && (
-                  <p className="text-[10px] text-indigo-300/80 font-semibold pl-1 capitalize">
+                  <p className="text-[10px] text-indigo-600 font-semibold pl-1 capitalize mt-1">
                     {new Date(`${fechaPago}T00:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
                   </p>
                 )}
@@ -813,7 +824,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
 
               {/* Cargar Voucher con OCR */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase block pl-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase block pl-1">
                   Cargar Voucher (Opcional)
                 </label>
                 <div className="relative group/file">
@@ -829,40 +840,40 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                     htmlFor="voucher-upload-input"
                     tabIndex={0}
                     onFocus={() => setActivePastePagoId(null)}
-                    className={`flex flex-col items-center justify-center p-3.5 border border-dashed rounded-2xl cursor-pointer transition select-none min-h-[85px] focus:outline-none focus:border-indigo-500 focus:bg-indigo-500/[0.02] ${
+                    className={`flex flex-col items-center justify-center p-3.5 border border-dashed rounded-2xl cursor-pointer transition select-none min-h-[85px] focus:outline-none focus:border-indigo-500 focus:bg-indigo-50/20 ${
                       uploadStatus === "uploading"
-                        ? "bg-white/[0.02] border-indigo-500/30 text-blue-400 cursor-not-allowed"
+                        ? "bg-slate-50 border-indigo-200 text-indigo-650 cursor-not-allowed"
                         : uploadStatus === "done" || comprobanteUrl
-                        ? "bg-emerald-500/5 border-emerald-500/30 text-green-400 hover:bg-emerald-500/10 hover:border-emerald-500/40"
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300"
                         : uploadStatus === "error"
-                        ? "bg-rose-500/5 border-rose-500/30 text-rose-400 hover:bg-rose-500/10"
-                        : "bg-white/[0.04] border-white/5 hover:border-indigo-500/40 text-gray-400 hover:text-slate-200"
+                        ? "bg-red-50 border-red-200 text-red-600 hover:bg-red-100"
+                        : "bg-slate-50 border-slate-200 hover:border-indigo-400/40 text-slate-500 hover:text-slate-800"
                     }`}
                   >
                     {uploadStatus === "uploading" ? (
                       <div className="flex flex-col items-center gap-2">
-                        <Loader2 className="animate-spin text-blue-400" size={20} />
-                        <span className="text-[9px] font-bold text-gray-400 tracking-wider uppercase">
+                        <Loader2 className="animate-spin text-indigo-600" size={20} />
+                        <span className="text-[9px] font-bold text-slate-500 tracking-wider uppercase">
                           Subiendo a Drive...
                         </span>
                       </div>
                     ) : uploadStatus === "done" || comprobanteUrl ? (
                       <div className="flex items-center gap-2 text-center text-xs">
-                        <CheckCircle2 size={18} className="text-green-400 shrink-0" />
+                        <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
                         <div className="text-left">
-                          <p className="font-extrabold text-slate-200 text-[11px]">Voucher listo ✓</p>
-                          <p className="text-[9px] text-slate-400 font-bold truncate max-w-[170px]">
+                          <p className="font-extrabold text-slate-800 text-[11px]">Voucher listo ✓</p>
+                          <p className="text-[9px] text-slate-500 font-bold truncate max-w-[170px]">
                             {comprobanteName}
                           </p>
-                          <p className="text-[9px] text-gray-500 font-semibold mt-0.5">Clic o Ctrl+V para cambiar</p>
+                          <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Clic o Ctrl+V para cambiar</p>
                         </div>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-1 text-center">
-                        <UploadCloud size={20} className="text-blue-400 group-hover/file:scale-105 transition-transform" />
+                        <UploadCloud size={20} className="text-indigo-600 group-hover/file:scale-105 transition-transform" />
                         <div>
-                          <p className="font-extrabold text-xs text-slate-300">Subir imagen de voucher</p>
-                          <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">
+                          <p className="font-extrabold text-xs text-slate-700">Subir imagen de voucher</p>
+                          <p className="text-[9px] text-slate-450 font-bold uppercase tracking-wider mt-0.5">
                             JPG, PNG o WEBP · Ctrl+V para pegar
                           </p>
                         </div>
@@ -871,7 +882,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                   </label>
                 </div>
                 {voucherError && (
-                  <p className="text-[10px] text-rose-400 font-semibold">
+                  <p className="text-[10px] text-red-600 font-semibold">
                     {voucherError}
                   </p>
                 )}
@@ -880,7 +891,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
               <button
                 type="submit"
                 disabled={submitting || uploadStatus === "uploading"}
-                className="w-full bg-white/10 hover:bg-white/15 border border-white/10 backdrop-blur-md transition-all text-white font-medium text-white font-bold py-3 rounded-2xl text-xs sm:text-sm transition cursor-pointer flex justify-center items-center gap-2 min-h-[48px] disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full bg-slate-900 hover:bg-slate-800 transition-all text-white font-bold py-3 rounded-2xl text-xs sm:text-sm cursor-pointer flex justify-center items-center gap-2 min-h-[48px] disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {submitting ? (
                   <>
@@ -903,22 +914,21 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
       </div>
 
       {/* Sección Plan de Ayuda al Cliente */}
-      <div id="plan-ayuda-section" className="bento-card p-6 rounded-3xl relative overflow-hidden bg-gradient-to-br from-slate-900 via-indigo-950/20 to-slate-900 border border-white/5 shadow-xl">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div id="plan-ayuda-section" className="bg-white border border-slate-200 p-6 rounded-3xl relative overflow-hidden shadow-sm">
         
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-4 border-b border-white/5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex items-center justify-center text-indigo-400">
+            <div className="w-10 h-10 bg-indigo-50 border border-indigo-200 rounded-2xl flex items-center justify-center text-indigo-600">
               <Sparkles size={20} className="animate-pulse" />
             </div>
             <div>
-              <h2 className="font-extrabold text-white text-lg tracking-tight flex items-center gap-2">
+              <h2 className="font-extrabold text-slate-900 text-lg tracking-tight flex items-center gap-2">
                 Plan de Ayuda al Cliente
-                <span className="text-[10px] bg-indigo-500/20 text-indigo-300 font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                <span className="text-[10px] bg-indigo-50 text-indigo-700 font-black px-2 py-0.5 rounded-full uppercase tracking-wider border border-indigo-150">
                   Recuperación de Cartera
                 </span>
               </h2>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Facilidades y herramientas excepcionales para regularizar la situación de deuda del cliente
               </p>
             </div>
@@ -926,7 +936,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={() => setShowHistorialModal(true)}
-              className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 backdrop-blur-md rounded-xl text-xs font-bold text-slate-200 transition cursor-pointer flex items-center gap-2"
+              className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 transition cursor-pointer flex items-center gap-2 border-none"
             >
               <Coins size={14} />
               <span>Ver Historial ({ajustes.length})</span>
@@ -946,7 +956,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                 setAyudaError("");
                 setShowAyudaModal(true);
               }}
-              className="px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-lg shadow-indigo-500/20 flex items-center gap-2"
+              className="px-4 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-sm flex items-center gap-2 border-none"
             >
               <HandCoins size={14} />
               <span>Aplicar Nueva Facilidad</span>
@@ -956,70 +966,70 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
 
         {/* Resumen del Plan de Ayuda */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-          <div className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl">
+          <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Beneficio Total Aplicado</span>
-            <span className="text-xl font-black text-indigo-400 font-mono">
+            <span className="text-xl font-black text-indigo-600 font-mono">
               {formatCurrency(planAyuda?.totalBeneficioAplicado || 0)}
             </span>
-            <span className="text-[9px] text-gray-500 block mt-0.5">Ahorro real generado al cliente</span>
+            <span className="text-[9px] text-slate-500 block mt-0.5">Ahorro real generado al cliente</span>
           </div>
 
-          <div className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl">
+          <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Interés Congelado</span>
-            <span className={`text-xl font-black ${planAyuda?.interesCongelado ? "text-emerald-400" : "text-slate-400"}`}>
+            <span className={`text-xl font-black ${planAyuda?.interesCongelado ? "text-emerald-600" : "text-slate-400"}`}>
               {planAyuda?.interesCongelado ? "Sí (Activo)" : "No"}
             </span>
-            <span className="text-[9px] text-gray-500 block mt-0.5">
+            <span className="text-[9px] text-slate-500 block mt-0.5">
               {planAyuda?.fechaCongelamientoHasta 
                 ? `Hasta: ${planAyuda.fechaCongelamientoHasta}` 
                 : "Sin congelamientos vigentes"}
             </span>
           </div>
 
-          <div className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl">
+          <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Mora Eliminada / Reducida</span>
-            <span className={`text-xl font-black ${planAyuda?.moraEliminada ? "text-emerald-400" : "text-slate-400"}`}>
+            <span className={`text-xl font-black ${planAyuda?.moraEliminada ? "text-emerald-600" : "text-slate-400"}`}>
               {planAyuda?.moraEliminada ? "Sí (Activo)" : "No"}
             </span>
-            <span className="text-[9px] text-gray-500 block mt-0.5">Exoneración de penalidades</span>
+            <span className="text-[9px] text-slate-500 block mt-0.5">Exoneración de penalidades</span>
           </div>
 
-          <div className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl">
+          <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Facilidades Activas</span>
-            <span className="text-xl font-black text-slate-200 font-mono">
+            <span className="text-xl font-black text-slate-700 font-mono">
               {ajustes.filter((a: AjustePrestamo) => a.activo).length}
             </span>
-            <span className="text-[9px] text-gray-500 block mt-0.5">Ajustes manuales vigentes</span>
+            <span className="text-[9px] text-slate-500 block mt-0.5">Ajustes manuales vigentes</span>
           </div>
         </div>
       </div>
 
       {/* Cronograma de Cuotas (Diseño Dual) */}
-      <div id="payment-schedule-card" className="bento-card rounded-3xl overflow-hidden">
-        <div className="p-5 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
+      <div id="payment-schedule-card" className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
+        <div className="p-5 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400">
+            <div className="w-8 h-8 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-center text-indigo-600">
               <Calendar size={16} />
             </div>
             <div>
-              <h3 className="font-extrabold text-white text-base tracking-tight">Cronograma de Cuotas</h3>
-              <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">Calendario planificado de vencimientos</p>
+              <h3 className="font-extrabold text-slate-900 text-base tracking-tight">Cronograma de Cuotas</h3>
+              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Calendario planificado de vencimientos</p>
             </div>
           </div>
           <div className="flex gap-2">
-            <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/20 text-green-400 font-bold px-3 py-1 rounded-lg font-mono">
+            <span className="text-[10px] bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold px-3 py-1 rounded-lg font-mono">
               Pagadas: {debtState.cuotas.filter((c: any) => c.estado === "Saldada").length}
             </span>
-            <span className="text-[10px] bg-rose-500/10 border border-rose-500/20 text-rose-400 font-bold px-3 py-1 rounded-lg font-mono">
+            <span className="text-[10px] bg-red-50 border border-red-200 text-red-650 font-bold px-3 py-1 rounded-lg font-mono">
               Vencidas: {debtState.cuotas.filter((c: any) => c.estado === "Vencida").length}
             </span>
           </div>
         </div>
 
         {debtState.cuotas.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 bg-black/10">
-            <Calendar className="mx-auto text-slate-600 mb-3" size={36} />
-            <p className="font-extrabold text-sm text-gray-300">No hay cuotas programadas</p>
+          <div className="text-center py-12 text-slate-400 bg-slate-550">
+            <Calendar className="mx-auto text-slate-300 mb-3" size={36} />
+            <p className="font-extrabold text-sm text-slate-600">No hay cuotas programadas</p>
           </div>
         ) : (
           <>
@@ -1027,7 +1037,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
             <div className="hidden sm:block overflow-x-auto text-xs md:text-sm">
               <table className="w-full text-left font-sans">
                 <thead>
-                  <tr className="bg-white/[0.02] text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-white/5 select-none">
+                  <tr className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 select-none">
                     <th className="px-6 py-4.5">N° Cuota</th>
                     <th className="px-6 py-4.5">Fecha Vencimiento</th>
                     <th className="px-6 py-4.5">Monto Cuota (Interés)</th>
@@ -1035,87 +1045,90 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                     <th className="px-6 py-4.5">Total Pagado</th>
                     <th className="px-6 py-4.5">Saldo Restante</th>
                     <th className="px-6 py-4.5 text-right">Estado</th>
-                    <th className="px-4 py-4.5 text-center">Acciones</th>
+                    <th className="sticky right-0 px-4 py-4.5 bg-slate-50 border-l border-slate-200 z-10 w-12 shadow-[-8px_0_15px_-5px_rgba(0,0,0,0.05)] text-center">
+                      <span className="sr-only">Acciones</span>
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5 text-gray-300">
+                <tbody className="divide-y divide-slate-100 text-slate-700">
                   {debtState.cuotas.map((cuota: any) => {
                     const readableDate = formatDateWithDay(cuota.fechaVencimiento);
+                    const isVencida = cuota.estado === "Vencida";
                     
                     return (
-                      <tr key={cuota.numero} className="hover:bg-white/[0.02] transition group">
+                      <tr key={cuota.numero} className={`hover:bg-slate-50/50 transition group ${isVencida ? "bg-red-500/[0.015]" : ""}`}>
                         <td className="px-6 py-4 font-mono font-bold text-slate-400">
                           Cuota #{cuota.numero}
                         </td>
-                        <td className="px-6 py-4 font-bold text-slate-200">
+                        <td className="px-6 py-4 font-bold text-slate-800">
                           {readableDate}
                         </td>
                         <td className="px-6 py-4 font-mono font-semibold">
                           {cuota.congelada ? (
                             <div className="flex flex-col gap-0.5">
-                              <span className="line-through text-rose-500/60 text-[10px]">{formatCurrency(cuota.montoCuotaBase)}</span>
-                              <span className="text-emerald-400 font-extrabold">{formatCurrency(cuota.interesPendiente)}</span>
-                              <span className="inline-flex items-center gap-1 text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-md font-black uppercase tracking-wide w-fit">
+                              <span className="line-through text-red-500/70 text-[10px]">{formatCurrency(cuota.montoCuotaBase)}</span>
+                              <span className="text-emerald-650 font-extrabold">{formatCurrency(cuota.interesPendiente)}</span>
+                              <span className="inline-flex items-center gap-1 text-[8px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded-md font-black uppercase tracking-wide w-fit">
                                 <CheckCircle2 size={9} /> Ajuste
                               </span>
                             </div>
                           ) : (
-                            <span className="text-slate-200">{formatCurrency(cuota.montoCuotaBase)}</span>
+                            <span className="text-slate-800">{formatCurrency(cuota.montoCuotaBase)}</span>
                           )}
                         </td>
                         <td className="px-6 py-4 font-mono">
                           {cuota.moraPendiente > 0 ? (
-                            <span className="text-orange-400 font-extrabold">{formatCurrency(cuota.moraPendiente)}</span>
+                            <span className="text-orange-600 font-extrabold">{formatCurrency(cuota.moraPendiente)}</span>
                           ) : (
-                            <span className="text-slate-650">-</span>
+                            <span className="text-slate-400">-</span>
                           )}
                         </td>
                         <td className="px-6 py-4 font-mono">
                           {cuota.pagado > 0 || cuota.capitalAmortizado > 0 ? (
                             <div className="flex flex-col">
-                              <span className="text-green-400 font-bold">
+                              <span className="text-emerald-600 font-bold">
                                 {formatCurrency(cuota.pagado + (cuota.capitalAmortizado || 0))}
                               </span>
                               {cuota.capitalAmortizado > 0 && (
-                                <span className="text-[10px] text-gray-400 font-semibold mt-0.5 font-sans">
+                                <span className="text-[10px] text-slate-500 font-semibold mt-0.5 font-sans">
                                   -{formatCurrency(cuota.capitalAmortizado)} Capital
                                 </span>
                               )}
                             </div>
                           ) : (
-                            <span className="text-slate-655">-</span>
+                            <span className="text-slate-400">-</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 font-mono text-blue-400">
-                          {cuota.saldoPendiente > 0 ? formatCurrency(cuota.saldoPendiente) : <span className="text-slate-650">-</span>}
+                        <td className="px-6 py-4 font-mono text-slate-800 font-semibold">
+                          {cuota.saldoPendiente > 0 ? formatCurrency(cuota.saldoPendiente) : <span className="text-slate-400">-</span>}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
                               cuota.estado === "Saldada"
-                                ? "bg-emerald-500/10 text-green-400 border border-emerald-500/20"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                 : cuota.estado === "Vencida"
-                                ? "bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse"
+                                ? "bg-red-50 text-red-600 border-red-200 animate-pulse"
                                 : cuota.estado === "Parcial"
-                                ? "bg-orange-500/10 text-orange-400 border border-orange-500/20"
-                                : "bg-slate-800 text-slate-400 border border-slate-700"
+                                ? "bg-amber-50 text-amber-700 border-amber-250"
+                                : "bg-slate-100 text-slate-500 border border-slate-200"
                             }`}
                           >
                             {cuota.estado} {cuota.diasVencidos > 0 && `(${cuota.diasVencidos}d vencida)`}
                           </span>
                         </td>
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity justify-center">
+                        <td className="sticky right-0 px-2 py-4 bg-white group-hover:bg-slate-50 border-l border-slate-100 z-10 text-center shadow-[-8px_0_15px_-5px_rgba(0,0,0,0.02)]">
+                          <div className="flex items-center gap-1.5 justify-center">
                             <button
                               type="button"
                               onClick={() => handleQuickAjuste(cuota.numero, 'eliminar_interes_cuota')}
                               title="Quitar interés de esta cuota (auditoría/apoyo)"
-                              className="flex items-center justify-center w-7 h-7 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 transition cursor-pointer"
+                              className="flex items-center justify-center w-7 h-7 rounded-lg bg-red-50 border border-red-200 text-red-650 hover:bg-red-100 transition cursor-pointer"
                             >
                               <Scissors size={12} />
                             </button>
                             {cuota.estado === "Saldada" && (
-                              <span title="Cuota completamente saldada" className="text-emerald-500 shrink-0 ml-1">
+                              <span title="Cuota completamente saldada" className="text-emerald-600 shrink-0 ml-1">
                                 <CheckCircle2 size={13} />
                               </span>
                             )}
@@ -1129,87 +1142,88 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
             </div>
 
             {/* VISTA CELULAR */}
-            <div className="sm:hidden p-4 space-y-3 bg-white/[0.02]">
+            <div className="sm:hidden p-4 space-y-3 bg-slate-50/50">
               {debtState.cuotas.map((cuota: any) => {
                 const readableDate = formatDateWithDay(cuota.fechaVencimiento);
+                const isVencida = cuota.estado === "Vencida";
 
                 return (
-                  <div key={cuota.numero} className="bg-[#0A0A0C]/60 p-4 rounded-2xl border border-white/5 space-y-3">
-                    <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                      <span className="text-[10px] font-mono font-black text-indigo-400">CUOTA #{cuota.numero}</span>
+                  <div key={cuota.numero} className={`bg-white p-4 rounded-2xl border space-y-3 shadow-sm ${isVencida ? "border-red-200 bg-red-50/10" : "border-slate-200"}`}>
+                    <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                      <span className="text-[10px] font-mono font-black text-indigo-700">CUOTA #{cuota.numero}</span>
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
+                        className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border ${
                           cuota.estado === "Saldada"
-                            ? "bg-emerald-500/10 text-green-400 border border-emerald-500/20"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-250"
                             : cuota.estado === "Vencida"
-                            ? "bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse"
+                            ? "bg-red-50 text-red-600 border-red-200 animate-pulse"
                             : cuota.estado === "Parcial"
-                            ? "bg-orange-500/10 text-orange-400 border border-orange-500/20"
-                            : "bg-slate-800 text-slate-400 border border-slate-700"
+                            ? "bg-amber-50 text-amber-700 border-amber-250"
+                            : "bg-slate-100 border border-slate-200 text-slate-500"
                         }`}
                       >
                         {cuota.estado}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                    <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-700 font-medium">
                       <div>
-                        <span className="text-gray-500 block">Vencimiento:</span>
-                        <span className="font-bold text-slate-200">{readableDate}</span>
+                        <span className="text-slate-400 block">Vencimiento:</span>
+                        <span className="font-bold text-slate-800">{readableDate}</span>
                       </div>
                       <div>
-                        <span className="text-gray-500 block">Cuota Base:</span>
+                        <span className="text-slate-400 block">Cuota Base:</span>
                         {cuota.congelada ? (
                           <div className="flex flex-col gap-0.5">
-                            <span className="line-through text-rose-500/60 text-[9px] font-mono">{formatCurrency(cuota.montoCuotaBase)}</span>
-                            <span className="font-mono font-extrabold text-emerald-400">{formatCurrency(cuota.interesPendiente)} <span className="text-[8px] normal-case">ajustado</span></span>
+                            <span className="line-through text-red-500/60 text-[9px] font-mono">{formatCurrency(cuota.montoCuotaBase)}</span>
+                            <span className="font-mono font-extrabold text-emerald-700">{formatCurrency(cuota.interesPendiente)} <span className="text-[8px] normal-case">ajustado</span></span>
                           </div>
                         ) : (
-                          <span className="font-mono font-bold text-slate-300">{formatCurrency(cuota.montoCuotaBase)}</span>
+                          <span className="font-mono font-bold text-slate-800">{formatCurrency(cuota.montoCuotaBase)}</span>
                         )}
                       </div>
                       {cuota.moraPendiente > 0 && (
                         <div>
-                          <span className="text-gray-500 block">Mora:</span>
-                          <span className="font-mono font-extrabold text-orange-400">{formatCurrency(cuota.moraPendiente)}</span>
+                          <span className="text-slate-400 block">Mora:</span>
+                          <span className="font-mono font-extrabold text-orange-655">{formatCurrency(cuota.moraPendiente)}</span>
                         </div>
                       )}
                       <div>
-                        <span className="text-gray-500 block">Saldo Restante:</span>
-                        <span className="font-mono font-bold text-blue-400">{formatCurrency(cuota.saldoPendiente)}</span>
+                        <span className="text-slate-400 block">Saldo Restante:</span>
+                        <span className="font-mono font-bold text-slate-900">{formatCurrency(cuota.saldoPendiente)}</span>
                       </div>
                       <div>
-                        <span className="text-gray-505 block">Total Pagado:</span>
+                        <span className="text-slate-400 block">Total Pagado:</span>
                         {cuota.pagado > 0 || cuota.capitalAmortizado > 0 ? (
                           <div className="flex flex-col font-mono">
-                            <span className="text-green-400 font-bold">
+                            <span className="text-emerald-750 font-bold">
                               {formatCurrency(cuota.pagado + (cuota.capitalAmortizado || 0))}
                             </span>
                             {cuota.capitalAmortizado > 0 && (
-                              <span className="text-[9px] text-gray-400 font-semibold font-sans mt-0.5 block">
+                              <span className="text-[9px] text-slate-500 font-semibold font-sans mt-0.5 block">
                                 -{formatCurrency(cuota.capitalAmortizado)} Capital
                               </span>
                             )}
                           </div>
                         ) : (
-                          <span className="text-slate-655 font-mono">-</span>
+                          <span className="text-slate-400 font-mono">-</span>
                         )}
                       </div>
                       {cuota.diasVencidos > 0 && (
                         <div className="col-span-2">
-                          <span className="inline-flex items-center gap-1 text-rose-400/90 font-extrabold font-mono uppercase text-[8px] tracking-wider">
-                            <AlertCircle size={10} /> {cuota.diasVencidos} dias de retraso acumulados
+                          <span className="inline-flex items-center gap-1 text-red-600 font-extrabold font-mono uppercase text-[8px] tracking-wider">
+                            <AlertCircle size={10} /> {cuota.diasVencidos} días de retraso acumulados
                           </span>
                         </div>
                       )}
                     </div>
 
                     {/* ACCIONES RAPIDAS MOBILE */}
-                    <div className="flex gap-2 pt-2 border-t border-white/5">
+                    <div className="flex gap-2 pt-2 border-t border-slate-100">
                       <button
                         type="button"
                         onClick={() => handleQuickAjuste(cuota.numero, 'eliminar_interes_cuota')}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-extrabold uppercase hover:bg-rose-500/20 transition cursor-pointer"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-red-50 border border-red-150 text-red-655 text-[10px] font-extrabold uppercase hover:bg-red-100 transition cursor-pointer"
                       >
                         <Scissors size={12} />
                         Condonar Interés de Cuota
@@ -1224,30 +1238,30 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
       </div>
 
       {/* Historial de Pagos (Diseño Dual) */}
-      <div id="amortizations-history-card" className="bento-card rounded-3xl overflow-hidden">
-        <div className="p-5 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
+      <div id="amortizations-history-card" className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
+        <div className="p-5 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center text-blue-400">
+            <div className="w-8 h-8 bg-blue-50 border border-blue-250 rounded-xl flex items-center justify-center text-blue-650">
               <Coins size={16} />
             </div>
-            <h3 className="font-extrabold text-white text-base tracking-tight">Historial de Pagos</h3>
+            <h3 className="font-extrabold text-slate-900 text-base tracking-tight">Historial de Pagos</h3>
           </div>
-          <span className="text-[10px] bg-white/[0.03] border border-white/5 text-indigo-300 font-bold px-3 py-1 rounded-lg font-mono select-none">
+          <span className="text-[10px] bg-slate-105 border border-slate-200 text-slate-700 font-bold px-3 py-1 rounded-lg font-mono select-none">
             Pagos: {pagosRealizados.length}
           </span>
         </div>
         {voucherUpdateError && (
-          <div className="px-5 py-3 text-[11px] text-rose-400 font-semibold border-b border-white/5 bg-rose-500/5">
+          <div className="px-5 py-3 text-[11px] text-red-600 font-semibold border-b border-red-200 bg-red-50">
             {voucherUpdateError}
           </div>
         )}
 
         {pagosRealizados.length === 0 ? (
-          <div className="text-center py-16 text-gray-400 bg-black/10">
-            <Coins className="mx-auto text-slate-600 mb-3" size={40} />
-            <p className="font-extrabold text-sm text-gray-300">No hay pagos registrados</p>
-            <p className="text-xs text-gray-500 mt-1.5 max-w-xs mx-auto leading-relaxed">
-              Ingresa el monto del abono en el formulario superior para registrar el primer pago de este credito.
+          <div className="text-center py-16 text-slate-400 bg-slate-50">
+            <Coins className="mx-auto text-slate-300 mb-3" size={40} />
+            <p className="font-extrabold text-sm text-slate-700">No hay pagos registrados</p>
+            <p className="text-xs text-slate-550 mt-1.5 max-w-xs mx-auto leading-relaxed">
+              Ingresa el monto del abono en el formulario superior para registrar el primer pago de este crédito.
             </p>
           </div>
         ) : (
@@ -1256,7 +1270,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
             <div className="hidden sm:block overflow-x-auto text-xs md:text-sm">
               <table className="w-full text-left font-sans">
                 <thead>
-                  <tr className="bg-white/[0.02] text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-white/5 select-none">
+                  <tr className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 select-none">
                     <th className="px-6 py-4.5">ID Transacción</th>
                     <th className="px-6 py-4.5">Fecha Pago</th>
                     <th className="px-6 py-4.5">Aplicacion</th>
@@ -1264,22 +1278,22 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                     <th className="px-6 py-4.5 text-right">Monto</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5 text-gray-300">
+                <tbody className="divide-y divide-slate-100 text-slate-700">
                   {pagosRealizados.map((pago: any) => (
-                    <tr key={pago.id} className="hover:bg-white/[0.02] transition">
-                      <td className="px-6 py-4 text-xs font-mono text-gray-500 select-all">
+                    <tr key={pago.id} className="hover:bg-slate-50/50 transition">
+                      <td className="px-6 py-4 text-xs font-mono text-slate-400 select-all">
                         {pago.id.substring(0, 18)}...
                       </td>
-                      <td className="px-6 py-4 font-bold text-gray-300 font-mono">
+                      <td className="px-6 py-4 font-bold text-slate-800 font-mono">
                         {pago.fecha_pago}
                       </td>
                       <td className="px-6 py-4">
                         <div className="space-y-1">
-                          <span className="text-[11px] font-bold text-slate-200">
+                          <span className="text-[11px] font-bold text-slate-900 block">
                             {getAplicacionLabel(pago)}
                           </span>
-                          <span className="text-[10px] text-slate-500 font-semibold">
-                            Metodo: {pago.metodo_pago}
+                          <span className="text-[10px] text-slate-500 font-semibold mt-0.5 block">
+                            Método: {pago.metodo_pago}
                           </span>
                         </div>
                       </td>
@@ -1294,7 +1308,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                           }}
                           className={`flex items-center gap-2 p-1.5 rounded-xl border transition-all duration-200 focus:outline-none ${
                             activePastePagoId === pago.id
-                              ? "border-indigo-500 bg-indigo-500/5 ring-2 ring-indigo-500/20"
+                              ? "border-indigo-500 bg-indigo-50/50 ring-2 ring-indigo-500/20"
                               : "border-transparent"
                           }`}
                         >
@@ -1318,14 +1332,14 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                               href={resolveVoucherUrl(pago.comprobante_url)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-indigo-500/20 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors"
                             >
                               <Image size={12} />
                               <span>Ver Voucher</span>
                               <ExternalLink size={10} className="opacity-60" />
                             </a>
                           ) : (
-                            <span className="text-slate-555 font-bold text-[10px] uppercase tracking-wider pl-1.5">- Sin Voucher -</span>
+                            <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wider pl-1.5">- Sin Voucher -</span>
                           )}
                           <button
                             type="button"
@@ -1333,8 +1347,8 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                             disabled={voucherUpdatingId === pago.id}
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 border rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all duration-250 cursor-pointer disabled:opacity-60 ${
                               activePastePagoId === pago.id
-                                ? "border-indigo-500 bg-indigo-500/20 text-indigo-300 animate-pulse"
-                                : "border-slate-700 bg-slate-800/70 text-slate-300 hover:bg-slate-700"
+                                ? "border-indigo-500 bg-indigo-100 text-indigo-700 animate-pulse"
+                                : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                             }`}
                           >
                             {voucherUpdatingId === pago.id 
@@ -1346,14 +1360,14 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                           </button>
                           <button
                             onClick={() => handleShareReceipt(pago)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-green-400 hover:bg-emerald-500/20 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-250 text-emerald-700 hover:bg-emerald-100 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors cursor-pointer"
                           >
                             <Send size={11} />
                             <span>Compartir Recibo</span>
                           </button>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right font-black text-white font-mono text-xs md:text-sm">
+                      <td className="px-6 py-4 text-right font-black text-slate-900 font-mono text-xs md:text-sm">
                         {formatCurrency(parseFloat(pago.monto))}
                       </td>
                     </tr>
@@ -1363,7 +1377,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
             </div>
 
             {/* HISTORIAL TARJETAS: Celular */}
-            <div className="sm:hidden p-4 space-y-3 bg-white/[0.02]">
+            <div className="sm:hidden p-4 space-y-3 bg-slate-50/50">
               {pagosRealizados.map((pago: any) => (
                 <div 
                   key={pago.id} 
@@ -1374,37 +1388,37 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                       setActivePastePagoId((curr) => (curr === pago.id ? null : curr));
                     }, 120);
                   }}
-                  className={`p-4 rounded-2xl border space-y-3 shadow-sm transition-all duration-250 focus:outline-none ${
+                  className={`p-4 rounded-2xl border space-y-3 shadow-sm bg-white transition-all duration-250 focus:outline-none ${
                     activePastePagoId === pago.id
-                      ? "bg-indigo-950/20 border-indigo-500 ring-2 ring-indigo-500/25 scale-[1.01]"
-                      : "bg-[#0A0A0C]/60 border-white/5"
+                      ? "bg-indigo-50/50 border-indigo-500 ring-2 ring-indigo-500/10 scale-[1.01]"
+                      : "border-slate-200"
                   }`}
                 >
                   <div className="flex justify-between items-center">
-                    <span className="text-[9px] font-mono text-gray-500">ID: {pago.id.substring(0, 8)}...</span>
-                    <span className="text-[10px] text-gray-400 font-bold font-mono">{pago.fecha_pago}</span>
+                    <span className="text-[9px] font-mono text-slate-400">ID: {pago.id.substring(0, 8)}...</span>
+                    <span className="text-[10px] text-slate-500 font-bold font-mono">{pago.fecha_pago}</span>
                   </div>
 
                   <div className="flex justify-between items-end pt-1">
                     <div className="space-y-1">
-                      <span className="text-[10px] font-bold text-slate-200 block">
+                      <span className="text-[10px] font-bold text-slate-900 block">
                         {getAplicacionLabel(pago)}
                       </span>
-                      <span className="text-[10px] text-slate-450 font-bold block text-gray-300">Metodo: {pago.metodo_pago}</span>
+                      <span className="text-[10px] text-slate-500 font-semibold block">Método: {pago.metodo_pago}</span>
                       <div className="flex flex-wrap items-center gap-2 mt-1.5">
                         {pago.comprobante_url ? (
                           <a
                             href={resolveVoucherUrl(pago.comprobante_url)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-indigo-500/20 rounded-lg font-bold text-[9px] uppercase tracking-wider transition-colors"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 border border-blue-200 text-blue-700 hover:bg-indigo-500/20 rounded-lg font-bold text-[9px] uppercase tracking-wider transition-colors"
                           >
                             <Image size={10} />
                             <span>Ver Voucher</span>
                             <ExternalLink size={8} className="opacity-60" />
                           </a>
                         ) : (
-                          <span className="text-slate-600 font-bold text-[9px] uppercase tracking-wider select-none">- Sin Voucher -</span>
+                          <span className="text-slate-400 font-bold text-[9px] uppercase tracking-wider select-none">- Sin Voucher -</span>
                         )}
                         <input
                           type="file"
@@ -1422,8 +1436,8 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                           disabled={voucherUpdatingId === pago.id}
                           className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-bold cursor-pointer disabled:opacity-60 border transition-all duration-250 ${
                             activePastePagoId === pago.id
-                              ? "border-indigo-500 bg-indigo-500/20 text-indigo-300 animate-pulse"
-                              : "bg-slate-800/60 border-slate-700 text-slate-300 hover:bg-slate-700"
+                              ? "border-indigo-500 bg-indigo-100 text-indigo-700 animate-pulse"
+                              : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
                           }`}
                         >
                           {voucherUpdatingId === pago.id 
@@ -1435,7 +1449,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                         </button>
                         <button
                           onClick={() => handleShareReceipt(pago)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 text-green-400 hover:bg-emerald-500/20 rounded-lg font-bold text-[9px] uppercase tracking-wider transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 border border-emerald-250 text-emerald-700 hover:bg-emerald-100 rounded-lg font-bold text-[9px] uppercase tracking-wider transition-colors cursor-pointer"
                         >
                           <Send size={10} />
                           <span>Compartir Recibo</span>
@@ -1444,7 +1458,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                     </div>
 
                     <div className="text-right">
-                      <span className="font-black text-white font-mono text-xs sm:text-sm">
+                      <span className="font-black text-slate-900 font-mono text-xs sm:text-sm">
                         {formatCurrency(parseFloat(pago.monto))}
                       </span>
                     </div>
@@ -1459,26 +1473,26 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
       {/* Modal: Aplicar Nueva Facilidad */}
       <AnimatePresence>
         {showAyudaModal && (
-          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-slate-900 border border-white/10 rounded-3xl w-full max-w-lg p-6 shadow-2xl relative overflow-hidden"
+              className="bg-white border border-slate-200 rounded-3xl w-full max-w-lg p-6 shadow-2xl relative overflow-hidden text-slate-800"
             >
-              <div className="flex justify-between items-center pb-4 border-b border-white/5 mb-6">
+              <div className="flex justify-between items-center pb-4 border-b border-slate-100 mb-6">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400">
+                  <div className="w-8 h-8 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-center text-indigo-650">
                     <Sparkles size={16} />
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-white text-base">Aplicar Nueva Facilidad</h3>
-                    <p className="text-[10px] text-gray-400">Selecciona y configura el plan de apoyo manual</p>
+                    <h3 className="font-extrabold text-slate-900 text-base">Aplicar Nueva Facilidad</h3>
+                    <p className="text-[10px] text-slate-500">Selecciona y configura el plan de apoyo manual</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowAyudaModal(false)}
-                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center transition cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer border-none"
                 >
                   <X size={16} />
                 </button>
@@ -1486,7 +1500,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
 
               <form onSubmit={handleCreateAjuste} className="space-y-4">
                 {ayudaError && (
-                  <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl font-semibold flex items-center gap-2">
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-650 text-xs rounded-xl font-semibold flex items-center gap-2">
                     <AlertCircle size={14} />
                     {ayudaError}
                   </div>
@@ -1495,22 +1509,22 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                 <div className="space-y-4">
                   {/* Tipo de Ayuda/Ajuste - Fijo ya que es la única opción */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Tipo de Ayuda/Ajuste</label>
-                    <div className="w-full bg-slate-950/40 border border-white/5 rounded-xl px-4 py-2.5 text-white text-sm font-semibold flex items-center gap-2">
-                      <Scissors size={14} className="text-rose-450" />
-                      <span className="text-slate-100 font-bold">Eliminar Interés de una Cuota</span>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Tipo de Ayuda/Ajuste</label>
+                    <div className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-semibold flex items-center gap-2">
+                      <Scissors size={14} className="text-red-600" />
+                      <span className="text-slate-800 font-bold">Eliminar Interés de una Cuota</span>
                     </div>
                   </div>
 
                   {/* N° de Cuota a afectar */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">N° de Cuota a Afectar *</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">N° de Cuota a Afectar *</label>
                     <input
                       type="number"
                       min="1"
                       value={ajusteCuotaNumero}
                       onChange={(e) => setAjusteCuotaNumero(e.target.value)}
-                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition outline-none font-mono"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition outline-none font-mono"
                       placeholder="Ej. 3"
                       required
                     />
@@ -1518,12 +1532,12 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
 
                   {/* Motivo / Justificación */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Motivo / Justificación (Obligatorio) *</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Motivo / Justificación (Obligatorio) *</label>
                     <input
                       type="text"
                       value={ajusteMotivo}
                       onChange={(e) => setAjusteMotivo(e.target.value)}
-                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition outline-none"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition outline-none"
                       placeholder="Ej: Cliente con problemas de salud, acuerdo especial, etc."
                       required
                     />
@@ -1531,29 +1545,29 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                   
                   {/* Detalles Adicionales */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Detalles Adicionales (Opcional)</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Detalles Adicionales (Opcional)</label>
                     <textarea
                       value={ajusteDescripcion}
                       onChange={(e) => setAjusteDescripcion(e.target.value)}
                       rows={3}
-                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition outline-none resize-none"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition outline-none resize-none"
                       placeholder="Agrega notas o detalles sobre el acuerdo..."
                     />
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-white/5 flex gap-3 mt-4">
+                <div className="pt-4 border-t border-slate-100 flex gap-3 mt-4">
                   <button
                     type="button"
                     onClick={() => setShowAyudaModal(false)}
-                    className="flex-1 py-3 px-4 rounded-xl font-bold text-xs bg-white/5 hover:bg-white/10 text-white transition cursor-pointer"
+                    className="flex-1 py-3 px-4 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer border-none"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={ayudaSubmitting}
-                    className="flex-[2] py-3 px-4 rounded-xl font-bold text-xs bg-rose-500 hover:bg-rose-600 text-white transition shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                    className="flex-[2] py-3 px-4 rounded-xl font-bold text-xs bg-indigo-650 hover:bg-indigo-700 text-white transition shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 border-none"
                   >
                     {ayudaSubmitting ? (
                       <>
@@ -1577,26 +1591,26 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
       {/* Modal: Historial de Ajustes */}
       <AnimatePresence>
         {showHistorialModal && (
-          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center z-50 p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-slate-900 border border-white/10 rounded-3xl w-full max-w-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh] font-sans text-left"
+              className="bg-white border border-slate-200 rounded-3xl w-full max-w-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh] font-sans text-left text-slate-800"
             >
-              <div className="flex justify-between items-center pb-4 border-b border-white/5 mb-6">
+              <div className="flex justify-between items-center pb-4 border-b border-slate-100 mb-6">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400">
+                  <div className="w-8 h-8 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-center text-indigo-600">
                     <Coins size={16} />
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-white text-base">Historial de Facilidades de Pago</h3>
-                    <p className="text-[10px] text-gray-400">Registro histórico de modificaciones y apoyos al préstamo</p>
+                    <h3 className="font-extrabold text-slate-900 text-base">Historial de Facilidades de Pago</h3>
+                    <p className="text-[10px] text-slate-500">Registro histórico de modificaciones y apoyos al préstamo</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowHistorialModal(false)}
-                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center transition cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer border-none"
                 >
                   <X size={16} />
                 </button>
@@ -1604,7 +1618,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
 
               {ajustes.length === 0 ? (
                 <div className="text-center py-12 space-y-3">
-                  <p className="text-xs text-gray-400">No hay ajustes o facilidades de pago registradas para este préstamo.</p>
+                  <p className="text-xs text-slate-500">No hay ajustes o facilidades de pago registradas para este préstamo.</p>
                 </div>
               ) : (
                 <div className="overflow-y-auto pr-1 flex-1 space-y-4">
@@ -1614,31 +1628,31 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
 
                     switch (ajuste.tipo) {
                       case "congelar_interes_temporal":
-                        tipoBadge = "bg-blue-500/10 text-blue-400 border-blue-500/20";
+                        tipoBadge = "bg-blue-50 text-blue-700 border-blue-200";
                         tipoTexto = "Congelar Interés Temporal";
                         break;
                       case "congelar_interes_permanente":
-                        tipoBadge = "bg-sky-500/10 text-sky-400 border-sky-500/20";
+                        tipoBadge = "bg-cyan-50 text-cyan-700 border-cyan-200";
                         tipoTexto = "Congelar Interés Permanente";
                         break;
                       case "eliminar_interes_cuota":
-                        tipoBadge = "bg-amber-500/10 text-amber-400 border-amber-500/20";
+                        tipoBadge = "bg-amber-50 text-amber-700 border-amber-250";
                         tipoTexto = `Eliminar Interés Cuota ${ajuste.cuota_numero}`;
                         break;
                       case "reducir_mora":
-                        tipoBadge = "bg-indigo-500/10 text-indigo-400 border-indigo-500/20";
+                        tipoBadge = "bg-indigo-50 text-indigo-700 border-indigo-200";
                         tipoTexto = `Reducir Mora (${ajuste.monto_afectado}%)`;
                         break;
                       case "eliminar_mora":
-                        tipoBadge = "bg-rose-500/10 text-rose-400 border-rose-500/20";
+                        tipoBadge = "bg-red-50 text-red-700 border-red-200";
                         tipoTexto = "Eliminar Mora";
                         break;
                       case "periodo_gracia":
-                        tipoBadge = "bg-purple-500/10 text-purple-400 border-purple-500/20";
+                        tipoBadge = "bg-purple-50 text-purple-700 border-purple-200";
                         tipoTexto = `Período de Gracia (${ajuste.periodo_gracia_dias} días)`;
                         break;
                       default:
-                        tipoBadge = "bg-slate-500/10 text-slate-400 border-slate-500/20";
+                        tipoBadge = "bg-slate-100 text-slate-600 border border-slate-200";
                         tipoTexto = ajuste.tipo;
                     }
 
@@ -1647,8 +1661,8 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                         key={ajuste.id}
                         className={`p-4 rounded-2xl border transition-all ${
                           ajuste.activo
-                            ? "bg-white/[0.02] border-white/5"
-                            : "bg-white/[0.01] border-white/[0.02] opacity-60"
+                            ? "bg-slate-50/50 border-slate-200"
+                            : "bg-slate-50/10 border-slate-150 opacity-60"
                         }`}
                       >
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -1657,24 +1671,24 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                               {tipoTexto}
                             </span>
                             {!ajuste.activo && (
-                              <span className="text-[9px] bg-slate-800 text-gray-400 font-bold px-2 py-0.5 rounded-md uppercase border border-slate-700">
+                              <span className="text-[9px] bg-slate-150 text-slate-600 font-bold px-2 py-0.5 rounded-md uppercase border border-slate-200">
                                 Inactivo
                               </span>
                             )}
                           </div>
-                          <span className="text-[10px] text-gray-500 font-mono">
+                          <span className="text-[10px] text-slate-500 font-mono">
                             {new Date(ajuste.fecha_registro).toLocaleString("es-PE")}
                           </span>
                         </div>
 
-                        <div className="mt-3 grid grid-cols-2 gap-4 bg-black/10 p-3 rounded-xl border border-white/5">
+                        <div className="mt-3 grid grid-cols-2 gap-4 bg-slate-50 p-3 rounded-xl border border-slate-150">
                           <div>
-                            <span className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Registrado por</span>
-                            <p className="text-xs text-slate-300 font-semibold">{ajuste.usuario}</p>
+                            <span className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Registrado por</span>
+                            <p className="text-xs text-slate-850 font-semibold">{ajuste.usuario}</p>
                           </div>
                           <div>
-                            <span className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Vigencia</span>
-                            <p className="text-xs text-slate-300 font-semibold font-mono">
+                            <span className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Vigencia</span>
+                            <p className="text-xs text-slate-850 font-semibold font-mono">
                               {ajuste.fecha_fin 
                                 ? `Del ${ajuste.fecha_inicio} al ${ajuste.fecha_fin}` 
                                 : `Desde ${ajuste.fecha_inicio}`}
@@ -1683,25 +1697,25 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                         </div>
 
                         <div className="mt-3">
-                          <span className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Motivo justificado</span>
-                          <p className="text-xs text-slate-200 mt-0.5 italic">"{ajuste.motivo}"</p>
+                          <span className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Motivo justificado</span>
+                          <p className="text-xs text-slate-700 mt-0.5 italic">"{ajuste.motivo}"</p>
                         </div>
 
                         {ajuste.descripcion && (
                           <div className="mt-2">
-                            <span className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Detalles adicionales</span>
-                            <p className="text-xs text-gray-300 mt-0.5">{ajuste.descripcion}</p>
+                            <span className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Detalles adicionales</span>
+                            <p className="text-xs text-slate-600 mt-0.5">{ajuste.descripcion}</p>
                           </div>
                         )}
 
                         {/* Toggle de activación del ajuste */}
-                        <div className="mt-4 pt-3 border-t border-white/5 flex justify-end">
+                        <div className="mt-4 pt-3 border-t border-slate-150 flex justify-end">
                           <button
                             onClick={() => handleToggleAjuste(ajuste.id, ajuste.activo)}
                             className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition cursor-pointer border ${
                               ajuste.activo
-                                ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/20"
-                                : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20"
+                                ? "bg-red-50 hover:bg-red-100 text-red-650 border-red-200"
+                                : "bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border-emerald-250"
                             }`}
                           >
                             {ajuste.activo ? "❌ Desactivar Ajuste" : "✅ Activar Ajuste"}

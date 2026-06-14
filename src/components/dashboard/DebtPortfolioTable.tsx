@@ -139,10 +139,10 @@ export const DebtPortfolioTable: React.FC<DebtPortfolioTableProps> = ({
         const initials = loan.cliente_nombre.split(" ").map((n: string) => n[0]).join("").slice(0, 2);
         return (
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center font-bold text-xs text-indigo-400 select-none">
+            <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center font-bold text-xs text-indigo-700 select-none">
               {initials}
             </div>
-            <span className="font-bold text-white block">{loan.cliente_nombre}</span>
+            <span className="font-bold text-slate-900 block">{loan.cliente_nombre}</span>
           </div>
         );
       }
@@ -152,7 +152,7 @@ export const DebtPortfolioTable: React.FC<DebtPortfolioTableProps> = ({
       accessorKey: "monto_capital",
       sortable: true,
       cell: (loan) => (
-        <span className="font-extrabold text-white font-mono text-sm">
+        <span className="font-extrabold text-slate-800 font-mono text-sm">
           {formatCurrency(loan.monto_capital)}
         </span>
       )
@@ -162,7 +162,7 @@ export const DebtPortfolioTable: React.FC<DebtPortfolioTableProps> = ({
       accessorKey: "tasa_interes_porcentaje",
       sortable: true,
       cell: (loan) => (
-        <span className="font-extrabold text-indigo-300 font-mono text-xs md:text-sm">
+        <span className="font-extrabold text-indigo-700 font-mono text-xs md:text-sm">
           {loan.tasa_interes_porcentaje}%
         </span>
       )
@@ -172,7 +172,7 @@ export const DebtPortfolioTable: React.FC<DebtPortfolioTableProps> = ({
       accessorKey: "fecha_emision",
       sortable: true,
       cell: (loan) => (
-        <span className="text-slate-400 font-mono text-xs">
+        <span className="text-slate-500 font-mono text-xs">
           {loan.fecha_emision}
         </span>
       )
@@ -230,7 +230,7 @@ export const DebtPortfolioTable: React.FC<DebtPortfolioTableProps> = ({
             
             <button
               onClick={(e) => onEditLoanClick(loan, e)}
-              className="text-slate-400 hover:text-indigo-400 p-1.5 hover:bg-white/5 rounded-xl transition cursor-pointer border-none"
+              className="text-slate-500 hover:text-indigo-700 p-1.5 hover:bg-slate-55 rounded-xl transition cursor-pointer border-none"
               title="Reprogramar Fechas"
             >
               <Calendar size={15} />
@@ -238,7 +238,7 @@ export const DebtPortfolioTable: React.FC<DebtPortfolioTableProps> = ({
 
             <Link
               to={`/prestamos/${loan.id}`}
-              className="text-xs bg-white/5 hover:bg-white/10 border border-white/8 text-white py-1.5 px-3 rounded-lg font-bold transition cursor-pointer inline-flex items-center gap-1 shadow-sm decoration-none"
+              className="text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 py-1.5 px-3 rounded-lg font-bold transition cursor-pointer inline-flex items-center gap-1 shadow-sm decoration-none"
             >
               <span>Detalles</span>
               <ArrowUpRight size={11} />
@@ -257,22 +257,22 @@ export const DebtPortfolioTable: React.FC<DebtPortfolioTableProps> = ({
     return (
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-xs select-none">
         <div className="flex items-center gap-2">
-          <Info size={14} className="text-indigo-400 shrink-0" />
+          <Info size={14} className="text-indigo-650 shrink-0" />
           <div>
-            <span className="text-slate-400 font-bold block">Fecha Vencimiento Final:</span>
-            <span className="font-extrabold text-white">{loan.fecha_vencimiento ? formatDateWithDay(loan.fecha_vencimiento) : "No configurado"}</span>
+            <span className="text-slate-500 font-bold block">Fecha Vencimiento Final:</span>
+            <span className="font-extrabold text-slate-800">{loan.fecha_vencimiento ? formatDateWithDay(loan.fecha_vencimiento) : "No configurado"}</span>
           </div>
         </div>
 
         {loan.estado === "activo" && (
           <div className="flex items-center gap-2">
-            <span className="text-slate-400 font-bold">Estado del plazo:</span>
+            <span className="text-slate-500 font-bold">Estado del plazo:</span>
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider text-[9px] border ${
               days < 0 
-                ? "bg-rose-500/10 border-rose-500/15 text-rose-400" 
+                ? "bg-rose-50 border-rose-200 text-rose-700" 
                 : days === 0 
-                  ? "bg-amber-500/10 border-amber-500/15 text-amber-400"
-                  : "bg-emerald-500/10 border-emerald-500/15 text-emerald-450"
+                  ? "bg-amber-55 border-amber-250 text-amber-700"
+                  : "bg-emerald-50 border-emerald-250 text-emerald-700"
             }`}>
               {days < 0 ? `Vencido hace ${Math.abs(days)} días` : days === 0 ? "Vence hoy" : `Quedan ${days} días`}
             </span>
@@ -309,22 +309,22 @@ export const DebtPortfolioTable: React.FC<DebtPortfolioTableProps> = ({
 
   return (
     <Card variant="simple" className="flex flex-col">
-      <div className="p-1 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4">
+      <div className="p-1 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4">
         <div>
-          <h2 className="font-black text-white text-base tracking-tight leading-none">Cartera de Deudas</h2>
+          <h2 className="font-black text-slate-850 text-base tracking-tight leading-none">Cartera de Deudas</h2>
           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">Monitorear, reprogramar, exportar y cobrar deudas en vivo</p>
         </div>
 
         {/* Filtros de estado rápido */}
-        <div className="flex items-center gap-1 bg-white/[0.03] p-0.5 rounded-xl border border-white/5 select-none">
+        <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200/85 select-none">
           {(["todos", "activo", "pagado"] as const).map((est) => (
             <button
               key={est}
               onClick={() => setFilterEstado(est)}
               className={`px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer border-none transition-all duration-150 ${
                 filterEstado === est
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/10"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "bg-indigo-650 text-white shadow-md shadow-indigo-650/10"
+                  : "text-slate-500 hover:text-slate-700"
               }`}
             >
               {est === "todos" ? "Todos" : est === "activo" ? "Activos" : "Pagados"}

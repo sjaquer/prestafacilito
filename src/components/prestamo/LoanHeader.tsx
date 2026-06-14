@@ -77,68 +77,68 @@ export const LoanHeader: React.FC<LoanHeaderProps> = ({
         {/* Info Cliente */}
         <Card variant="bento" className="lg:col-span-2 flex flex-col justify-between">
           <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center font-extrabold text-lg text-indigo-400 select-none shrink-0">
+            <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center font-extrabold text-lg text-indigo-700 select-none shrink-0">
               {initials}
             </div>
             
             <div className="min-w-0 flex-1">
-              <h1 className="text-xl md:text-2xl font-black text-white tracking-tight leading-snug truncate">
+              <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-snug truncate">
                 {prestamo.cliente_nombre}
               </h1>
-              <p className="text-[11px] text-slate-400 mt-1 font-bold">
-                Categoría: <span className="text-white font-extrabold">{prestamo.tipo_prestamo}</span>
+              <p className="text-[11px] text-slate-500 mt-1 font-bold">
+                Categoría: <span className="text-slate-800 font-extrabold">{prestamo.tipo_prestamo}</span>
               </p>
               
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 text-xs font-semibold text-slate-400">
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 text-xs font-semibold text-slate-500">
                 {prestamo.cliente_telefono && (
                   <div className="flex items-center gap-1.5">
-                    <span className="text-slate-600">Teléfono:</span>
+                    <span className="text-slate-500 font-bold">Teléfono:</span>
                     {waLink ? (
                       <a 
                         href={waLink} 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        className="text-emerald-450 hover:text-emerald-400 font-extrabold flex items-center gap-1 decoration-none"
+                        className="text-emerald-650 hover:text-emerald-700 font-extrabold flex items-center gap-1 decoration-none"
                       >
                         <MessageSquare size={12} />
                         {prestamo.cliente_telefono}
                       </a>
                     ) : (
-                      <span className="text-white">{prestamo.cliente_telefono}</span>
+                      <span className="text-slate-700">{prestamo.cliente_telefono}</span>
                     )}
                   </div>
                 )}
               </div>
 
               {/* Bento Row of key credit parameters */}
-              <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4 text-[11px] md:text-xs font-bold text-slate-400 bg-white/[0.015] border border-white/[0.04] p-3 rounded-2xl w-fit select-none">
+              <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4 text-[11px] md:text-xs font-bold text-slate-550 bg-slate-50 border border-slate-200 p-3 rounded-2xl w-fit select-none">
                 <div className="flex items-center gap-1.5">
-                  <Calendar size={13} className="text-indigo-400 shrink-0" />
+                  <Calendar size={13} className="text-indigo-600 shrink-0" />
                   <span className="text-slate-500">Emisión:</span>
-                  <span className="text-white font-mono font-extrabold">{formatDate(prestamo.fecha_emision)}</span>
+                  <span className="text-slate-800 font-mono font-extrabold">{formatDate(prestamo.fecha_emision)}</span>
                 </div>
                 {!isAlquiler && (
                   <div className="flex items-center gap-1.5">
-                    <Percent size={13} className="text-indigo-400 shrink-0" />
+                    <Percent size={13} className="text-indigo-600 shrink-0" />
                     <span className="text-slate-500">Interés:</span>
-                    <span className="text-white font-extrabold font-mono">{prestamo.tasa_interes_porcentaje}%</span>
+                    <span className="text-slate-800 font-extrabold font-mono">{prestamo.tasa_interes_porcentaje}%</span>
                   </div>
                 )}
                 {prestamo.fecha_vencimiento && (
                   <div className="flex items-center gap-1.5">
-                    <Calendar size={13} className="text-indigo-400 shrink-0" />
+                    <Calendar size={13} className="text-indigo-600 shrink-0" />
                     <span className="text-slate-500">Vencimiento:</span>
-                    <span className="text-white font-mono font-extrabold">{formatDate(prestamo.fecha_vencimiento)}</span>
+                    <span className="text-slate-800 font-mono font-extrabold">{formatDate(prestamo.fecha_vencimiento)}</span>
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="mt-6 pt-5 border-t border-white/[0.04] space-y-3">
+          <div className="mt-6 pt-5 border-t border-slate-200/60 space-y-3">
             <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-455 font-bold uppercase tracking-wider">Progreso de Amortización</span>
-              <span className="text-emerald-455 font-black font-mono">{recoveryRate.toFixed(1)}% pagado</span>
+              <span className="text-slate-500 font-bold uppercase tracking-wider">Progreso de Amortización</span>
+              <span className="text-emerald-700 font-black font-mono">{recoveryRate.toFixed(1)}% pagado</span>
             </div>
             <ProgressBar value={recoveryRate} color="emerald" height="md" />
           </div>
@@ -154,15 +154,15 @@ export const LoanHeader: React.FC<LoanHeaderProps> = ({
             </span>
             <div className="mt-3 space-y-1.5">
               <div className="flex justify-between items-center text-xs md:text-sm font-semibold">
-                <span className="text-slate-455">{isAlquiler ? "Total Alquiler:" : "Capital Prestado:"}</span>
-                <span className="text-white font-mono font-extrabold">{formatCurrency(prestamo.monto_capital)}</span>
+                <span className="text-slate-500">{isAlquiler ? "Total Alquiler:" : "Capital Prestado:"}</span>
+                <span className="text-slate-800 font-mono font-extrabold">{formatCurrency(prestamo.monto_capital)}</span>
               </div>
               <div className="flex justify-between items-center text-xs md:text-sm font-semibold">
-                <span className="text-slate-455">{isAlquiler ? "Alquiler Pendiente:" : "Intereses Pendientes:"}</span>
-                <span className="text-indigo-300 font-mono font-extrabold">{formatCurrency(deuda.interesPendiente)}</span>
+                <span className="text-slate-500">{isAlquiler ? "Alquiler Pendiente:" : "Intereses Pendientes:"}</span>
+                <span className="text-indigo-700 font-mono font-extrabold">{formatCurrency(deuda.interesPendiente)}</span>
               </div>
               {deuda.moraAcumulada > 0 && (
-                <div className="flex justify-between items-center text-xs md:text-sm font-semibold text-rose-455">
+                <div className="flex justify-between items-center text-xs md:text-sm font-semibold text-rose-700">
                   <span className="flex items-center gap-1">
                     <ShieldAlert size={12} />
                     Mora Acumulada:
@@ -173,11 +173,11 @@ export const LoanHeader: React.FC<LoanHeaderProps> = ({
             </div>
           </div>
 
-          <div className="mt-5 pt-4 border-t border-white/[0.04]">
+          <div className="mt-5 pt-4 border-t border-slate-200/60">
             <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">
               Total Pendiente Exigible
             </span>
-            <span className="text-2xl font-black text-white font-mono tracking-tight block mt-1">
+            <span className="text-2xl font-black text-slate-900 font-mono tracking-tight block mt-1">
               {formatCurrency(deuda.saldoPendiente)}
             </span>
           </div>

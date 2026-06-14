@@ -24,24 +24,24 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, authenticated
     return (
       <div
         id="app-initial-loader"
-        className="min-h-screen bg-[#070a13] flex flex-col items-center justify-center relative overflow-hidden"
+        className="min-h-screen bg-slate-50 flex flex-col items-center justify-center relative overflow-hidden"
       >
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-600/5 rounded-full blur-[85px] pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-violet-600/4 rounded-full blur-[80px] pointer-events-none" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-[85px] pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-violet-500/4 rounded-full blur-[80px] pointer-events-none" />
 
         <motion.div
           animate={{ y: [0, -8, 0] }}
           transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
-          className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-indigo-500/20 relative z-10 select-none"
+          className="w-14 h-14 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-indigo-500/10 relative z-10 select-none"
         >
           <Coins className="text-white" size={26} />
         </motion.div>
 
         <Loader2
-          className="animate-spin text-indigo-400/60 mb-4 relative z-10"
+          className="animate-spin text-indigo-600/70 mb-4 relative z-10"
           size={22}
         />
-        <p className="text-[10px] font-bold text-slate-500 tracking-[0.2em] uppercase relative z-10 select-none">
+        <p className="text-[10px] font-black text-slate-500 tracking-[0.2em] uppercase relative z-10 select-none">
           Iniciando Sesión...
         </p>
       </div>
@@ -63,24 +63,24 @@ export default function App() {
     return (
       <div
         id="app-initial-loader"
-        className="min-h-screen bg-[#070a13] flex flex-col items-center justify-center relative overflow-hidden"
+        className="min-h-screen bg-slate-50 flex flex-col items-center justify-center relative overflow-hidden"
       >
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-600/5 rounded-full blur-[85px] pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-violet-600/4 rounded-full blur-[80px] pointer-events-none" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-[85px] pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-violet-500/4 rounded-full blur-[80px] pointer-events-none" />
 
         <motion.div
           animate={{ y: [0, -8, 0] }}
           transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
-          className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-indigo-500/20 relative z-10 select-none"
+          className="w-14 h-14 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-indigo-500/10 relative z-10 select-none"
         >
           <Coins className="text-white" size={26} />
         </motion.div>
 
         <Loader2
-          className="animate-spin text-indigo-400/60 mb-4 relative z-10"
+          className="animate-spin text-indigo-600/70 mb-4 relative z-10"
           size={22}
         />
-        <p className="text-[10px] font-bold text-slate-500 tracking-[0.2em] uppercase relative z-10 select-none">
+        <p className="text-[10px] font-black text-slate-500 tracking-[0.2em] uppercase relative z-10 select-none">
           Cargando PrestaFacilito...
         </p>
       </div>

@@ -71,22 +71,22 @@ export const Modal: React.FC<ModalProps> = ({
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
             ref={modalRef}
-            className={`w-full bg-[#0d1120] border border-white/[0.07] rounded-3xl shadow-2xl relative z-10 flex flex-col max-h-[90vh] overflow-hidden ${sizes[size]} modal-mobile-full`}
+            className={`w-full bg-white border border-slate-200 rounded-3xl shadow-2xl relative z-10 flex flex-col max-h-[90vh] overflow-hidden ${sizes[size]} modal-mobile-full`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="modal-title"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4.5 border-b border-white/[0.05]">
+            <div className="flex items-center justify-between px-6 py-4.5 border-b border-slate-100">
               <h3 
                 id="modal-title" 
-                className="text-sm md:text-base font-black text-white tracking-tight"
+                className="text-sm md:text-base font-black text-slate-900 tracking-tight"
               >
                 {title}
               </h3>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg bg-white/5 hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 transition-all cursor-pointer"
+                className="p-1.5 rounded-lg bg-slate-50 border border-slate-200 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-all cursor-pointer"
                 title="Cerrar modal"
                 aria-label="Cerrar modal"
               >
@@ -95,13 +95,13 @@ export const Modal: React.FC<ModalProps> = ({
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 text-slate-300">
+            <div className="flex-1 overflow-y-auto px-6 py-5 text-slate-700">
               {children}
             </div>
 
             {/* Footer */}
             {footerActions && (
-              <div className="px-6 py-4 border-t border-white/[0.05] bg-black/20 flex justify-end items-center gap-3">
+              <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end items-center gap-3">
                 {footerActions}
               </div>
             )}
