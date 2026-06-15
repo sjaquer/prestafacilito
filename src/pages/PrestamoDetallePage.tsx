@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Loader2, AlertTriangle, MessageSquare, Send, HeartHandshake } from "lucide-react";
+import { Loader2, AlertTriangle, MessageSquare, Send, HeartHandshake, Sparkles } from "lucide-react";
 import { usePrestamos } from "../hooks/usePrestamos";
 import { usePagos } from "../hooks/usePagos";
 import { buildPaymentSchedule } from "../lib/loanLogic";
@@ -14,9 +14,13 @@ import { PaymentHistory } from "../components/prestamo/PaymentHistory";
 import { ProrrogaSection } from "../components/prestamo/ProrrogaSection";
 import { VoucherGenerator } from "../components/prestamo/VoucherGenerator";
 
+import { useAuth } from "../hooks/useAuth";
+import { generarMensajeCobroPredeterminado } from "../lib/formatters";
+
 export const PrestamoDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   const {
     loading,
@@ -208,6 +212,33 @@ export const PrestamoDetallePage: React.FC = () => {
     }
   };
 
+  const handleGeneratePredefinedMessage = () => {
+    if (!data?.prestamo || !schedule) return;
+
+    const nextCuota = schedule.cuotaSiguiente;
+    const unpaidCuotas = schedule.cuotas.filter((c: any) => c.estado !== "Saldada");
+    const isMora = schedule.resumen.moraAcumulada > 0;
+    const amount = isMora 
+      ? schedule.resumen.saldoPendiente
+      : (nextCuota?.montoExigible || schedule.resumen.saldoPendiente || 0);
+
+    const dueDate = nextCuota?.fechaVencimiento || data.prestamo.fecha_vencimiento;
+    const cuotasAtrasadas = unpaidCuotas.filter((c: any) => c.estado === "Vencida").length;
+
+    const msg = generarMensajeCobroPredeterminado({
+      clienteNombre: data.prestamo.cliente_nombre,
+      tipoPrestamo: data.prestamo.tipo_prestamo,
+      remitenteRaw: user,
+      monto: amount,
+      fechaVencimiento: dueDate,
+      estadoCuotaMes: isMora ? "mora_mes" : "pendiente_mes",
+      cuotasAtrasadas: cuotasAtrasadas || undefined
+    });
+
+    setAiMessage(msg);
+    setAiError("");
+  };
+
   const handleSendWhatsApp = () => {
     if (!data?.prestamo || !aiMessage) return;
     const phone = data.prestamo.cliente_telefono?.replace(/[^\d+]/g, "") || "";
@@ -298,18 +329,17 @@ export const PrestamoDetallePage: React.FC = () => {
             loanType={prestamo.tipo_prestamo}
           />
 
-          {/* Asistente de Cobros IA */}
+          {/* Asistente de Cobros */}
           {isActivo && (
             <Card variant="simple" className="space-y-4 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl" />
               
               <h3 className="font-black text-slate-800 text-sm tracking-tight leading-none flex items-center gap-1.5 select-none">
                 <span>🤖 Asistente de Cobros</span>
-                <span className="badge bg-indigo-55 text-indigo-700 border border-indigo-200 font-bold uppercase tracking-wider text-[8px] py-0.5 px-2">IA Gemini</span>
               </h3>
               
               <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
-                Genera textos persuasivos y amigables basados en el estado del préstamo o alquiler del cliente.
+                Genera textos amigables y profesionales basados en el estado del préstamo o alquiler del cliente.
               </p>
 
               <div className="border-t border-slate-200/65 pt-2" />
@@ -328,7 +358,7 @@ export const PrestamoDetallePage: React.FC = () => {
                       onClick={handleSendWhatsApp}
                       variant="primary"
                       size="sm"
-                      className="flex-1"
+                      className="flex-1 font-bold"
                       icon={<MessageSquare size={13} />}
                     >
                       Enviar WhatsApp
@@ -337,22 +367,34 @@ export const PrestamoDetallePage: React.FC = () => {
                       onClick={() => setAiMessage("")}
                       variant="secondary"
                       size="sm"
+                      className="font-bold"
                     >
                       Limpiar
                     </Button>
                   </div>
                 </div>
               ) : (
-                <Button
-                  onClick={handleGenerateAiMessage}
-                  disabled={aiLoading}
-                  variant="secondary"
-                  size="sm"
-                  className="w-full"
-                  icon={aiLoading ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-                >
-                  {aiLoading ? "Redactando recordatorio..." : "Generar Mensaje Cobranza"}
-                </Button>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    onClick={handleGeneratePredefinedMessage}
+                    variant="primary"
+                    size="sm"
+                    className="w-full font-bold"
+                    icon={<Send size={13} />}
+                  >
+                    Mensaje Predeterminado
+                  </Button>
+                  <Button
+                    onClick={handleGenerateAiMessage}
+                    disabled={aiLoading}
+                    variant="secondary"
+                    size="sm"
+                    className="w-full font-bold"
+                    icon={aiLoading ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                  >
+                    {aiLoading ? "Redactando..." : "Generar con IA"}
+                  </Button>
+                </div>
               )}
             </Card>
           )}

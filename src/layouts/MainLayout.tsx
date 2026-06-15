@@ -228,7 +228,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                 id="btn-logout"
                 onClick={onLogout}
                 title="Cerrar sesión segura"
-                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-150 cursor-pointer border-none bg-transparent"
+                className="hidden sm:inline-flex p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-150 cursor-pointer border-none bg-transparent"
               >
                 <LogOut size={16} />
               </button>
@@ -267,7 +267,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
               <Link
                 key={item.path}
                 to={item.path}
-                className="flex flex-col items-center justify-center min-w-[4.5rem] min-h-[44px] p-2 decoration-none"
+                className="flex flex-col items-center justify-center min-w-[4rem] min-h-[44px] p-2 decoration-none"
               >
                 <div
                   className={`p-1.5 rounded-full transition-colors ${
@@ -275,13 +275,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                   }`}
                 >
                   <item.icon
-                    size={22}
+                    size={20}
                     strokeWidth={isActive ? 2.5 : 2}
                   />
                 </div>
                 <span
-                  className={`text-[10px] font-semibold mt-1 ${
-                    isActive ? "text-emerald-700" : "text-slate-500"
+                  className={`text-[9px] font-semibold mt-1 ${
+                    isActive ? "text-emerald-700" : "text-slate-550"
                   }`}
                 >
                   {item.label === "Análisis IA" ? "IA" : item.label}
@@ -289,6 +289,19 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
               </Link>
             );
           })}
+
+          {/* Logout button at the end of mobile bottom nav */}
+          <button
+            onClick={onLogout}
+            className="flex flex-col items-center justify-center min-w-[4rem] min-h-[44px] p-2 border-none bg-transparent cursor-pointer"
+          >
+            <div className="p-1.5 rounded-full text-rose-500 hover:bg-rose-50 transition-colors">
+              <LogOut size={20} />
+            </div>
+            <span className="text-[9px] font-semibold mt-1 text-rose-600">
+              Salir
+            </span>
+          </button>
         </div>
       </nav>
 
