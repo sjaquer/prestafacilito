@@ -86,28 +86,25 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
           </div>
         ) : (
           <>
-            {/* DESKTOP TABLE */}
-            <div className="hidden md:block table-scroll-x">
-              <table className="w-full text-left border-collapse data-table font-sans">
-                <thead>
-                  <tr className="bg-slate-50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 select-none">
-                    <th className="px-4 py-3">Fecha Pago</th>
-                    <th className="px-4 py-3">Método</th>
-                    <th className="px-4 py-3">Clasificación</th>
-                    <th className="px-4 py-3">Monto Abonado</th>
-                    <th className="px-4 py-3">Voucher</th>
-                    <th className="px-4 py-3 text-right">Compartir</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700 text-xs font-semibold">
-                  {pagos.map((pago) => {
-                    const waShare = getWhatsAppShare(pago);
-                    const voucherUrls = parseVoucherUrls(pago.comprobante_url);
-                    const isEditing = editingPagoId === pago.id;
-                    
-                    return (
-                      <tr key={pago.id} className="hover:bg-slate-50/50 transition duration-150">
-                        <td className="px-4 py-3 font-mono">
+            {isAlquiler ? (
+              /* CARD VIEW FOR RENTALS (BOTH DESKTOP & MOBILE) */
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {pagos.map((pago) => {
+                  const waShare = getWhatsAppShare(pago);
+                  const voucherUrls = parseVoucherUrls(pago.comprobante_url);
+                  const hasVoucher = voucherUrls.length > 0;
+                  const isEditing = editingPagoId === pago.id;
+
+                  return (
+                    <div 
+                      key={pago.id}
+                      className="bg-white border border-slate-200 rounded-3xl p-5 space-y-3.5 text-xs font-semibold shadow-sm hover:shadow-md transition-all duration-300 relative select-none hover:border-slate-350"
+                    >
+                      {/* Left color bar */}
+                      <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-emerald-500 rounded-l-3xl" />
+
+                      <div className="pl-1.5 space-y-3">
+                        <div className="flex justify-between items-center gap-2">
                           {isEditing ? (
                             <div className="flex items-center gap-1">
                               <input
@@ -115,71 +112,81 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
                                 value={editFecha}
                                 onChange={(e) => setEditFecha(e.target.value)}
                                 disabled={saving}
-                                className="bg-white border border-slate-250 rounded px-1.5 py-0.5 text-xs font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                className="bg-white border border-slate-250 rounded px-1.5 py-0.5 text-[10px] font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                               />
                               <button
                                 onClick={() => handleSave(pago.id)}
                                 disabled={saving}
                                 className="text-emerald-600 hover:text-emerald-800 p-1 hover:bg-emerald-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center justify-center"
-                                title="Guardar fecha"
                               >
                                 {saving ? (
                                   <span className="w-3.5 h-3.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
                                 ) : (
-                                  <Check size={13} />
+                                  <Check size={12} />
                                 )}
                               </button>
                               <button
                                 onClick={() => setEditingPagoId(null)}
                                 disabled={saving}
                                 className="text-rose-600 hover:text-rose-800 p-1 hover:bg-rose-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center justify-center"
-                                title="Cancelar"
                               >
-                                <X size={13} />
+                                <X size={12} />
                               </button>
                             </div>
                           ) : (
-                            <span>{formatDateShort(pago.fecha_pago)}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 uppercase">
-                          {pago.metodo_pago}
-                        </td>
-                        <td className="px-4 py-3 text-slate-500">
-                          {pago.tipo_movimiento || "Pago Ordinario"}
-                        </td>
-                        <td className="px-4 py-3 text-emerald-700 font-mono font-extrabold text-sm">
-                          {formatCurrency(pago.monto)}
-                        </td>
-                        
-                        {/* Comprobante */}
-                        <td className="px-4 py-3">
-                          {voucherUrls.length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
-                              {voucherUrls.map((url, index) => (
-                                <button
-                                  key={index}
-                                  onClick={() => onViewComprobante(resolveVoucherUrl(url))}
-                                  className="text-emerald-655 hover:text-emerald-750 transition flex items-center gap-0.5 cursor-pointer bg-transparent border-none font-bold text-[11px]"
-                                  title={`Ver comprobante ${index + 1}`}
-                                >
-                                  <Eye size={12} />
-                                  <span>Ver {voucherUrls.length > 1 ? index + 1 : ""}</span>
-                                </button>
-                              ))}
+                            <div className="flex flex-col">
+                              <span className="text-[9px] text-slate-400 uppercase tracking-widest font-black">Fecha Pago</span>
+                              <span className="text-slate-800 font-mono mt-0.5 font-bold">
+                                {formatDateShort(pago.fecha_pago)}
+                              </span>
                             </div>
-                          ) : (
-                            <span className="text-slate-400">Ninguno</span>
                           )}
-                        </td>
 
-                        {/* Compartir recibo */}
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex justify-end gap-1.5">
+                          <div className="flex flex-col items-end">
+                            <span className="text-[9px] text-slate-400 uppercase tracking-widest font-black">Monto Abonado</span>
+                            <span className="text-emerald-700 font-mono font-black text-base mt-0.5">
+                              {formatCurrency(pago.monto)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-slate-550 pt-2 border-t border-slate-100/80">
+                          <div className="flex flex-col">
+                            <span className="text-[9px] text-slate-400 uppercase tracking-widest font-black">Método</span>
+                            <span className="text-slate-800 uppercase font-bold mt-0.5">{pago.metodo_pago}</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] text-slate-400 uppercase tracking-widest font-black">Clasificación</span>
+                            <span className="text-slate-655 font-bold mt-0.5">{pago.tipo_movimiento || "Pago Ordinario"}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-3 border-t border-slate-100 flex-wrap gap-2">
+                          <div>
+                            {hasVoucher ? (
+                              <div className="flex flex-wrap gap-1.5">
+                                {voucherUrls.map((url, index) => (
+                                  <button
+                                    key={index}
+                                    onClick={() => onViewComprobante(resolveVoucherUrl(url))}
+                                    className="text-emerald-655 hover:text-emerald-750 font-bold transition flex items-center gap-0.5 bg-transparent border-none cursor-pointer text-[10px]"
+                                    title={`Ver comprobante ${index + 1}`}
+                                  >
+                                    <Eye size={12} />
+                                    <span>Voucher {voucherUrls.length > 1 ? index + 1 : ""}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 font-normal">Sin voucher</span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
                             {onUpdateFechaPago && !isEditing && (
                               <button
                                 onClick={() => startEdit(pago)}
-                                className="text-indigo-600 hover:text-indigo-800 p-1 hover:bg-indigo-50 rounded-lg transition border-none bg-transparent cursor-pointer"
+                                className="text-indigo-650 hover:text-indigo-850 p-1.5 hover:bg-indigo-50 rounded-lg transition border-none bg-transparent cursor-pointer"
                                 title="Editar fecha de abono"
                               >
                                 <Calendar size={13} />
@@ -187,8 +194,8 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
                             )}
                             <button
                               onClick={() => onVoucherClick(pago)}
-                              className="text-slate-500 hover:text-slate-800 p-1 hover:bg-slate-50 rounded-lg transition border-none bg-transparent cursor-pointer"
-                              title="Ver e Imprimir Recibo Oficial"
+                              className="text-slate-550 hover:text-slate-800 p-1.5 hover:bg-slate-50 rounded-lg transition border-none bg-transparent cursor-pointer"
+                              title="Recibo Oficial"
                             >
                               <FileText size={13} />
                             </button>
@@ -197,129 +204,258 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
                                 href={waShare}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-emerald-600 hover:text-emerald-700 p-1 hover:bg-emerald-50 rounded-lg transition"
+                                className="text-emerald-600 hover:text-emerald-700 p-1.5 hover:bg-emerald-50 rounded-lg transition"
                                 title="Compartir abono por WhatsApp"
                               >
                                 <MessageSquare size={13} />
                               </a>
                             )}
                           </div>
-                        </td>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* TRADITIONAL LOAN VIEW (TABLE FOR DESKTOP, CARDS FOR MOBILE) */
+              <>
+                {/* DESKTOP TABLE */}
+                <div className="hidden md:block table-scroll-x">
+                  <table className="w-full text-left border-collapse data-table font-sans">
+                    <thead>
+                      <tr className="bg-slate-50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 select-none">
+                        <th className="px-4 py-3">Fecha Pago</th>
+                        <th className="px-4 py-3">Método</th>
+                        <th className="px-4 py-3">Clasificación</th>
+                        <th className="px-4 py-3">Monto Abonado</th>
+                        <th className="px-4 py-3">Voucher</th>
+                        <th className="px-4 py-3 text-right">Compartir</th>
                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700 text-xs font-semibold">
+                      {pagos.map((pago) => {
+                        const waShare = getWhatsAppShare(pago);
+                        const voucherUrls = parseVoucherUrls(pago.comprobante_url);
+                        const isEditing = editingPagoId === pago.id;
+                        
+                        return (
+                          <tr key={pago.id} className="hover:bg-slate-50/50 transition duration-150">
+                            <td className="px-4 py-3 font-mono">
+                              {isEditing ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="date"
+                                    value={editFecha}
+                                    onChange={(e) => setEditFecha(e.target.value)}
+                                    disabled={saving}
+                                    className="bg-white border border-slate-250 rounded px-1.5 py-0.5 text-xs font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                  />
+                                  <button
+                                    onClick={() => handleSave(pago.id)}
+                                    disabled={saving}
+                                    className="text-emerald-600 hover:text-emerald-800 p-1 hover:bg-emerald-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center justify-center"
+                                    title="Guardar fecha"
+                                  >
+                                    {saving ? (
+                                      <span className="w-3.5 h-3.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <Check size={13} />
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingPagoId(null)}
+                                    disabled={saving}
+                                    className="text-rose-600 hover:text-rose-800 p-1 hover:bg-rose-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center justify-center"
+                                    title="Cancelar"
+                                  >
+                                    <X size={13} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span>{formatDateShort(pago.fecha_pago)}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 uppercase">
+                              {pago.metodo_pago}
+                            </td>
+                            <td className="px-4 py-3 text-slate-500">
+                              {pago.tipo_movimiento || "Pago Ordinario"}
+                            </td>
+                            <td className="px-4 py-3 text-emerald-700 font-mono font-extrabold text-sm">
+                              {formatCurrency(pago.monto)}
+                            </td>
+                            
+                            {/* Comprobante */}
+                            <td className="px-4 py-3">
+                              {voucherUrls.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                  {voucherUrls.map((url, index) => (
+                                    <button
+                                      key={index}
+                                      onClick={() => onViewComprobante(resolveVoucherUrl(url))}
+                                      className="text-emerald-655 hover:text-emerald-750 transition flex items-center gap-0.5 cursor-pointer bg-transparent border-none font-bold text-[11px]"
+                                      title={`Ver comprobante ${index + 1}`}
+                                    >
+                                      <Eye size={12} />
+                                      <span>Ver {voucherUrls.length > 1 ? index + 1 : ""}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-slate-400">Ninguno</span>
+                              )}
+                            </td>
+
+                            {/* Compartir recibo */}
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex justify-end gap-1.5">
+                                {onUpdateFechaPago && !isEditing && (
+                                  <button
+                                    onClick={() => startEdit(pago)}
+                                    className="text-indigo-650 hover:text-indigo-850 p-1 hover:bg-indigo-50 rounded-lg transition border-none bg-transparent cursor-pointer"
+                                    title="Editar fecha de abono"
+                                  >
+                                    <Calendar size={13} />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => onVoucherClick(pago)}
+                                  className="text-slate-500 hover:text-slate-800 p-1 hover:bg-slate-50 rounded-lg transition border-none bg-transparent cursor-pointer"
+                                  title="Ver e Imprimir Recibo Oficial"
+                                >
+                                  <FileText size={13} />
+                                </button>
+                                {waShare && (
+                                  <a
+                                    href={waShare}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-emerald-600 hover:text-emerald-700 p-1 hover:bg-emerald-50 rounded-lg transition"
+                                    title="Compartir abono por WhatsApp"
+                                  >
+                                    <MessageSquare size={13} />
+                                  </a>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* MOBILE LIST */}
+                <div className="md:hidden space-y-3">
+                  {pagos.map((pago) => {
+                    const waShare = getWhatsAppShare(pago);
+                    const voucherUrls = parseVoucherUrls(pago.comprobante_url);
+                    const hasVoucher = voucherUrls.length > 0;
+
+                    return (
+                      <div key={pago.id} className="bg-slate-50/50 border border-slate-200 rounded-2xl p-4 space-y-2 text-xs font-semibold">
+                        <div className="flex justify-between items-center">
+                          {editingPagoId === pago.id ? (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="date"
+                                value={editFecha}
+                                onChange={(e) => setEditFecha(e.target.value)}
+                                disabled={saving}
+                                className="bg-white border border-slate-250 rounded px-1.5 py-0.5 text-[10px] font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              />
+                              <button
+                                onClick={() => handleSave(pago.id)}
+                                disabled={saving}
+                                className="text-emerald-600 hover:text-emerald-800 p-1 hover:bg-emerald-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center justify-center"
+                              >
+                                {saving ? (
+                                  <span className="w-3.5 h-3.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <Check size={12} />
+                                )}
+                              </button>
+                              <button
+                                onClick={() => setEditingPagoId(null)}
+                                disabled={saving}
+                                className="text-rose-600 hover:text-rose-800 p-1 hover:bg-rose-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center justify-center"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-slate-550 font-mono">
+                              {formatDateShort(pago.fecha_pago)}
+                            </span>
+                          )}
+                          <span className="text-emerald-700 font-mono font-extrabold text-sm">
+                            {formatCurrency(pago.monto)}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-slate-550">
+                          <span>Método: <strong className="text-slate-800 uppercase">{pago.metodo_pago}</strong></span>
+                          <span>{pago.tipo_movimiento || "Pago Ordinario"}</span>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-2.5 border-t border-slate-100">
+                          <div>
+                            {hasVoucher ? (
+                              <div className="flex flex-wrap gap-2">
+                                {voucherUrls.map((url, index) => (
+                                  <button
+                                    key={index}
+                                    onClick={() => onViewComprobante(resolveVoucherUrl(url))}
+                                    className="text-emerald-655 hover:text-emerald-750 font-bold transition flex items-center gap-0.5 bg-transparent border-none cursor-pointer text-[11px]"
+                                    title={`Ver comprobante ${index + 1}`}
+                                  >
+                                    <Eye size={12} />
+                                    <span>Ver {voucherUrls.length > 1 ? index + 1 : ""}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400">Sin voucher</span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {onUpdateFechaPago && editingPagoId !== pago.id && (
+                              <button
+                                onClick={() => startEdit(pago)}
+                                className="text-indigo-650 hover:text-indigo-850 p-1 hover:bg-indigo-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center gap-1 font-bold"
+                                title="Editar fecha de abono"
+                              >
+                                <Calendar size={12} />
+                                <span>Fecha</span>
+                              </button>
+                            )}
+                            <button
+                              onClick={() => onVoucherClick(pago)}
+                              className="text-slate-500 hover:text-slate-800 p-1 hover:bg-slate-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center gap-1 font-bold"
+                            >
+                              <FileText size={12} />
+                              <span>Recibo</span>
+                            </button>
+                            {waShare && (
+                              <a
+                                href={waShare}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-emerald-600 hover:text-emerald-700 p-1 hover:bg-emerald-50 rounded-lg transition"
+                              >
+                                <MessageSquare size={12} />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* MOBILE LIST */}
-            <div className="md:hidden space-y-3">
-              {pagos.map((pago) => {
-                const waShare = getWhatsAppShare(pago);
-                const voucherUrls = parseVoucherUrls(pago.comprobante_url);
-                const hasVoucher = voucherUrls.length > 0;
-
-                return (
-                  <div key={pago.id} className="bg-slate-50/50 border border-slate-200 rounded-2xl p-4 space-y-2 text-xs font-semibold">
-                    <div className="flex justify-between items-center">
-                      {editingPagoId === pago.id ? (
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="date"
-                            value={editFecha}
-                            onChange={(e) => setEditFecha(e.target.value)}
-                            disabled={saving}
-                            className="bg-white border border-slate-250 rounded px-1.5 py-0.5 text-[10px] font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                          />
-                          <button
-                            onClick={() => handleSave(pago.id)}
-                            disabled={saving}
-                            className="text-emerald-600 hover:text-emerald-800 p-1 hover:bg-emerald-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center justify-center"
-                          >
-                            {saving ? (
-                              <span className="w-3.5 h-3.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <Check size={12} />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => setEditingPagoId(null)}
-                            disabled={saving}
-                            className="text-rose-600 hover:text-rose-800 p-1 hover:bg-rose-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center justify-center"
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-[10px] text-slate-550 font-mono">
-                          {formatDateShort(pago.fecha_pago)}
-                        </span>
-                      )}
-                      <span className="text-emerald-700 font-mono font-extrabold text-sm">
-                        {formatCurrency(pago.monto)}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between items-center text-slate-550">
-                      <span>Método: <strong className="text-slate-800 uppercase">{pago.metodo_pago}</strong></span>
-                      <span>{pago.tipo_movimiento || "Pago Ordinario"}</span>
-                    </div>
-
-                    <div className="flex justify-between items-center pt-2.5 border-t border-slate-100">
-                      <div>
-                        {hasVoucher ? (
-                          <div className="flex flex-wrap gap-2">
-                            {voucherUrls.map((url, index) => (
-                              <button
-                                key={index}
-                                onClick={() => onViewComprobante(resolveVoucherUrl(url))}
-                                className="text-emerald-655 hover:text-emerald-750 font-bold transition flex items-center gap-0.5 bg-transparent border-none cursor-pointer text-[11px]"
-                                title={`Ver comprobante ${index + 1}`}
-                              >
-                                <Eye size={12} />
-                                <span>Ver {voucherUrls.length > 1 ? index + 1 : ""}</span>
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400">Sin voucher</span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {onUpdateFechaPago && editingPagoId !== pago.id && (
-                          <button
-                            onClick={() => startEdit(pago)}
-                            className="text-indigo-650 hover:text-indigo-850 p-1 hover:bg-indigo-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center gap-1 font-bold"
-                            title="Editar fecha de abono"
-                          >
-                            <Calendar size={12} />
-                            <span>Fecha</span>
-                          </button>
-                        )}
-                        <button
-                          onClick={() => onVoucherClick(pago)}
-                          className="text-slate-500 hover:text-slate-800 p-1 hover:bg-slate-50 rounded-lg transition border-none bg-transparent cursor-pointer flex items-center gap-1 font-bold"
-                        >
-                          <FileText size={12} />
-                          <span>Recibo</span>
-                        </button>
-                        {waShare && (
-                          <a
-                            href={waShare}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-emerald-600 hover:text-emerald-700 p-1 hover:bg-emerald-50 rounded-lg transition"
-                          >
-                            <MessageSquare size={12} />
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
