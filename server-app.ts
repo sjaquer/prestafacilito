@@ -1340,8 +1340,15 @@ app.post("/api/prestamos/:id/pagos", requireAuth, async (req, res) => {
     const ajustes = ajRes.data || [];
     const deudaAntes = buildPaymentSchedule(prestamo, pagosAnteriores, ajustes, new Date(fecha_pago || new Date()));
 
-    if (montoPago > deudaAntes.resumen.saldoPendiente + 0.01) {
-      res.status(400).json({ error: `El monto del pago excede el saldo pendiente actual (S/. ${deudaAntes.resumen.saldoPendiente.toFixed(2)})` });
+    // Validamos contra el saldo pendiente al día de hoy o a la fecha del pago (el mayor de ambos)
+    // para permitir pagos de liquidación total que se registren en el pasado.
+    const referenceDate = new Date();
+    const fechaPagoDate = new Date(fecha_pago || new Date());
+    const queryDate = fechaPagoDate.getTime() > referenceDate.getTime() ? fechaPagoDate : referenceDate;
+    const deudaValidacion = buildPaymentSchedule(prestamo, pagosAnteriores, ajustes, queryDate);
+
+    if (montoPago > deudaValidacion.resumen.saldoPendiente + 0.01) {
+      res.status(400).json({ error: `El monto del pago excede el saldo pendiente actual (S/. ${deudaValidacion.resumen.saldoPendiente.toFixed(2)})` });
       return;
     }
 

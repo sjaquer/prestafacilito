@@ -1428,37 +1428,37 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                 </div>
 
                 {/* TARJETAS MÓVILES (Optimizado al 100% para celular) */}
-                <div className="md:hidden p-4 space-y-3 bg-[#0f172a]/20 max-h-[450px] overflow-y-auto custom-scrollbar">
+                <div className="md:hidden p-4 space-y-3 bg-slate-100/50 rounded-2xl border border-slate-200/50 no-scroll-mobile">
                   {displayedPrestamos.map((prestamo) => {
                     const waLink = getWhatsAppLink(prestamo);
                     return (
                       <div 
                         key={prestamo.id} 
-                        className="bg-[#0f172a]/60 p-4 rounded-2xl border border-white/5 hover:border-blue-500/20 transition-all space-y-4 shadow-md"
+                        className="bg-white p-4 rounded-2xl border border-slate-200 hover:border-blue-500/20 transition-all space-y-4 shadow-sm"
                       >
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="flex items-center gap-2">
-                              <h4 className="font-extrabold text-slate-100 text-sm leading-tight">{prestamo.cliente_nombre}</h4>
+                              <h4 className="font-extrabold text-slate-900 text-sm leading-tight">{prestamo.cliente_nombre}</h4>
                               {waLink && (
                                 <a
                                   href={waLink}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-emerald-500 p-2 hover:bg-white/5 rounded-lg transition"
+                                  className="text-emerald-600 p-2 hover:bg-slate-100 rounded-lg transition"
                                 >
                                   <MessageSquare size={14} />
                                 </a>
                               )}
                             </div>
-                            <span className="text-[10px] text-slate-450 font-semibold font-mono mt-0.5 block">{prestamo.fecha_emision}</span>
+                            <span className="text-[10px] text-slate-500 font-semibold font-mono mt-0.5 block">{prestamo.fecha_emision}</span>
                           </div>
                           
                           <span
                             className={`text-[9px] px-2.5 py-0.5 rounded-full font-extrabold uppercase tracking-wider ${
                               prestamo.estado === "activo"
-                                ? "bg-emerald-500/10 text-green-400 border border-emerald-500/20"
-                                : "bg-slate-500/10 text-slate-450 border border-slate-500/20"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-250/70"
+                                : "bg-slate-100 text-slate-600 border border-slate-200"
                             }`}
                           >
                             {prestamo.estado === "activo" ? "Activo" : "Pagado"}
@@ -1467,8 +1467,8 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                         <div className="flex justify-between items-end pt-1">
                           <div>
-                            <span className="text-[9px] font-bold text-gray-500 uppercase block">Deuda Capital</span>
-                            <span className="font-black text-white font-mono text-sm leading-none">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase block">Deuda Capital</span>
+                            <span className="font-black text-slate-900 font-mono text-sm leading-none">
                               {formatCurrency(prestamo.monto_capital)}
                             </span>
                           </div>
@@ -1488,14 +1488,14 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                             {/* Editar/Eliminar en móvil */}
                             <button
                               onClick={(e) => handleOpenEditModal(prestamo, e)}
-                              className="text-gray-400 hover:text-blue-400 p-3 bg-white/[0.02] border border-white/5 rounded-xl transition cursor-pointer"
+                              className="text-slate-500 hover:text-blue-600 p-3 bg-slate-50 border border-slate-200 rounded-xl transition cursor-pointer"
                             >
                               <Edit3 size={14} />
                             </button>
 
                             <button
                               onClick={() => onSelectLoan(prestamo.id)}
-                              className="text-xs bg-white/10 hover:bg-white/20 border border-white/10 text-white px-4 py-3 rounded-xl font-medium cursor-pointer transition flex items-center gap-2"
+                              className="text-xs bg-indigo-650 hover:bg-indigo-700 text-white px-4 py-3 rounded-xl font-medium cursor-pointer transition flex items-center gap-2"
                             >
                               <span>Ver Deuda</span>
                               <ArrowUpRight size={14} />
@@ -1635,16 +1635,16 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="bg-[#0f172a] rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden border border-white/5 font-sans max-h-[90vh]"
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-200 font-sans max-h-[90vh]"
             >
-              <div className="p-5 border-b border-white/5 flex justify-between items-center bg-[#070a13]/40">
-                <div className="flex items-center gap-2 text-indigo-400">
+              <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                <div className="flex items-center gap-2 text-indigo-650">
                   <Coins size={20} />
-                  <h3 className="font-black text-white text-base">Registrar Nueva Deuda / Préstamo</h3>
+                  <h3 className="font-black text-slate-900 text-base">Registrar Nueva Deuda / Préstamo</h3>
                 </div>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="text-slate-455 hover:text-slate-200 p-1.5 rounded-xl hover:bg-white/5 transition cursor-pointer"
+                  className="text-slate-500 hover:text-slate-800 p-1.5 rounded-xl hover:bg-slate-150 transition cursor-pointer"
                 >
                   <X size={18} />
                 </button>
@@ -1673,9 +1673,9 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                   <>
                     {/* Campo: Prestatario */}
                     <div className="space-y-1.5 relative">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Prestatario *</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">Prestatario *</label>
                       <div className="relative">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
                           type="text"
                           placeholder="Escribe para buscar cliente..."
@@ -1685,7 +1685,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                             setShowClientDropdown(true);
                           }}
                           onFocus={() => setShowClientDropdown(true)}
-                          className="w-full glass-input rounded-xl p-2.5 pl-9 text-xs text-slate-200 outline-none pr-10 font-semibold"
+                          className="w-full glass-input rounded-xl p-2.5 pl-9 text-xs text-slate-800 outline-none pr-10 font-semibold"
                           required={!selectedCliente}
                         />
                         {selectedCliente && (
@@ -1696,7 +1696,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                               setClientSearch("");
                               setShowClientDropdown(false);
                             }}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-slate-200 p-0.5 cursor-pointer"
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-800 p-0.5 cursor-pointer"
                           >
                             <X size={14} />
                           </button>
@@ -1706,11 +1706,11 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                       {showClientDropdown && (
                         <>
                           <div className="fixed inset-0 z-10" onClick={() => setShowClientDropdown(false)} />
-                          <div className="absolute left-0 right-0 mt-1 bg-[#0a0f1d] border border-white/5 rounded-xl max-h-40 overflow-y-auto z-20 shadow-xl custom-scrollbar divide-y divide-white/5">
+                          <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto z-20 shadow-xl custom-scrollbar divide-y divide-slate-100">
                             {clientes.filter(c => 
                               c.nombre_completo.toLowerCase().includes(clientSearch.toLowerCase())
                             ).length === 0 ? (
-                              <div className="p-3 text-xs text-gray-500 text-center">
+                              <div className="p-3 text-xs text-slate-500 text-center">
                                 No se encontraron clientes.
                               </div>
                             ) : (
@@ -1725,13 +1725,13 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                                     setClientSearch(c.nombre_completo);
                                     setShowClientDropdown(false);
                                   }}
-                                  className={`w-full text-left p-2.5 px-3.5 hover:bg-blue-500/10 text-xs transition flex flex-col items-start gap-1 cursor-pointer ${
-                                    selectedCliente === c.id ? "bg-indigo-500/20 text-indigo-300 font-extrabold" : "text-slate-200 font-semibold"
+                                  className={`w-full text-left p-2.5 px-3.5 hover:bg-slate-50 text-xs transition flex flex-col items-start gap-1 cursor-pointer ${
+                                    selectedCliente === c.id ? "bg-indigo-50 text-indigo-700 font-extrabold" : "text-slate-700 font-semibold"
                                   }`}
                                 >
-                                  <span className="font-bold text-white">{c.nombre_completo}</span>
+                                  <span className="font-bold text-slate-900">{c.nombre_completo}</span>
                                   {c.observaciones && (
-                                    <span className="text-[10px] text-slate-400 italic truncate w-full flex items-center gap-1">
+                                    <span className="text-[10px] text-slate-500 italic truncate w-full flex items-center gap-1">
                                       <FileText size={10} className="shrink-0" />
                                       {c.observaciones}
                                     </span>
@@ -1752,22 +1752,20 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                       const assessment = getClientRiskAssessment(selClient);
                       const activeLoansCount = selClient.prestamos_activos || 0;
                       const exigible = Number(selClient.total_exigible) || 0;
-                      const amortizado = Number(selClient.total_amortizado) || 0;
-                      const balanceOutstanding = Math.max(0, exigible - amortizado);
-
-                      let riskColorClass = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
-                      if (assessment.level === "Bajo") riskColorClass = "text-blue-400 bg-blue-500/10 border-blue-500/20";
-                      if (assessment.level === "Medio") riskColorClass = "text-amber-400 bg-amber-500/10 border-amber-500/20";
-                      if (assessment.level === "Alto") riskColorClass = "text-rose-400 bg-rose-500/10 border-rose-500/20";
+                      const outstanding = Math.max(0, exigible - (Number(selClient.total_amortizado) || 0));
+                      let riskColorClass = "text-emerald-700 bg-emerald-50 border-emerald-250/70";
+                      if (assessment.level === "Bajo") riskColorClass = "text-blue-700 bg-blue-50 border-blue-200";
+                      if (assessment.level === "Medio") riskColorClass = "text-amber-700 bg-amber-50 border-amber-200";
+                      if (assessment.level === "Alto") riskColorClass = "text-rose-700 bg-rose-50 border-rose-200";
 
                       return (
-                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl space-y-3 shadow-inner backdrop-blur-md animate-fadeIn">
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 shadow-inner animate-fadeIn">
                           <div className="flex justify-between items-start">
                             <div>
-                              <span className="text-[9.5px] font-black text-indigo-300 uppercase tracking-widest block mb-0.5">Ficha del Prestatario</span>
-                              <h4 className="font-extrabold text-white text-sm">{selClient.nombre_completo}</h4>
+                              <span className="text-[9.5px] font-black text-indigo-650 uppercase tracking-widest block mb-0.5">Ficha del Prestatario</span>
+                              <h4 className="font-extrabold text-slate-900 text-sm">{selClient.nombre_completo}</h4>
                               {selClient.telefono && (
-                                <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-0.5">
+                                <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5">
                                   <Phone size={10} />
                                   <span>{selClient.telefono.startsWith("'") ? selClient.telefono.substring(1) : selClient.telefono}</span>
                                 </div>
@@ -1780,21 +1778,21 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                           </div>
 
                           <div className="grid grid-cols-2 gap-3 pt-2 text-[11px]">
-                            <div className="bg-black/20 p-2 rounded-xl border border-white/5">
-                              <span className="text-gray-400 block text-[9px] uppercase tracking-wider">Deudas Activas</span>
-                              <span className="font-extrabold text-white font-mono text-xs">{activeLoansCount}</span>
+                            <div className="bg-white p-2 rounded-xl border border-slate-200">
+                              <span className="text-slate-500 block text-[9px] uppercase tracking-wider">Deudas Activas</span>
+                              <span className="font-extrabold text-slate-900 font-mono text-xs">{activeLoansCount}</span>
                             </div>
-                            <div className="bg-black/20 p-2 rounded-xl border border-white/5">
-                              <span className="text-gray-400 block text-[9px] uppercase tracking-wider">Saldo Pendiente</span>
-                              <span className="font-extrabold text-indigo-300 font-mono text-xs">
-                                {formatCurrency(balanceOutstanding)}
+                            <div className="bg-white p-2 rounded-xl border border-slate-200">
+                              <span className="text-slate-500 block text-[9px] uppercase tracking-wider">Saldo Pendiente</span>
+                              <span className="font-extrabold text-indigo-650 font-mono text-xs">
+                                {formatCurrency(outstanding)}
                               </span>
                             </div>
                           </div>
 
                           {selClient.observaciones && (
-                            <div className="bg-black/10 p-2.5 rounded-xl border border-white/5 text-[10px] text-slate-350 leading-relaxed font-medium">
-                              <div className="flex items-center gap-1.5 text-indigo-300 font-bold mb-1">
+                            <div className="bg-slate-100 p-2.5 rounded-xl border border-slate-200 text-[10px] text-slate-600 leading-relaxed font-medium">
+                              <div className="flex items-center gap-1.5 text-indigo-650 font-bold mb-1">
                                 <FileText size={10} />
                                 <span className="uppercase tracking-wider text-[8.5px]">Notas/Observaciones:</span>
                               </div>
@@ -1807,28 +1805,28 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                     {/* Selector de Tipo de Deuda */}
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tipo de Deuda / Préstamo</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">Tipo de Deuda / Préstamo</label>
                       <select
                         value={tipo}
                         onChange={(e) => setTipo(e.target.value)}
-                        className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
+                        className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-semibold"
                       >
-                        <option value="Personal" className="bg-[#0f172a]">Personal</option>
-                        <option value="Negocio" className="bg-[#0f172a]">Negocio</option>
-                        <option value="Alquiler de Casa" className="bg-[#0f172a]">Alquiler de Casa (Contrato Mensual)</option>
-                        <option value="Servicios" className="bg-[#0f172a]">Servicios</option>
-                        <option value="Otros" className="bg-[#0f172a]">Otros (Especificar Razón)</option>
+                        <option value="Personal">Personal</option>
+                        <option value="Negocio">Negocio</option>
+                        <option value="Alquiler de Casa">Alquiler de Casa (Contrato Mensual)</option>
+                        <option value="Servicios">Servicios</option>
+                        <option value="Otros">Otros (Especificar Razón)</option>
                       </select>
                     </div>
 
                     {/* Inputs Condicionales: Modo Alquiler de Casa */}
                     {tipo === "Alquiler de Casa" && (
-                      <div className="space-y-4 p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl animate-fadeIn">
-                        <span className="text-[9.5px] font-black text-blue-400 uppercase tracking-widest block">Configuración de Contrato de Alquiler</span>
+                      <div className="space-y-4 p-4 bg-indigo-50 border border-indigo-200 rounded-2xl animate-fadeIn">
+                        <span className="text-[9.5px] font-black text-indigo-700 uppercase tracking-widest block">Configuración de Contrato de Alquiler</span>
                         
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Monto Mensual (S/.) *</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">Monto Mensual (S/.) *</label>
                             <input
                               type="number"
                               min="1"
@@ -1836,20 +1834,20 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                               placeholder="Ej. 1200"
                               value={montoMensual}
                               onChange={(e) => setMontoMensual(e.target.value)}
-                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold font-mono"
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-semibold font-mono"
                               required
                             />
                           </div>
 
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Duración (Meses) *</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">Duración (Meses) *</label>
                             <select
                               value={duracionMeses}
                               onChange={(e) => setDuracionMeses(e.target.value)}
-                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-semibold"
                             >
                               {[1,2,3,4,5,6,7,8,9,10,11,12,18,24].map(m => (
-                                <option key={m} value={m} className="bg-[#0f172a]">{m} {m === 1 ? 'Mes' : 'Meses'}</option>
+                                <option key={m} value={m}>{m} {m === 1 ? 'Mes' : 'Meses'}</option>
                               ))}
                             </select>
                           </div>
@@ -1857,39 +1855,39 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Fecha de Inicio *</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">Fecha de Inicio *</label>
                             <input
                               type="date"
                               value={fechaEmision}
                               onChange={(e) => setFechaEmision(e.target.value)}
-                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-slate-200 font-semibold"
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-semibold"
                               required
                             />
                           </div>
 
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Vencimiento (Auto)</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">Vencimiento (Auto)</label>
                             <input
                               type="date"
                               value={fechaVencimiento}
                               disabled
-                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-400 outline-none font-semibold opacity-60 font-mono"
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-550 outline-none font-semibold opacity-60 font-mono"
                             />
                           </div>
                         </div>
 
                         {parseFloat(montoMensual) > 0 && (
-                          <div className="bg-black/20 p-3 rounded-xl border border-white/5 text-[11px] text-slate-350 space-y-1.5 font-semibold leading-relaxed">
+                          <div className="bg-slate-100 p-3 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1.5 font-semibold leading-relaxed">
                             <div className="flex justify-between">
                               <span>Período de contrato:</span>
-                              <span className="text-white">{fechaEmision} al {fechaVencimiento}</span>
+                              <span className="text-slate-900">{fechaEmision} al {fechaVencimiento}</span>
                             </div>
                             <div className="flex justify-between">
                               <span>Mensualidad:</span>
-                              <span className="text-white font-mono">{formatCurrency(parseFloat(montoMensual))}</span>
+                              <span className="text-slate-900 font-mono">{formatCurrency(parseFloat(montoMensual))}</span>
                             </div>
-                            <div className="flex justify-between border-t border-white/5 pt-1.5 mt-1 font-black text-sm text-white">
-                              <span className="text-blue-400">Capital Total (Deuda):</span>
+                            <div className="flex justify-between border-t border-slate-200 pt-1.5 mt-1 font-black text-sm text-slate-900">
+                              <span className="text-indigo-650">Capital Total (Deuda):</span>
                               <span className="font-mono">{formatCurrency(parseFloat(montoMensual) * parseInt(duracionMeses))}</span>
                             </div>
                           </div>
@@ -1899,24 +1897,24 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                     {/* Inputs Condicionales: Modo Otros (Especificar Razón) */}
                     {tipo === "Otros" && (
-                      <div className="space-y-4 p-4 bg-violet-500/5 border border-violet-500/10 rounded-2xl animate-fadeIn">
-                        <span className="text-[9.5px] font-black text-violet-400 uppercase tracking-widest block">Especificación de Nueva Deuda</span>
+                      <div className="space-y-4 p-4 bg-violet-50 border border-violet-200 rounded-2xl animate-fadeIn">
+                        <span className="text-[9.5px] font-black text-violet-700 uppercase tracking-widest block">Especificación de Nueva Deuda</span>
                         
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Especificar Razón / Tipo *</label>
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">Especificar Razón / Tipo *</label>
                           <input
                             type="text"
                             placeholder="Ej. Emergencia Médica, Compra de Mercadería"
                             value={customTipo}
                             onChange={(e) => setCustomTipo(e.target.value)}
-                            className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
+                            className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-semibold"
                             required
                           />
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Capital (S/.) *</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">Capital (S/.) *</label>
                             <input
                               type="number"
                               min="1"
@@ -1924,13 +1922,13 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                               placeholder="Ej. 1500"
                               value={monto}
                               onChange={(e) => setMonto(e.target.value)}
-                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold font-mono"
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-semibold font-mono"
                               required
                             />
                           </div>
 
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tasa Interés (%) *</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">Tasa Interés (%) *</label>
                             <input
                               type="number"
                               min="0"
@@ -1938,7 +1936,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                               placeholder="Ej. 10"
                               value={tasa}
                               onChange={(e) => setTasa(e.target.value)}
-                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold font-mono"
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-semibold font-mono"
                               required
                             />
                           </div>
@@ -1946,22 +1944,22 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">F. Emisión</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">F. Emisión</label>
                             <input
                               type="date"
                               value={fechaEmision}
                               onChange={(e) => setFechaEmision(e.target.value)}
-                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-semibold"
                             />
                           </div>
 
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Fecha Vencimiento</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">Fecha Vencimiento</label>
                             <input
                               type="date"
                               value={fechaVencimiento}
                               onChange={(e) => setFechaVencimiento(e.target.value)}
-                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-semibold"
                             />
                           </div>
                         </div>
@@ -1973,7 +1971,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Capital (S/.) *</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">Capital (S/.) *</label>
                             <input
                               type="number"
                               min="1"
@@ -1981,21 +1979,21 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                               placeholder="Ej. 1500"
                               value={monto}
                               onChange={(e) => setMonto(e.target.value)}
-                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold font-mono"
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-semibold font-mono"
                               required
                             />
                           </div>
                           
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Tasa (%) *</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">Tasa (%) *</label>
                             <input
                               type="number"
                               min="0"
                               step="any"
-                              placeholder="Ej: 10"
+                              placeholder="Ej. 10"
                               value={tasa}
                               onChange={(e) => setTasa(e.target.value)}
-                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold font-mono"
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-semibold font-mono"
                               required
                             />
                           </div>
@@ -2003,22 +2001,22 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">F. Emisión</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">F. Emisión</label>
                             <input
                               type="date"
                               value={fechaEmision}
                               onChange={(e) => setFechaEmision(e.target.value)}
-                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-slate-200 font-semibold"
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-semibold"
                             />
                           </div>
-                          
+
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Fecha Vencimiento</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">Fecha Vencimiento</label>
                             <input
                               type="date"
                               value={fechaVencimiento}
                               onChange={(e) => setFechaVencimiento(e.target.value)}
-                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-slate-200 font-semibold"
+                              className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-semibold"
                             />
                           </div>
                         </div>
@@ -2027,37 +2025,37 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                     {/* Estimación de Deuda Total (Para no-alquileres) */}
                     {tipo !== "Alquiler de Casa" && parseFloat(monto) > 0 && (
-                      <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl space-y-2.5 text-xs font-semibold">
-                        <span className="text-[9.5px] font-black text-indigo-300 uppercase tracking-widest block">Balance Estimado</span>
-                        <div className="flex justify-between items-center text-slate-350">
+                      <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-2xl space-y-2.5 text-xs font-semibold">
+                        <span className="text-[9.5px] font-black text-indigo-700 uppercase tracking-widest block">Balance Estimado</span>
+                        <div className="flex justify-between items-center text-slate-600">
                           <span>Capital original:</span>
                           <span className="font-mono">{formatCurrency(parseFloat(monto) || 0)}</span>
                         </div>
                         {parseFloat(tasa) > 0 && (
-                          <div className="flex justify-between items-center text-slate-350">
+                          <div className="flex justify-between items-center text-slate-600">
                             <span>Interés (+{tasa}%):</span>
-                            <span className="font-mono text-indigo-350">+{formatCurrency((parseFloat(monto) || 0) * (parseFloat(tasa) / 100))}</span>
+                            <span className="font-mono text-indigo-650">+{formatCurrency((parseFloat(monto) || 0) * (parseFloat(tasa) / 100))}</span>
                           </div>
                         )}
-                        <div className="flex justify-between items-center text-sm font-black text-white pt-2.5 border-t border-white/5">
-                          <span className="text-blue-400">Deuda Total:</span>
+                        <div className="flex justify-between items-center text-sm font-black text-slate-900 pt-2.5 border-t border-slate-200">
+                          <span className="text-indigo-650">Deuda Total:</span>
                           <span className="font-mono">{formatCurrency((parseFloat(monto) || 0) * (1 + (parseFloat(tasa) || 0) / 100))}</span>
                         </div>
                       </div>
                     )}
 
-                    <div className="pt-4 border-t border-white/5 flex justify-end gap-2.5">
+                    <div className="pt-4 border-t border-slate-200 flex justify-end gap-2.5">
                       <button
                         type="button"
                         onClick={() => setShowModal(false)}
-                        className="px-5 py-2.5 hover:bg-white/5 rounded-xl text-slate-455 font-bold text-xs cursor-pointer"
+                        className="px-5 py-2.5 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-slate-800 font-bold text-xs cursor-pointer"
                       >
                         Cancelar
                       </button>
                       <button
                         type="submit"
                         disabled={creating}
-                        className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-indigo-500 to-violet-600 cursor-pointer"
+                        className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-indigo-650 hover:bg-indigo-700 cursor-pointer shadow-md"
                       >
                         {creating ? "Registrando..." : "Registrar Deuda"}
                       </button>
@@ -2079,16 +2077,16 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="bg-[#0f172a] rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-white/5 font-sans"
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 font-sans modal-mobile-full"
             >
-              <div className="p-5 border-b border-white/5 flex justify-between items-center bg-[#070a13]/40">
+              <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
                 <div>
-                  <h3 className="font-black text-white text-base">Modificar Datos de Deuda</h3>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">Prestatario: {selectedEditLoan.cliente_nombre}</p>
+                  <h3 className="font-black text-slate-900 text-base">Modificar Datos de Deuda</h3>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Prestatario: {selectedEditLoan.cliente_nombre}</p>
                 </div>
                 <button
                   onClick={() => { setShowEditModal(false); setSelectedEditLoan(null); }}
-                  className="text-slate-455 hover:text-slate-200 p-1.5 rounded-xl hover:bg-white/5 transition cursor-pointer"
+                  className="text-slate-500 hover:text-slate-800 p-1.5 rounded-xl hover:bg-slate-150 transition cursor-pointer"
                 >
                   <X size={18} />
                 </button>
@@ -2096,55 +2094,55 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
               <form onSubmit={handleUpdateLoan} className="p-6 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="space-y-1.5 p-3 rounded-2xl bg-white/[0.03] border border-white/5">
-                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Capital</span>
-                    <span className="text-sm font-mono text-slate-100">{formatCurrency(Number(selectedEditLoan.monto_capital) || 0)}</span>
+                  <div className="space-y-1.5 p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">Capital</span>
+                    <span className="text-sm font-mono text-slate-900 font-bold">{formatCurrency(Number(selectedEditLoan.monto_capital) || 0)}</span>
                   </div>
-                  <div className="space-y-1.5 p-3 rounded-2xl bg-white/[0.03] border border-white/5">
-                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Interés</span>
-                    <span className="text-sm font-mono text-slate-100">{selectedEditLoan.tasa_interes_porcentaje}%</span>
+                  <div className="space-y-1.5 p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">Interés</span>
+                    <span className="text-sm font-mono text-slate-900 font-bold">{selectedEditLoan.tasa_interes_porcentaje}%</span>
                   </div>
-                  <div className="space-y-1.5 p-3 rounded-2xl bg-white/[0.03] border border-white/5">
-                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Estado</span>
-                    <span className="text-sm font-bold text-slate-100 uppercase">{selectedEditLoan.estado}</span>
+                  <div className="space-y-1.5 p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">Estado</span>
+                    <span className="text-sm font-bold text-slate-900 uppercase">{selectedEditLoan.estado}</span>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">F. Emisión</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">F. Emisión</label>
                     <input
                       type="date"
                       value={editFechaEmision}
                       onChange={(e) => setEditFechaEmision(e.target.value)}
-                      className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
+                      className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-semibold"
                       required
                     />
                   </div>
                   
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">F. Vencimiento</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">F. Vencimiento</label>
                     <input
                       type="date"
                       value={editFechaVencimiento}
                       onChange={(e) => setEditFechaVencimiento(e.target.value)}
-                      className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
+                      className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-semibold"
                     />
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-white/5 flex justify-end gap-2.5">
+                <div className="pt-4 border-t border-slate-200 flex justify-end gap-2.5">
                   <button
                     type="button"
                     onClick={() => { setShowEditModal(false); setSelectedEditLoan(null); }}
-                    className="px-5 py-2.5 hover:bg-white/5 rounded-xl text-slate-455 font-bold text-xs cursor-pointer"
+                    className="px-5 py-2.5 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-slate-800 font-bold text-xs cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={updatingLoan}
-                    className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-indigo-500 to-violet-600 cursor-pointer"
+                    className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-indigo-650 hover:bg-indigo-700 cursor-pointer shadow-md"
                   >
                     {updatingLoan ? "Guardando..." : "Guardar Cambios"}
                   </button>
@@ -2213,15 +2211,15 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.96, opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="bg-[#0f172a] rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden border border-white/5 flex flex-col md:flex-row font-sans"
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden border border-slate-200 flex flex-col md:flex-row font-sans modal-mobile-full"
             >
               {/* Left Column: Vista previa del voucher */}
-              <div className="w-full md:w-[45%] bg-black/20 p-5 flex flex-col gap-3 border-b md:border-b-0 md:border-r border-white/[0.06]">
-                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Comprobante Adjunto</span>
+              <div className="w-full md:w-[45%] bg-slate-50 p-5 flex flex-col gap-3 border-b md:border-b-0 md:border-r border-slate-200">
+                <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Comprobante Adjunto</span>
 
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex-1 flex items-center justify-center min-h-[200px] max-h-[280px] bg-black/30 rounded-2xl border border-dashed border-white/[0.08] hover:border-emerald-500/30 overflow-hidden relative cursor-pointer transition-all group"
+                  className="flex-1 flex items-center justify-center min-h-[200px] max-h-[280px] bg-white rounded-2xl border border-dashed border-slate-300 hover:border-emerald-500 overflow-hidden relative cursor-pointer transition-all group shadow-sm"
                 >
                   {vcrBase64 ? (
                     <>
@@ -2237,11 +2235,11 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                     </>
                   ) : (
                     <div className="flex flex-col items-center gap-2 text-center p-4">
-                      <div className="w-10 h-10 bg-white/[0.04] border border-white/[0.08] rounded-xl flex items-center justify-center">
+                      <div className="w-10 h-10 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center">
                         <FileImage size={18} className="text-slate-500" />
                       </div>
-                      <p className="text-xs font-bold text-slate-400">Sin imagen adjunta</p>
-                      <p className="text-[10px] text-slate-600 font-semibold">Clic para adjuntar · Ctrl+V para pegar</p>
+                      <p className="text-xs font-bold text-slate-500">Sin imagen adjunta</p>
+                      <p className="text-[10px] text-slate-400 font-semibold">Clic para adjuntar · Ctrl+V para pegar</p>
                     </div>
                   )}
                 </div>
@@ -2252,30 +2250,30 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
               </div>
 
               {/* Right Column: Form */}
-              <div className="w-full md:flex-1 p-5 flex flex-col gap-4 overflow-y-auto max-h-[85vh] md:max-h-none">
+              <div className="w-full md:flex-1 p-5 flex flex-col gap-4 overflow-y-auto max-h-[85vh] md:max-h-none bg-white">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h3 className="font-black text-white text-sm">Registrar Abono</h3>
-                    <p className="text-[10px] text-emerald-400/80 font-bold uppercase tracking-widest mt-0.5">Pago Rápido</p>
+                    <h3 className="font-black text-slate-900 text-sm">Registrar Abono</h3>
+                    <p className="text-[10px] text-emerald-700 font-bold uppercase tracking-widest mt-0.5">Pago Rápido</p>
                   </div>
                   <button
                     type="button"
                     onClick={resetVoucherModal}
-                    className="p-2 rounded-xl hover:bg-white/[0.06] text-slate-400 hover:text-white transition cursor-pointer"
+                    className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition cursor-pointer"
                   >
                     <X size={17} />
                   </button>
                 </div>
 
-                <div className="border-t border-white/[0.06]" />
+                <div className="border-t border-slate-200" />
 
                 <div className="space-y-3.5 flex-1">
 
                   {/* Autocomplete de Clientes */}
                   <div className="space-y-1.5 relative">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Asociar a Prestatario *</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">Asociar a Prestatario *</label>
                     <div className="relative">
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
                         type="text"
                         placeholder="Escribe para buscar cliente..."
@@ -2285,7 +2283,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                           setShowVcrClienteDropdown(true);
                         }}
                         onFocus={() => setShowVcrClienteDropdown(true)}
-                        className="w-full glass-input rounded-xl p-2.5 pl-9 text-xs text-slate-200 outline-none pr-10 font-semibold"
+                        className="w-full glass-input rounded-xl p-2.5 pl-9 text-xs text-slate-800 outline-none pr-10 font-semibold"
                         required
                       />
                       {vcrSelectedClienteId && (
@@ -2297,7 +2295,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                             setShowVcrClienteDropdown(false);
                             setVcrSelectedLoanId("");
                           }}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-slate-200 p-0.5 cursor-pointer"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-800 p-0.5 cursor-pointer"
                         >
                           <X size={14} />
                         </button>
@@ -2307,11 +2305,11 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                     {showVcrClienteDropdown && (
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setShowVcrClienteDropdown(false)} />
-                        <div className="absolute left-0 right-0 mt-1 bg-[#0a0f1d] border border-white/5 rounded-xl max-h-40 overflow-y-auto z-20 shadow-xl custom-scrollbar divide-y divide-white/5">
+                        <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto z-20 shadow-xl custom-scrollbar divide-y divide-slate-100">
                           {clientes.filter(c => 
                             c.nombre_completo.toLowerCase().includes(vcrClienteSearch.toLowerCase())
                           ).length === 0 ? (
-                            <div className="p-3 text-xs text-gray-500 text-center">
+                            <div className="p-3 text-xs text-slate-500 text-center">
                               No se encontraron clientes.
                             </div>
                           ) : (
@@ -2326,13 +2324,13 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                                   setVcrClienteSearch(c.nombre_completo);
                                   setShowVcrClienteDropdown(false);
                                 }}
-                                className={`w-full text-left p-2.5 px-3.5 hover:bg-blue-500/10 text-xs transition flex flex-col items-start gap-1 cursor-pointer ${
-                                  vcrSelectedClienteId === c.id ? "bg-indigo-500/20 text-indigo-300 font-extrabold" : "text-slate-200 font-semibold"
+                                className={`w-full text-left p-2.5 px-3.5 hover:bg-slate-50 text-xs transition flex flex-col items-start gap-1 cursor-pointer ${
+                                  vcrSelectedClienteId === c.id ? "bg-indigo-55/20 text-indigo-700 font-extrabold" : "text-slate-700 font-semibold"
                                 }`}
                               >
-                                <span className="font-bold text-white">{c.nombre_completo}</span>
+                                <span className="font-bold text-slate-900">{c.nombre_completo}</span>
                                 {c.observaciones && (
-                                  <span className="text-[10px] text-slate-400 italic truncate w-full flex items-center gap-1">
+                                  <span className="text-[10px] text-slate-500 italic truncate w-full flex items-center gap-1">
                                     <FileText size={10} className="shrink-0" />
                                     {c.observaciones}
                                   </span>
@@ -2345,36 +2343,36 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                     )}
                     
                     {vcrSelectedClienteId && clientes.find(c => c.id === vcrSelectedClienteId)?.observaciones && (
-                      <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl text-[11px] text-slate-350 leading-relaxed font-semibold mt-2.5 flex gap-2 items-start">
-                        <FileText size={14} className="text-indigo-400 shrink-0 mt-0.5" />
+                      <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-2xl text-[11px] text-slate-700 leading-relaxed font-semibold mt-2.5 flex gap-2 items-start">
+                        <FileText size={14} className="text-indigo-650 shrink-0 mt-0.5" />
                         <div>{clientes.find(c => c.id === vcrSelectedClienteId)?.observaciones}</div>
                       </div>
                     )}
                   </div>
 
                   {vcrSelectedClienteId && (
-                    <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl space-y-2">
-                      <span className="text-[9px] font-black text-indigo-350 uppercase tracking-widest block">Asociación</span>
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                      <span className="text-[9px] font-black text-indigo-650 uppercase tracking-widest block">Asociación</span>
                       {vcrClientLoans.length === 0 ? (
-                        <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl text-[10.5px] leading-normal font-semibold flex items-center gap-2">
-                          <ShieldAlert size={14} className="shrink-0 text-red-400" />
+                        <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-[10.5px] leading-normal font-semibold flex items-center gap-2">
+                          <ShieldAlert size={14} className="shrink-0 text-rose-600" />
                           <span>No hay préstamos activos.</span>
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 rounded-xl text-[10.5px] leading-normal font-semibold flex items-center gap-2">
-                            <CheckCircle size={14} className="shrink-0 text-green-400" />
+                          <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-[10.5px] leading-normal font-semibold flex items-center gap-2">
+                            <CheckCircle size={14} className="shrink-0 text-emerald-600" />
                             <span>Se asociará automáticamente.</span>
                           </div>
                           {vcrClientLoans.length > 1 && (
                             <div className="space-y-1.5">
                               {vcrClientLoans.slice(0, 3).map((loan) => (
-                                <div key={loan.id} className="p-2.5 bg-black/20 rounded-xl border border-white/5 text-[10.5px] leading-normal font-semibold flex items-center justify-between gap-2">
+                                <div key={loan.id} className="p-2.5 bg-white rounded-xl border border-slate-200 text-[10.5px] leading-normal font-semibold flex items-center justify-between gap-2 shadow-sm">
                                   <div>
-                                    <span className="block text-slate-200">{loan.tipo_prestamo}</span>
+                                    <span className="block text-slate-800">{loan.tipo_prestamo}</span>
                                     <span className="block text-slate-500 font-mono">{loan.fecha_emision} · {formatCurrency(loan.monto_capital)}</span>
                                   </div>
-                                  <span className="text-[9px] uppercase tracking-wider text-indigo-300 font-black">Candidato</span>
+                                  <span className="text-[9px] uppercase tracking-wider text-indigo-600 font-black">Candidato</span>
                                 </div>
                               ))}
                             </div>
@@ -2387,7 +2385,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                   {/* Monto y Fecha Confirmados */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5 font-mono">Dinero (S/.) *</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5 font-mono">Dinero (S/.) *</label>
                       <input
                         type="number"
                         min="1"
@@ -2395,18 +2393,18 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                         placeholder="Monto"
                         value={vcrMonto}
                         onChange={(e) => setVcrMonto(e.target.value)}
-                        className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-black font-mono"
+                        className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-black font-mono"
                         required
                       />
                     </div>
                     
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Fecha Operación *</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">Fecha Operación *</label>
                       <input
                         type="date"
                         value={vcrFechaPago}
                         onChange={(e) => setVcrFechaPago(e.target.value)}
-                        className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
+                        className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-semibold"
                         required
                       />
                     </div>
@@ -2414,26 +2412,26 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
 
                   {/* Método de Pago */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block pl-0.5">Canal de Pago *</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">Canal de Pago *</label>
                     <select
                       value={vcrMetodoPago}
                       onChange={(e) => setVcrMetodoPago(e.target.value)}
-                      className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-200 outline-none font-semibold"
+                      className="w-full glass-input rounded-xl p-2.5 text-xs text-slate-800 outline-none font-semibold"
                       required
                     >
                       {METODOS_PAGO.map((m) => (
-                        <option key={m} value={m} className="bg-[#0f172a]">{m}</option>
+                        <option key={m} value={m}>{m}</option>
                       ))}
                     </select>
                   </div>
 
                 </div>
 
-                <div className="pt-4 border-t border-white/[0.06] flex justify-end gap-2.5">
+                <div className="pt-4 border-t border-slate-200 flex justify-end gap-2.5">
                   <button
                     type="button"
                     onClick={resetVoucherModal}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-white/[0.05] transition cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
                   >
                     Cancelar
                   </button>

@@ -34,6 +34,12 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+@media (max-width: 639px) {
+  :root {
+    font-size: calc(15.5px * var(--font-scale)); /* Base ligeramente menor en móvil para optimizar espacio */
+  }
+}
+
 html {
   scroll-behavior: smooth;
   background: #f8fafc;
@@ -469,7 +475,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   }
 
   /* Touch targets garantizados */
-  button, a[role="button"] {
+  button, a[role="button"], input, select, textarea {
     min-height: 44px;
   }
 
@@ -482,5 +488,11 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   /* Cards de stat más compactas */
   .stat-card {
     padding: 1rem 1.125rem;
+  }
+
+  /* Helper para desactivar scroll secundario y expandir naturalmente en celular */
+  .no-scroll-mobile {
+    max-height: none !important;
+    overflow-y: visible !important;
   }
 }

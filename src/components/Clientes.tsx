@@ -702,20 +702,20 @@ export function Clientes() {
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 modal-overlay">
             <motion.div initial={{ scale: 0.97, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.97, opacity: 0, y: 20 }} transition={{ duration: 0.2 }}
-              className="w-full max-w-2xl max-h-[92dvh] sm:max-h-[90vh] overflow-hidden rounded-t-3xl sm:rounded-3xl border border-white/[0.08] bg-[#0d1120] shadow-2xl flex flex-col modal-mobile-full">
+              className="w-full max-w-2xl max-h-[92dvh] sm:max-h-[90vh] overflow-hidden rounded-t-3xl sm:rounded-3xl border border-slate-200 bg-white shadow-2xl flex flex-col modal-mobile-full">
 
-              <div className="p-5 border-b border-white/[0.06] flex items-center justify-between shrink-0">
+              <div className="p-5 border-b border-slate-200 flex items-center justify-between shrink-0 bg-slate-50">
                 <div className="flex items-center gap-3">
                   <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${getAvatarGradient(selectedEditCliente.nombre_completo)} flex items-center justify-center text-white font-black text-sm`}>
                     {selectedEditCliente.nombre_completo.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase()}
                   </div>
                   <div>
-                    <h3 className="font-black text-white text-sm">Editar Cliente</h3>
-                    <p className="text-[10px] text-slate-400 mt-0.5 font-semibold">{selectedEditCliente.nombre_completo}</p>
+                    <h3 className="font-black text-slate-900 text-sm">Editar Cliente</h3>
+                    <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">{selectedEditCliente.nombre_completo}</p>
                   </div>
                 </div>
                 <button onClick={() => setShowEditModal(false)}
-                  className="p-2 rounded-xl hover:bg-white/[0.06] text-slate-400 hover:text-white transition cursor-pointer">
+                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition cursor-pointer">
                   <X size={17} />
                 </button>
               </div>
@@ -725,14 +725,14 @@ export function Clientes() {
                   {/* Datos básicos */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Nombre *</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Nombre *</label>
                       <input type="text" value={editNombre} onChange={e => setEditNombre(e.target.value)}
                         className="w-full glass-input rounded-2xl px-4 py-3 text-sm" required />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">WhatsApp</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">WhatsApp</label>
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-400 text-xs font-black select-none">+51</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-650 text-xs font-black select-none">+51</span>
                         <input type="text" value={editTelefono.replace(/^51/, '')} maxLength={9}
                           onChange={e => setEditTelefono(e.target.value.replace(/\D/g, ""))}
                           className="w-full glass-input rounded-2xl pl-12 pr-4 py-3 text-sm font-mono" />
@@ -741,7 +741,7 @@ export function Clientes() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block flex items-center gap-1.5">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block flex items-center gap-1.5">
                       <MapPin size={9} /> Dirección
                     </label>
                     <input type="text" value={editDireccion} onChange={e => setEditDireccion(e.target.value)}
@@ -749,8 +749,8 @@ export function Clientes() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block flex items-center gap-1.5">
-                      <CreditCard size={9} /> Cuenta Bancaria <span className="text-slate-600 normal-case font-medium">(texto libre)</span>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block flex items-center gap-1.5">
+                      <CreditCard size={9} /> Cuenta Bancaria <span className="text-slate-400 normal-case font-medium">(texto libre)</span>
                     </label>
                     <textarea value={editNumeroCuenta} onChange={e => setEditNumeroCuenta(e.target.value)}
                       placeholder="BCP 191-123456789-0-23 / Yape 987654321"
@@ -759,33 +759,33 @@ export function Clientes() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Info Adicional</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Info Adicional</label>
                       <input type="text" value={editInfoAdicional} onChange={e => setEditInfoAdicional(e.target.value)}
                         placeholder="Trabajo, referencia..." className="w-full glass-input rounded-2xl px-4 py-3 text-sm" />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Observaciones</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Observaciones</label>
                       <input type="text" value={editObservaciones} onChange={e => setEditObservaciones(e.target.value)}
                         className="w-full glass-input rounded-2xl px-4 py-3 text-sm" />
                     </div>
                   </div>
 
                   {/* ── Sección de Documentos ── */}
-                  <div className="border-t border-white/[0.06] pt-4 space-y-3">
+                  <div className="border-t border-slate-200 pt-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <span className="text-[10px] font-black text-indigo-650 uppercase tracking-widest flex items-center gap-1.5">
                         <FileText size={11} /> Documentos del Cliente
                       </span>
                       <div className="flex items-center gap-2">
                         <select value={selectedEditDocTipo} onChange={e => setSelectedEditDocTipo(e.target.value as TipoDocumento)}
-                          className="glass-input rounded-xl px-2 py-1.5 text-[10px] font-semibold cursor-pointer">
+                          className="glass-input rounded-xl px-2 py-1.5 text-[10px] font-semibold cursor-pointer min-h-[36px]">
                           {(Object.entries(TIPOS_DOCUMENTO_CONFIG) as [TipoDocumento, { label: string; icon: string }][]).map(([k, v]) => (
                             <option key={k} value={k}>{v.icon} {v.label}</option>
                           ))}
                         </select>
                         <button type="button" onClick={() => editDocInputRef.current?.click()}
                           disabled={uploadingEditDoc}
-                          className="px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 transition text-[11px] font-bold flex items-center gap-1.5 cursor-pointer">
+                          className="px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition text-[11px] font-bold flex items-center gap-1.5 cursor-pointer">
                           {uploadingEditDoc ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
                           Subir
                         </button>
@@ -797,10 +797,10 @@ export function Clientes() {
                     {/* Lista de documentos */}
                     {loadingDocs ? (
                       <div className="flex items-center justify-center py-6">
-                        <Loader2 size={20} className="animate-spin text-indigo-400" />
+                        <Loader2 size={20} className="animate-spin text-indigo-650" />
                       </div>
                     ) : editDocs.length === 0 ? (
-                      <div className="text-center py-6 text-slate-600 text-[11px]">
+                      <div className="text-center py-6 text-slate-500 text-[11px]">
                         No hay documentos subidos aún
                       </div>
                     ) : (
@@ -821,7 +821,7 @@ export function Clientes() {
                             </div>
                             {/* Info */}
                             <div className="p-2">
-                              <p className="text-[9px] font-black text-indigo-400 uppercase">
+                              <p className="text-[9px] font-black text-indigo-650 uppercase">
                                 {TIPOS_DOCUMENTO_CONFIG[doc.tipo_documento]?.icon} {TIPOS_DOCUMENTO_CONFIG[doc.tipo_documento]?.label}
                               </p>
                               <p className="text-[9px] text-slate-500 truncate">{doc.nombre_archivo}</p>
@@ -848,13 +848,13 @@ export function Clientes() {
                 </div>
 
                 {/* Footer */}
-                <div className="p-5 border-t border-white/[0.06] flex items-center justify-end gap-3 shrink-0">
+                <div className="p-5 border-t border-slate-200 flex items-center justify-end gap-3 shrink-0 bg-slate-50">
                   <button type="button" onClick={() => setShowEditModal(false)}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-white/[0.05] transition cursor-pointer">
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-150 transition cursor-pointer">
                     Cancelar
                   </button>
                   <button type="submit" disabled={updatingCliente}
-                    className="px-5 py-2.5 rounded-xl text-xs btn-primary cursor-pointer flex items-center gap-2">
+                    className="px-5 py-2.5 rounded-xl text-xs btn-primary cursor-pointer flex items-center gap-2 shadow-md">
                     {updatingCliente ? <><Loader2 className="animate-spin" size={14} /><span>Guardando...</span></> : "Guardar Cambios"}
                   </button>
                 </div>

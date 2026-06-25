@@ -750,14 +750,14 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                   <button
                     type="button"
                     onClick={() => setMonto(String(Math.round(cuotaRapida * 100) / 100))}
-                    className="px-2.5 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl text-[9px] font-extrabold uppercase hover:bg-blue-100 transition cursor-pointer select-none"
+                    className="px-3.5 py-2.5 sm:px-2.5 sm:py-1.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl text-xs sm:text-[9.5px] font-extrabold uppercase hover:bg-blue-100 transition cursor-pointer select-none flex items-center justify-center min-h-[40px] sm:min-h-fit"
                   >
                     {cuotaSiguiente ? `Cuota #${cuotaSiguiente.numero} (${formatCurrency(cuotaRapida)})` : `Abono (${formatCurrency(cuotaRapida)})`}
                   </button>
                   <button
                     type="button"
                     onClick={() => setMonto(String(Math.round(resumenDeuda.saldoPendiente * 100) / 100))}
-                    className="px-2.5 py-1.5 bg-purple-50 border border-purple-200 text-purple-700 rounded-xl text-[9px] font-extrabold uppercase hover:bg-purple-100 transition cursor-pointer select-none"
+                    className="px-3.5 py-2.5 sm:px-2.5 sm:py-1.5 bg-purple-50 border border-purple-200 text-purple-700 rounded-xl text-xs sm:text-[9.5px] font-extrabold uppercase hover:bg-purple-100 transition cursor-pointer select-none flex items-center justify-center min-h-[40px] sm:min-h-fit"
                   >
                     Liquidar ({formatCurrency(resumenDeuda.saldoPendiente)})
                   </button>

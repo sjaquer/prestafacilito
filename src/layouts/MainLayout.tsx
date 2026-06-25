@@ -260,28 +260,28 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
 
       {/* ── MOBILE BOTTOM NAV (44px touch height & pb-safe) ── */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 select-none bg-white border-t border-slate-200 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.03)]">
-        <div className="flex justify-around items-center px-2 py-1">
+        <div className="flex justify-around items-center px-1.5 py-1">
           {navItems.map((item) => {
             const isActive = isPathActive(item);
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className="flex flex-col items-center justify-center min-w-[4rem] min-h-[44px] p-2 decoration-none"
+                className="flex flex-col items-center justify-center flex-1 min-w-0 px-0.5 py-1.5 min-h-[44px] decoration-none"
               >
                 <div
-                  className={`p-1.5 rounded-full transition-colors ${
+                  className={`p-1 rounded-full transition-colors ${
                     isActive ? "bg-emerald-50 text-emerald-600" : "text-slate-400"
                   }`}
                 >
                   <item.icon
-                    size={20}
+                    size={18}
                     strokeWidth={isActive ? 2.5 : 2}
                   />
                 </div>
                 <span
-                  className={`text-[9px] font-semibold mt-1 ${
-                    isActive ? "text-emerald-700" : "text-slate-550"
+                  className={`text-[8.5px] font-extrabold mt-0.5 truncate w-full text-center leading-none ${
+                    isActive ? "text-emerald-700 font-black" : "text-slate-550"
                   }`}
                 >
                   {item.label === "Análisis IA" ? "IA" : item.label}
@@ -289,16 +289,16 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
               </Link>
             );
           })}
-
+ 
           {/* Logout button at the end of mobile bottom nav */}
           <button
             onClick={onLogout}
-            className="flex flex-col items-center justify-center min-w-[4rem] min-h-[44px] p-2 border-none bg-transparent cursor-pointer"
+            className="flex flex-col items-center justify-center flex-1 min-w-0 px-0.5 py-1.5 min-h-[44px] border-none bg-transparent cursor-pointer"
           >
-            <div className="p-1.5 rounded-full text-rose-500 hover:bg-rose-50 transition-colors">
-              <LogOut size={20} />
+            <div className="p-1 rounded-full text-rose-500 hover:bg-rose-50 transition-colors">
+              <LogOut size={18} />
             </div>
-            <span className="text-[9px] font-semibold mt-1 text-rose-600">
+            <span className="text-[8.5px] font-black mt-0.5 text-rose-600 leading-none">
               Salir
             </span>
           </button>
