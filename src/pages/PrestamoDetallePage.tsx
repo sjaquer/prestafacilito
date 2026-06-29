@@ -320,6 +320,39 @@ Por favor, no olvide compartirnos su voucher una vez realizado su abono. ¡Mucha
     setAiError("");
   };
 
+  // Calcular desglose de amortización para las barras de progreso lineales de alta definición
+  const { capitalAmortizado, capitalPct, interesPagado, interesTotal, interesPct, moraPagado, moraTotal, moraPct } = useMemo(() => {
+    if (!schedule || !data?.prestamo) {
+      return { capitalAmortizado: 0, capitalPct: 0, interesPagado: 0, interesTotal: 0, interesPct: 0, moraPagado: 0, moraTotal: 0, moraPct: 0 };
+    }
+    const prestamo = data.prestamo;
+    const capTotal = Number(prestamo.monto_capital) || 0;
+    const capPendiente = Number(schedule.resumen?.capitalPendiente) || 0;
+    const capAmortizado = Math.max(0, capTotal - capPendiente);
+    const capPct = capTotal > 0 ? (capAmortizado / capTotal) * 100 : 0;
+
+    const intPagado = schedule.cuotas?.reduce((sum: number, c: any) => sum + (c.interesPagado || 0), 0) || 0;
+    const intPendiente = Number(schedule.resumen?.interesPendiente) || 0;
+    const intTotal = intPagado + intPendiente;
+    const intPct = intTotal > 0 ? (intPagado / intTotal) * 100 : 0;
+
+    const morPagado = schedule.cuotas?.reduce((sum: number, c: any) => sum + (c.moraPagado || 0), 0) || 0;
+    const morPendiente = Number(schedule.resumen?.moraAcumulada) || 0;
+    const morTotal = morPagado + morPendiente;
+    const morPct = morTotal > 0 ? (morPagado / morTotal) * 100 : 0;
+
+    return {
+      capitalAmortizado: capAmortizado,
+      capitalPct: Math.min(100, capPct),
+      interesPagado: intPagado,
+      interesTotal: intTotal,
+      interesPct: Math.min(100, intPct),
+      moraPagado: morPagado,
+      moraTotal: morTotal,
+      moraPct: Math.min(100, morPct)
+    };
+  }, [schedule, data]);
+
   const handleSendWhatsApp = () => {
     if (!data?.prestamo || !aiMessage) return;
     const phone = data.prestamo.cliente_telefono?.replace(/[^\d+]/g, "") || "";
@@ -359,38 +392,6 @@ Por favor, no olvide compartirnos su voucher una vez realizado su abono. ¡Mucha
   const { prestamo, pagosRealizados = [], ajustes = [], planAyuda } = data;
   const isActivo = prestamo.estado === "activo";
   const isAlquiler = prestamo.tipo_prestamo === "Alquiler de Casa";
-
-  // Calcular desglose de amortización para las barras de progreso lineales de alta definición
-  const { capitalAmortizado, capitalPct, interesPagado, interesTotal, interesPct, moraPagado, moraTotal, moraPct } = useMemo(() => {
-    if (!schedule || !prestamo) {
-      return { capitalAmortizado: 0, capitalPct: 0, interesPagado: 0, interesTotal: 0, interesPct: 0, moraPagado: 0, moraTotal: 0, moraPct: 0 };
-    }
-    const capTotal = Number(prestamo.monto_capital) || 0;
-    const capPendiente = Number(schedule.resumen?.capitalPendiente) || 0;
-    const capAmortizado = Math.max(0, capTotal - capPendiente);
-    const capPct = capTotal > 0 ? (capAmortizado / capTotal) * 100 : 0;
-
-    const intPagado = schedule.cuotas?.reduce((sum: number, c: any) => sum + (c.interesPagado || 0), 0) || 0;
-    const intPendiente = Number(schedule.resumen?.interesPendiente) || 0;
-    const intTotal = intPagado + intPendiente;
-    const intPct = intTotal > 0 ? (intPagado / intTotal) * 100 : 0;
-
-    const morPagado = schedule.cuotas?.reduce((sum: number, c: any) => sum + (c.moraPagado || 0), 0) || 0;
-    const morPendiente = Number(schedule.resumen?.moraAcumulada) || 0;
-    const morTotal = morPagado + morPendiente;
-    const morPct = morTotal > 0 ? (morPagado / morTotal) * 100 : 0;
-
-    return {
-      capitalAmortizado: capAmortizado,
-      capitalPct: Math.min(100, capPct),
-      interesPagado: intPagado,
-      interesTotal: intTotal,
-      interesPct: Math.min(100, intPct),
-      moraPagado: morPagado,
-      moraTotal: morTotal,
-      moraPct: Math.min(100, morPct)
-    };
-  }, [schedule, prestamo]);
 
   return (
     <div className="space-y-6 select-none">
