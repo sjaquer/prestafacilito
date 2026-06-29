@@ -907,19 +907,22 @@ app.post("/api/seed", requireAuth, async (req, res) => {
 app.get("/api/dashboard", requireAuth, async (req, res) => {
   try {
     // Consultas paralelas a Supabase
-    const [pRes, aRes, cRes] = await Promise.all([
+    const [pRes, aRes, cRes, ajRes] = await Promise.all([
       supabase.from("prestamos").select("*"),
       supabase.from("amortizaciones").select("*"),
-      supabase.from("clientes").select("*")
+      supabase.from("clientes").select("*"),
+      supabase.from("ajustes_prestamo").select("*").eq("activo", true)
     ]);
 
     if (pRes.error) throw pRes.error;
     if (aRes.error) throw aRes.error;
     if (cRes.error) throw cRes.error;
+    if (ajRes.error) throw ajRes.error;
 
     const prestamos = pRes.data || [];
     const amortizaciones = aRes.data || [];
     const clientes = cRes.data || [];
+    const ajustes = ajRes.data || [];
 
     // Cálculos Financieros
     const totalCapitalPrestado = prestamos.reduce((sum, p) => sum + (parseFloat(p.monto_capital) || 0), 0);
@@ -929,11 +932,13 @@ app.get("/api/dashboard", requireAuth, async (req, res) => {
     // Unir datos relacionales
     const prestamosConCliente = prestamos.map(p => {
       const cliente = clientes.find(c => c.id === p.cliente_id);
+      const prAjustes = ajustes.filter(a => a.prestamo_id === p.id);
       return {
         ...p,
         monto_capital: parseFloat(p.monto_capital) || 0,
         tasa_interes_porcentaje: parseFloat(p.tasa_interes_porcentaje) || 0,
-        cliente_nombre: cliente ? cliente.nombre_completo : "Cliente no encontrado"
+        cliente_nombre: cliente ? cliente.nombre_completo : "Cliente no encontrado",
+        ajustes: prAjustes
       };
     });
 
@@ -950,7 +955,8 @@ app.get("/api/dashboard", requireAuth, async (req, res) => {
         prestamosActivos,
         totalPrestamosCount: prestamos.length
       },
-      ultimosPrestamos
+      ultimosPrestamos,
+      prestamos: prestamosConCliente
     });
   } catch (err: any) {
     console.error("Error al obtener dashboard:", err);
@@ -1144,24 +1150,29 @@ app.post("/api/prestamos", requireAuth, async (req, res) => {
 
 app.get("/api/prestamos", requireAuth, async (req, res) => {
   try {
-    const [pRes, cRes] = await Promise.all([
+    const [pRes, cRes, ajRes] = await Promise.all([
       supabase.from("prestamos").select("*"),
-      supabase.from("clientes").select("*")
+      supabase.from("clientes").select("*"),
+      supabase.from("ajustes_prestamo").select("*").eq("activo", true)
     ]);
 
     if (pRes.error) throw pRes.error;
     if (cRes.error) throw cRes.error;
+    if (ajRes.error) throw ajRes.error;
 
     const prestamos = pRes.data || [];
     const clientes = cRes.data || [];
+    const ajustes = ajRes.data || [];
 
     const prestamosConCliente = prestamos.map(p => {
       const cliente = clientes.find(c => c.id === p.cliente_id);
+      const prAjustes = ajustes.filter(a => a.prestamo_id === p.id);
       return {
         ...p,
         monto_capital: parseFloat(p.monto_capital) || 0,
         tasa_interes_porcentaje: parseFloat(p.tasa_interes_porcentaje) || 0,
-        cliente_nombre: cliente ? cliente.nombre_completo : "Cliente no encontrado"
+        cliente_nombre: cliente ? cliente.nombre_completo : "Cliente no encontrado",
+        ajustes: prAjustes
       };
     });
 
