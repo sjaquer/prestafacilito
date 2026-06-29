@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { ArrowLeft, Landmark, Calendar, MessageSquare, HeartHandshake, ShieldAlert, Pencil, Percent } from "lucide-react";
+import { ArrowLeft, Landmark, Calendar, MessageSquare, HeartHandshake, ShieldAlert, Pencil, Percent, Zap } from "lucide-react";
 import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
@@ -67,6 +67,12 @@ export const LoanHeader: React.FC<LoanHeaderProps> = ({
             <Badge variant="primary" icon={<HeartHandshake size={11} />}>
               Plan de Ayuda Activo
             </Badge>
+          )}
+          {deuda?.esElegibleLiquidacionExpress && prestamo.estado === "activo" && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-black uppercase tracking-wider text-[9px] border bg-amber-50 border-amber-300 text-amber-700 animate-pulse">
+              <Zap size={10} className="shrink-0" />
+              Liq. Express Disponible
+            </span>
           )}
         </div>
       </div>
@@ -171,8 +177,8 @@ export const LoanHeader: React.FC<LoanHeaderProps> = ({
             </span>
             <div className="mt-3 space-y-1.5">
               <div className="flex justify-between items-center text-xs md:text-sm font-semibold">
-                <span className="text-slate-500">{isAlquiler ? "Total Alquiler:" : "Capital Prestado:"}</span>
-                <span className="text-slate-800 font-mono font-extrabold">{formatCurrency(prestamo.monto_capital)}</span>
+                <span className="text-slate-500">{isAlquiler ? "Capital Contrato:" : "Capital Pendiente:"}</span>
+                <span className="text-slate-800 font-mono font-extrabold">{formatCurrency(deuda.capitalPendiente ?? prestamo.monto_capital)}</span>
               </div>
               <div className="flex justify-between items-center text-xs md:text-sm font-semibold">
                 <span className="text-slate-500">{isAlquiler ? "Alquiler Pendiente:" : "Intereses Pendientes:"}</span>
@@ -185,6 +191,15 @@ export const LoanHeader: React.FC<LoanHeaderProps> = ({
                     Mora Acumulada:
                   </span>
                   <span className="font-mono font-extrabold">{formatCurrency(deuda.moraAcumulada)}</span>
+                </div>
+              )}
+              {deuda.esElegibleLiquidacionExpress && prestamo.estado === "activo" && (
+                <div className="flex justify-between items-center text-xs md:text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-2.5 py-1.5 mt-2">
+                  <span className="flex items-center gap-1">
+                    <Zap size={12} className="shrink-0" />
+                    Liquidación Express:
+                  </span>
+                  <span className="font-mono font-extrabold">{formatCurrency(deuda.montoLiquidacionExpress ?? 0)}</span>
                 </div>
               )}
             </div>

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { UploadCloud, FileCheck, CheckCircle } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { UploadCloud, FileCheck, CheckCircle, Zap } from "lucide-react";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { METODOS_PAGO } from "../../lib/constants";
 import { formatCurrency, round2 } from "../../lib/formatters";
+import { classifyPayment } from "../../lib/loanLogic";
 
 interface PaymentFormProps {
   expectedAmount: number;
@@ -13,9 +14,11 @@ interface PaymentFormProps {
     monto: number;
     metodo_pago: string;
     fecha_pago: string;
+    tipo_movimiento: string;
     vouchers?: Array<{ fileName: string; mimeType: string; base64Data: string }>;
   }) => Promise<boolean>;
   loanType?: string;
+  debtState?: any;
 }
 
 export const PaymentForm: React.FC<PaymentFormProps> = ({
@@ -23,10 +26,13 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
   saldoPendiente,
   onSubmit,
   loanType,
+  debtState,
 }) => {
   const [monto, setMonto] = useState("");
   const [metodo, setMetodo] = useState("Yape");
   const [fecha, setFecha] = useState(() => new Date().toISOString().split("T")[0]);
+  const [tipoMovimientoSelected, setTipoMovimientoSelected] = useState("Auto");
+  const [tipoMovimientoAuto, setTipoMovimientoAuto] = useState("");
   
   const isAlquiler = loanType === "Alquiler de Casa";
   
@@ -45,6 +51,44 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
       setMonto(round2(saldoPendiente).toString());
     }
   }, [expectedAmount, saldoPendiente]);
+
+  // Calcular la clasificación automática
+  useEffect(() => {
+    if (!debtState) return;
+    const nMonto = parseFloat(monto) || 0;
+    if (nMonto <= 0) {
+      setTipoMovimientoAuto("");
+      return;
+    }
+    const autoClass = classifyPayment(nMonto, debtState, fecha);
+    setTipoMovimientoAuto(autoClass);
+  }, [monto, fecha, debtState]);
+
+  const resolvedTipoMovimiento = tipoMovimientoSelected === "Auto" ? tipoMovimientoAuto : tipoMovimientoSelected;
+
+  // Calcular el desglose del cobro en tiempo real
+  const desgloseConDistribucion = useMemo(() => {
+    if (!debtState) return null;
+    const nMonto = round2(parseFloat(monto) || 0);
+    if (nMonto <= 0) return null;
+
+    const cuotaSiguiente = debtState.cuotaSiguiente;
+    const moraPendiente = debtState.cuotas?.reduce((s: number, c: any) => s + (c.moraPendiente || 0), 0) || 0;
+    const interesPendiente = debtState.resumen?.interesPendiente || 0;
+    const capitalPendiente = debtState.resumen?.capitalPendiente || 0;
+
+    let restante = nMonto;
+    const pagoMora = round2(Math.min(moraPendiente, restante));
+    restante = round2(restante - pagoMora);
+
+    const pagoInteres = round2(Math.min(interesPendiente, restante));
+    restante = round2(restante - pagoInteres);
+
+    const pagoCapital = round2(Math.min(capitalPendiente, restante));
+    const nuevoCapital = round2(Math.max(0, capitalPendiente - pagoCapital));
+
+    return { pagoMora, pagoInteres, pagoCapital, nuevoCapital, moraPendiente, cuotaSiguiente };
+  }, [monto, debtState]);
 
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -93,6 +137,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
       monto: nMonto,
       metodo_pago: metodo,
       fecha_pago: fecha,
+      tipo_movimiento: resolvedTipoMovimiento || "Pago Ordinario",
       vouchers: vcrFiles.map(v => ({
         fileName: v.file.name,
         mimeType: v.file.type,
@@ -152,6 +197,19 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
           </button>
         </div>
 
+        {debtState?.resumen?.esElegibleLiquidacionExpress && (
+          <button
+            type="button"
+            onClick={() => {
+              setMonto(round2(debtState.resumen.montoLiquidacionExpress).toString());
+              setTipoMovimientoSelected("Liquidación Express");
+            }}
+            className="w-full px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 transition duration-150 cursor-pointer text-center rounded-xl font-black text-xs uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5"
+          >
+            ⚡ Liquidación Express: {formatCurrency(debtState.resumen.montoLiquidacionExpress)}
+          </button>
+        )}
+
         <Input
           label={isAlquiler ? "Monto a Cancelar (S/.)" : "Monto Amortizado (S/.)"}
           type="number"
@@ -163,6 +221,46 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
             setError("");
           }}
         />
+
+        {/* Panel de desglose en tiempo real */}
+        {desgloseConDistribucion && !isAlquiler && (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 space-y-2 text-xs">
+            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">
+              Distribución del Cobro
+            </span>
+            {desgloseConDistribucion.pagoMora > 0 && (
+              <div className="flex justify-between items-center font-bold text-rose-700">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
+                  Mora a cubrir:
+                </span>
+                <span className="font-mono font-black">{formatCurrency(desgloseConDistribucion.pagoMora)}</span>
+              </div>
+            )}
+            {desgloseConDistribucion.pagoInteres > 0 && (
+              <div className="flex justify-between items-center font-bold text-indigo-700">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
+                  Interés del período:
+                </span>
+                <span className="font-mono font-black">{formatCurrency(desgloseConDistribucion.pagoInteres)}</span>
+              </div>
+            )}
+            {desgloseConDistribucion.pagoCapital > 0 && (
+              <div className="flex justify-between items-center font-bold text-emerald-700">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                  Amortización capital:
+                </span>
+                <span className="font-mono font-black">{formatCurrency(desgloseConDistribucion.pagoCapital)}</span>
+              </div>
+            )}
+            <div className="pt-2 border-t border-slate-200 flex justify-between items-center font-black text-slate-700">
+              <span>Nuevo saldo capital:</span>
+              <span className="font-mono text-sm">{formatCurrency(desgloseConDistribucion.nuevoCapital)}</span>
+            </div>
+          </div>
+        )}
 
         {/* Método de pago */}
         <div className="flex flex-col gap-1.5 w-full">
@@ -190,6 +288,32 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
           value={fecha}
           onChange={(e) => setFecha(e.target.value)}
         />
+
+        {/* Clasificación de Pago */}
+        {debtState && (
+          <div className="flex flex-col gap-1.5 w-full">
+            <label className="text-[11px] md:text-[12px] font-black text-slate-500 uppercase tracking-wider block">
+              Clasificación del Pago
+            </label>
+            <select
+              value={tipoMovimientoSelected}
+              onChange={(e) => setTipoMovimientoSelected(e.target.value)}
+              className="glass-input w-full px-4 rounded-xl border border-slate-200 font-medium bg-white text-slate-800 cursor-pointer h-12 text-xs md:text-sm"
+            >
+              <option value="Auto">
+                ✨ Auto-detectar ({tipoMovimientoAuto || "Pago Ordinario"})
+              </option>
+              <option value="Amortización parcial">Amortización parcial (Abono a deuda exigible)</option>
+              <option value="Pago adelantado / múltiple">Pago adelantado / múltiple (Abono a cuota futura)</option>
+              <option value="Pago exacto de cuota">Pago exacto de cuota</option>
+              <option value="Liquidación total">Liquidación total (Saldar préstamo)</option>
+              <option value="Liquidación Express">⚡ Liquidación Express (Primeros 7 días del mes)</option>
+            </select>
+            <p className="text-[9px] text-indigo-600 font-bold uppercase tracking-wide">
+              Se registrará como: <span className="underline">{resolvedTipoMovimiento || "Pago Ordinario"}</span>
+            </p>
+          </div>
+        )}
 
         {/* Drag/Drop Voucher Upload */}
         <div className="space-y-2">

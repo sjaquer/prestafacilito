@@ -66,6 +66,7 @@ export interface CuotaPrestamo {
   interesPagado?: number;           // Total de interés pagado en esta cuota
   moraPagado?: number;              // Total de mora pagada en esta cuota
   ultimoCalculoMoraDate?: Date;     // Última fecha en la que se calculó la mora
+  expressLiquidacion?: boolean;     // Si la cuota fue anulada/exonerada por Liquidación Express
 }
 
 export interface ResumenDeudaPrestamo {
@@ -80,6 +81,8 @@ export interface ResumenDeudaPrestamo {
   totalExigible: number;
   totalPagado: number;
   saldoPendiente: number;
+  esElegibleLiquidacionExpress?: boolean;
+  montoLiquidacionExpress?: number;
 }
 
 export interface AjustePrestamo {

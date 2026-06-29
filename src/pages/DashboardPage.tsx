@@ -328,6 +328,11 @@ export const DashboardPage: React.FC = () => {
   );
   const paidCount = ultimosPrestamos.filter((p) => p.estado === "pagado").length;
 
+  // Total de mora acumulada en toda la cartera activa (suma de moraAcumulada de cada estado)
+  const totalMoraCartera = round2(
+    estadosMora.reduce((sum, e) => sum + (e?.moraAcumulada || 0), 0)
+  );
+
   const estimatedExigible = round2(
     ultimosPrestamos.reduce(
       (sum, loan) => sum + (Number(loan.monto_capital) || 0) * (1 + (Number(loan.tasa_interes_porcentaje) || 0) / 100),
@@ -439,6 +444,7 @@ export const DashboardPage: React.FC = () => {
         activeLoansCount={activeLoans.length}
         overdueLoansCount={overdueLoans.length}
         totalExigible={estimatedExigible}
+        totalMoraCartera={totalMoraCartera}
       />
 
       {/* 3. GRÁFICOS EJECUTIVOS (TENDENCIA Y DISTRIBUCIÓN) */}

@@ -92,13 +92,39 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
               const hasVoucher = voucherUrls.length > 0;
               const isEditing = editingPagoId === pago.id;
 
+              const tipo = pago.tipo_movimiento || "Pago Ordinario";
+              const isExpress = tipo.includes("Express");
+              const isLiquidacion = tipo.includes("Liquidaci\u00f3n total") || tipo.includes("Liquidacion total");
+              const isAdelantado = tipo.includes("adelantado") || tipo.includes("m\u00faltiple");
+              const isParcial = tipo.includes("parcial");
+
+              const leftBarColor = isExpress
+                ? "bg-amber-500"
+                : isLiquidacion
+                  ? "bg-emerald-600"
+                  : isAdelantado
+                    ? "bg-indigo-500"
+                    : isParcial
+                      ? "bg-blue-400"
+                      : "bg-emerald-500";
+
+              const tipoLabel = isExpress
+                ? { text: "\u26a1 Express", cls: "bg-amber-50 border-amber-200 text-amber-700" }
+                : isLiquidacion
+                  ? { text: "\u2705 Liquidado", cls: "bg-emerald-50 border-emerald-200 text-emerald-700" }
+                  : isAdelantado
+                    ? { text: "\u23ed Adelantado", cls: "bg-indigo-50 border-indigo-200 text-indigo-700" }
+                    : isParcial
+                      ? { text: "Parcial", cls: "bg-blue-50 border-blue-200 text-blue-700" }
+                      : { text: "Abono", cls: "bg-slate-100 border-slate-200 text-slate-600" };
+
               return (
                 <div 
                   key={pago.id}
                   className="bg-white border border-slate-200 rounded-3xl p-5 space-y-3.5 text-xs font-semibold shadow-sm hover:shadow-md transition-all duration-300 relative select-none hover:border-slate-350"
                 >
-                  {/* Left color bar */}
-                  <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-emerald-500 rounded-l-3xl" />
+                  {/* Left color bar — color depends on movement type */}
+                  <div className={`absolute top-0 left-0 bottom-0 w-1.5 rounded-l-3xl ${leftBarColor}`} />
 
                   <div className="pl-1.5 space-y-3">
                     <div className="flex justify-between items-center gap-2">
@@ -153,8 +179,10 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
                         <span className="text-slate-800 uppercase font-bold mt-0.5">{pago.metodo_pago}</span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[9px] text-slate-400 uppercase tracking-widest font-black">Clasificación</span>
-                        <span className="text-slate-655 font-bold mt-0.5">{pago.tipo_movimiento || "Pago Ordinario"}</span>
+                        <span className="text-[9px] text-slate-400 uppercase tracking-widest font-black">Tipo</span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full border font-black text-[9px] uppercase tracking-wide mt-0.5 w-fit ${tipoLabel.cls}`}>
+                          {tipoLabel.text}
+                        </span>
                       </div>
                     </div>
 

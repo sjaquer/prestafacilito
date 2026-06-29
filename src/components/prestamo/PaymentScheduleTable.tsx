@@ -71,6 +71,7 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                 /* CARD VIEW FOR ALL DEBTS (BOTH DESKTOP & MOBILE) */
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
               {displayedCuotas.map((cuota) => {
+                const isExpress = (cuota as any).expressLiquidacion;
                 const isVencida = cuota.estado === "Vencida";
                 const isCongelada = cuota.congelada;
                 const isSaldada = cuota.estado === "Saldada";
@@ -145,7 +146,9 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({
                             {isAlquiler ? "Mensualidad" : "Interés"}
                           </span>
                           <span className="text-slate-855 font-mono font-bold mt-0.5">
-                            {isCongelada ? (
+                            {isExpress ? (
+                              <span className="text-amber-600 font-black uppercase text-[10px]">Exonerado (Express)</span>
+                            ) : isCongelada ? (
                               <span className="text-emerald-600 font-black uppercase text-[10px]">Congelado</span>
                             ) : (
                               formatCurrency(cuota.interesOriginal || 0)

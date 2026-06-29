@@ -1352,13 +1352,28 @@ app.post("/api/prestamos/:id/pagos", requireAuth, async (req, res) => {
       return;
     }
 
-    const clasificacionAutomatica = classifyPayment(montoPago, deudaAntes);
+    const clasificacionAutomatica = classifyPayment(montoPago, deudaAntes, fecha_pago);
     const excedenteAplicado = Math.max(0, montoPago - deudaAntes.resumen.totalExigible);
+
+    const validTypes = [
+      "Liquidación total",
+      "Pago exacto de cuota",
+      "Amortización parcial",
+      "Pago adelantado / múltiple",
+      "Pago adelantado",
+      "Amortización de Capital",
+      "Amortizacion de Capital",
+      "Liquidación Express",
+      "Liquidacion Express"
+    ];
+    const tipoMovimientoFinal = (tipo_movimiento && validTypes.includes(tipo_movimiento))
+      ? tipo_movimiento
+      : clasificacionAutomatica;
 
     // Insertar la amortización en Supabase
     const nuevaAmortizacion = {
       prestamo_id: prestamoId,
-      tipo_movimiento: clasificacionAutomatica,
+      tipo_movimiento: tipoMovimientoFinal,
       monto: montoPago,
       fecha_pago: fecha_pago || new Date().toISOString().split("T")[0],
       metodo_pago: metodo_pago || "Efectivo",

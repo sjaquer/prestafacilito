@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Landmark, Wallet, Target, Activity, TrendingUp } from "lucide-react";
+import { Landmark, Wallet, Target, Activity, TrendingUp, ShieldAlert } from "lucide-react";
 import { Card } from "../ui/Card";
 import { formatCurrency } from "../../lib/formatters";
 
@@ -9,6 +9,7 @@ interface KPICardsProps {
   activeLoansCount: number;
   overdueLoansCount: number;
   totalExigible: number;
+  totalMoraCartera?: number;
 }
 
 export const KPICards: React.FC<KPICardsProps> = ({
@@ -17,6 +18,7 @@ export const KPICards: React.FC<KPICardsProps> = ({
   activeLoansCount,
   overdueLoansCount,
   totalExigible,
+  totalMoraCartera = 0,
 }) => {
   const recoveryRate = useMemo(() => {
     if (totalExigible <= 0) return 0;
@@ -33,7 +35,7 @@ export const KPICards: React.FC<KPICardsProps> = ({
   }, [totalExigible, totalRecuperado]);
 
   return (
-    <div id="metrics-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+    <div id="metrics-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5">
       {/* Capital Colocado */}
       <Card variant="bento" hoverable className="relative overflow-hidden group">
         <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500 shadow-sm" />
@@ -117,6 +119,27 @@ export const KPICards: React.FC<KPICardsProps> = ({
             <span className={overdueLoansCount > 0 ? "text-rose-400" : "text-slate-500"}>
               {overdueLoansCount} retrasados
             </span>
+          </p>
+        </div>
+      </Card>
+
+      {/* Mora Acumulada Cartera */}
+      <Card variant="bento" hoverable className="relative overflow-hidden group">
+        <div className={`absolute top-0 left-0 w-1.5 h-full shadow-sm ${totalMoraCartera > 0 ? "bg-amber-500" : "bg-slate-300"}`} />
+        <div className="flex items-center justify-between text-slate-400">
+          <span className="text-[10px] md:text-[11px] font-black uppercase tracking-widest text-slate-500">
+            Mora Cartera
+          </span>
+          <div className={`p-1.5 rounded-lg ${totalMoraCartera > 0 ? "bg-amber-500/10" : "bg-slate-100"}`}>
+            <ShieldAlert size={16} className={totalMoraCartera > 0 ? "text-amber-500" : "text-slate-400"} />
+          </div>
+        </div>
+        <div className="mt-4">
+          <span className={`text-xl md:text-2xl lg:text-3xl font-black tracking-tight font-mono block ${totalMoraCartera > 0 ? "text-amber-600" : "text-slate-400"}`}>
+            {formatCurrency(totalMoraCartera)}
+          </span>
+          <p className="text-[10px] md:text-[11px] text-slate-500 font-bold mt-2.5 uppercase tracking-wider">
+            {totalMoraCartera > 0 ? "Pendiente de cobro" : "Sin mora activa"}
           </p>
         </div>
       </Card>

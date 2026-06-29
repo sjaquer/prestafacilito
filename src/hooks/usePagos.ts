@@ -11,6 +11,7 @@ export function usePagos() {
       monto: number;
       metodo_pago: string;
       fecha_pago: string;
+      tipo_movimiento?: string;
       comprobante_url?: string | null;
     }
   ) => {

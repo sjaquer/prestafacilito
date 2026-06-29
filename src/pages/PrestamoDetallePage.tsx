@@ -96,6 +96,7 @@ export const PrestamoDetallePage: React.FC = () => {
     monto: number;
     metodo_pago: string;
     fecha_pago: string;
+    tipo_movimiento: string;
     vouchers?: Array<{ fileName: string; mimeType: string; base64Data: string }>;
   }) => {
     if (!id) return false;
@@ -134,6 +135,7 @@ export const PrestamoDetallePage: React.FC = () => {
       monto: payload.monto,
       metodo_pago: payload.metodo_pago,
       fecha_pago: payload.fecha_pago,
+      tipo_movimiento: payload.tipo_movimiento,
       comprobante_url: comprobanteUrl
     });
     
@@ -327,6 +329,7 @@ export const PrestamoDetallePage: React.FC = () => {
             saldoPendiente={schedule?.resumen.saldoPendiente || 0}
             onSubmit={handleRegisterPayment}
             loanType={prestamo.tipo_prestamo}
+            debtState={schedule}
           />
 
           {/* Asistente de Cobros */}

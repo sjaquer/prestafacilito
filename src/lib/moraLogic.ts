@@ -12,6 +12,7 @@ export interface EstadoMoraCliente {
   diasAtraso: number;
   montoTotalAtrasado: number;
   saldoPendiente: number;
+  moraAcumulada: number;
   ultimoPagoFecha?: string;
   ultimoPagoMonto?: number;
 }
@@ -43,6 +44,7 @@ export function calcularEstadoMora(
       diasAtraso: 0,
       montoTotalAtrasado: 0,
       saldoPendiente: 0,
+      moraAcumulada: 0,
       ultimoPagoFecha: ultimoPago?.fecha_pago,
       ultimoPagoMonto: ultimoPago ? Number(ultimoPago.monto) : undefined
     };
@@ -85,6 +87,7 @@ export function calcularEstadoMora(
     diasAtraso,
     montoTotalAtrasado,
     saldoPendiente: schedule.resumen.saldoPendiente || 0,
+    moraAcumulada: schedule.resumen.moraAcumulada || 0,
     ultimoPagoFecha: ultimoPago?.fecha_pago,
     ultimoPagoMonto: ultimoPago ? Number(ultimoPago.monto) : undefined
   };
