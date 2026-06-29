@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { usePagos } from "../hooks/usePagos";
 import { calcularEstadoMora } from "../lib/moraLogic";
+import { buildPaymentSchedule } from "../lib/loanLogic";
 import { useClientes } from "../hooks/useClientes";
 import { Cliente } from "../types";
 import { Card } from "../components/ui/Card";
@@ -94,6 +95,60 @@ export const ClienteDetallePage: React.FC = () => {
       proximaCuotaFecha,
       proximaCuotaMonto,
       proximaCuotaTipo
+    };
+  }, [clientLoans, amortizaciones]);
+
+  // Calcular distribución financiera agregada del cliente para las barras de progreso lineales de alta definición
+  const clientFinancialDistribution = useMemo(() => {
+    if (clientLoans.length === 0) return null;
+
+    let capitalTotal = 0;
+    let capitalAmortizado = 0;
+    let interesTotal = 0;
+    let interesPagado = 0;
+    let moraTotal = 0;
+    let moraPagado = 0;
+
+    clientLoans.forEach(loan => {
+      if (loan.tipo_prestamo === "Alquiler de Casa") return; // Alquileres no entran en desglose de interés/mora tradicional
+      
+      const pagosDelPrestamo = amortizaciones.filter(a => a.prestamo_id === loan.id);
+      const computed = buildPaymentSchedule(loan, pagosDelPrestamo, [], new Date());
+      
+      const capTotal = Number(loan.monto_capital) || 0;
+      const capPendiente = Number(computed.resumen?.capitalPendiente) || 0;
+      const capAmortizado = Math.max(0, capTotal - capPendiente);
+
+      const intPagado = computed.cuotas?.reduce((sum: number, c: any) => sum + (c.interesPagado || 0), 0) || 0;
+      const intPendiente = Number(computed.resumen?.interesPendiente) || 0;
+      const intTotal = intPagado + intPendiente;
+
+      const morPagado = computed.cuotas?.reduce((sum: number, c: any) => sum + (c.moraPagado || 0), 0) || 0;
+      const morPendiente = Number(computed.resumen?.moraAcumulada) || 0;
+      const morTotal = morPagado + morPendiente;
+
+      capitalTotal += capTotal;
+      capitalAmortizado += capAmortizado;
+      interesTotal += intTotal;
+      interesPagado += intPagado;
+      moraTotal += morTotal;
+      moraPagado += morPagado;
+    });
+
+    const capitalPct = capitalTotal > 0 ? (capitalAmortizado / capitalTotal) * 100 : 0;
+    const interesPct = interesTotal > 0 ? (interesPagado / interesTotal) * 100 : 0;
+    const moraPct = moraTotal > 0 ? (moraPagado / moraTotal) * 100 : 0;
+
+    return {
+      capitalTotal,
+      capitalAmortizado,
+      capitalPct: Math.min(100, capitalPct),
+      interesTotal,
+      interesPagado,
+      interesPct: Math.min(100, interesPct),
+      moraTotal,
+      moraPagado,
+      moraPct: Math.min(100, moraPct)
     };
   }, [clientLoans, amortizaciones]);
 
@@ -253,6 +308,70 @@ export const ClienteDetallePage: React.FC = () => {
 
       {/* Financial Summary KPIs */}
       <ClientFinancialSummary cliente={cliente} />
+
+      {/* 📊 Desglose de Retorno y Amortización Agregado del Cliente */}
+      {clientFinancialDistribution && clientFinancialDistribution.capitalTotal > 0 && (
+        <Card variant="simple" className="p-5 space-y-4">
+          <div>
+            <h3 className="font-black text-slate-800 text-sm tracking-tight leading-none">
+              📊 Distribución de Amortización Acumulada
+            </h3>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
+              Estado total de recuperación de capital, intereses y mora del cliente (excluye Alquileres)
+            </p>
+          </div>
+          
+          <div className="border-t border-slate-200/60 pt-3 grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Capital */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-500 font-bold uppercase">Capital Recuperado</span>
+                <span className="text-emerald-700 font-black font-mono">
+                  {formatCurrency(clientFinancialDistribution.capitalAmortizado)} / {formatCurrency(clientFinancialDistribution.capitalTotal)} ({clientFinancialDistribution.capitalPct.toFixed(1)}%)
+                </span>
+              </div>
+              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                <div 
+                  className="h-full rounded-full bg-emerald-500 transition-all duration-505" 
+                  style={{ width: `${clientFinancialDistribution.capitalPct}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Interés */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-500 font-bold uppercase">Interés Cobrado</span>
+                <span className="text-indigo-700 font-black font-mono">
+                  {formatCurrency(clientFinancialDistribution.interesPagado)} / {formatCurrency(clientFinancialDistribution.interesTotal)} ({clientFinancialDistribution.interesPct.toFixed(1)}%)
+                </span>
+              </div>
+              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                <div 
+                  className="h-full rounded-full bg-indigo-500 transition-all duration-505" 
+                  style={{ width: `${clientFinancialDistribution.interesPct}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Mora */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-500 font-bold uppercase">Mora Cobrada</span>
+                <span className="text-amber-700 font-black font-mono">
+                  {formatCurrency(clientFinancialDistribution.moraPagado)} / {formatCurrency(clientFinancialDistribution.moraTotal)} ({clientFinancialDistribution.moraPct.toFixed(1)}%)
+                </span>
+              </div>
+              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                <div 
+                  className="h-full rounded-full bg-amber-500 transition-all duration-505" 
+                  style={{ width: `${clientFinancialDistribution.moraPct}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Details Grid (Loans & Interaction timeline) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">

@@ -324,6 +324,7 @@ export const buildPaymentSchedule = (
   let currentCapital = capital;
   const processedCuotas: CuotaPrestamo[] = [];
   let accumulatedCapitalAmortizado = 0;
+  const pagosDistribuidos: any[] = [];
 
   // Variables para rastrear el resumen del plan de ayuda
   let totalBeneficioAplicado = 0;
@@ -423,6 +424,8 @@ export const buildPaymentSchedule = (
     } else if (event.tipo === "pago") {
       const paymentDate = event.fecha;
       let remaining = event.pago!.monto;
+      let moraCobrada = 0;
+      let interesCobrado = 0;
 
       // REGLA 1: Pre-generar la cuota correspondiente si aún no existe en processedCuotas
       const nextCuotaEvent = events.find(
@@ -589,6 +592,7 @@ export const buildPaymentSchedule = (
           remaining = round2(remaining - pagoMora);
           cuota.moraPendiente = round2(cuota.moraPendiente - pagoMora);
           cuota.moraPagado = round2((cuota.moraPagado || 0) + pagoMora);
+          moraCobrada = round2(moraCobrada + pagoMora);
         }
 
         // Pagar el interés de la cuota
@@ -598,6 +602,7 @@ export const buildPaymentSchedule = (
           remaining = round2(remaining - pagoInteres);
           cuota.interesPendiente = round2(cuota.interesPendiente - pagoInteres);
           cuota.interesPagado = round2((cuota.interesPagado || 0) + pagoInteres);
+          interesCobrado = round2(interesCobrado + pagoInteres);
         }
 
         cuota.pagado = round2((cuota.moraPagado || 0) + (cuota.interesPagado || 0));
@@ -612,6 +617,7 @@ export const buildPaymentSchedule = (
         }
       }
 
+      let capitalAmortizado = 0;
       // Si aún queda saldo del pago, reduce el capital (Pago Anticipado / Amortización de Capital)
       if (remaining > EPSILON) {
         const lastCuota = processedCuotas[processedCuotas.length - 1];
@@ -620,9 +626,20 @@ export const buildPaymentSchedule = (
         } else {
           accumulatedCapitalAmortizado = round2(accumulatedCapitalAmortizado + remaining);
         }
+        capitalAmortizado = remaining;
         currentCapital = round2(Math.max(0, currentCapital - remaining));
         remaining = 0;
       }
+
+      pagosDistribuidos.push({
+        pagoId: event.pago!.id,
+        monto: event.pago!.monto,
+        fecha: event.fechaStr,
+        moraPagado: moraCobrada,
+        interesPagado: interesCobrado,
+        capitalAmortizado: capitalAmortizado,
+        capitalRestante: currentCapital
+      });
     }
   }
 
@@ -759,7 +776,8 @@ export const buildPaymentSchedule = (
     cuotas: processedCuotas,
     cuotaSiguiente,
     cuotasVencidasDetalle,
-    planAyuda
+    planAyuda,
+    pagosDistribuidos
   };
 };
 

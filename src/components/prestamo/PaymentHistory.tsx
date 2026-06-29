@@ -3,12 +3,13 @@ import { MessageSquare, Eye, FileText, Image, Calendar, Check, X } from "lucide-
 import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
-import { formatCurrency, formatDateShort, parseVoucherUrls } from "../../lib/formatters";
+import { formatCurrency, formatDateShort, parseVoucherUrls, round2 } from "../../lib/formatters";
 import { Amortizacion } from "../../types";
 
 interface PaymentHistoryProps {
   pagos: Amortizacion[];
   prestamo: any;
+  pagosDistribuidos?: any[];
   onVoucherClick: (pago: any) => void;
   onViewComprobante: (url: string) => void;
   resolveVoucherUrl: (url: string | null | undefined) => string;
@@ -18,6 +19,7 @@ interface PaymentHistoryProps {
 export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
   pagos,
   prestamo,
+  pagosDistribuidos = [],
   onVoucherClick,
   onViewComprobante,
   resolveVoucherUrl,
@@ -63,7 +65,36 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
     const formattedMonto = formatCurrency(pago.monto);
     const fecha = formatDateShort(pago.fecha_pago);
 
-    const text = `¡Hola, ${prestamo.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Confirmamos la recepción de tu pago de ${formattedMonto} registrado el ${fecha} vía ${pago.metodo_pago}. Tu folio de comprobante es: ${folio}. ¡Muchas gracias por tu compromiso!`;
+    const dist = pagosDistribuidos.find((d: any) => d.pagoId === pago.id);
+    
+    let text = "";
+    if (dist && !isAlquiler) {
+      const capitalPendienteAntes = round2(dist.capitalRestante + dist.capitalAmortizado);
+      const tasa = prestamo.tasa_interes_porcentaje || 0;
+      const interesPeriodo = round2(capitalPendienteAntes * (tasa / 100));
+      const totalPeriodo = round2(capitalPendienteAntes + interesPeriodo);
+
+      text = `Estimado/a ${prestamo.cliente_nombre}.
+
+Le comparto el resumen de su pago registrado el ${fecha}:
+
+* Préstamo / Capital pendiente anterior: *S/ ${capitalPendienteAntes.toLocaleString('es-PE', { minimumFractionDigits: 2 })}*
+* Interés del mes (${tasa}%): *S/ ${interesPeriodo.toLocaleString('es-PE', { minimumFractionDigits: 2 })}*
+* Total del mes: *S/ ${totalPeriodo.toLocaleString('es-PE', { minimumFractionDigits: 2 })}*
+
+Usted realizó un abono de *S/ ${pago.monto.toLocaleString('es-PE', { minimumFractionDigits: 2 })}* vía ${pago.metodo_pago}. De ese monto:
+${dist.moraPagado > 0 ? `- Pago de Mora: *S/ ${dist.moraPagado.toLocaleString('es-PE', { minimumFractionDigits: 2 })}*\n` : ""}- Interés del mes: *S/ ${dist.interesPagado.toLocaleString('es-PE', { minimumFractionDigits: 2 })}*
+- Reducción de capital: *S/ ${dist.capitalAmortizado.toLocaleString('es-PE', { minimumFractionDigits: 2 })}*
+
+Por lo tanto, el saldo de capital deudor pendiente queda en *S/ ${dist.capitalRestante.toLocaleString('es-PE', { minimumFractionDigits: 2 })}*.
+
+Para el siguiente mes, el interés se calcula sobre ese saldo pendiente. Por ello, si desea cancelar el préstamo en el próximo período, el monto estimado sería:
+*S/ ${dist.capitalRestante.toLocaleString('es-PE', { minimumFractionDigits: 2 })} + S/ ${(dist.capitalRestante * (tasa / 100)).toLocaleString('es-PE', { minimumFractionDigits: 2 })} (${tasa}% de interés) = S/ ${(dist.capitalRestante * (1 + tasa / 100)).toLocaleString('es-PE', { minimumFractionDigits: 2 })}*
+
+Folio de Comprobante: ${folio}. ¡Muchas gracias por su compromiso!`;
+    } else {
+      text = `¡Hola, ${prestamo.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Confirmamos la recepción de tu pago de ${formattedMonto} registrado el ${fecha} vía ${pago.metodo_pago}. Tu folio de comprobante es: ${folio}. ¡Muchas gracias por tu compromiso!`;
+    }
 
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   };

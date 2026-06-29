@@ -1089,9 +1089,41 @@ export const CarteraPage: React.FC = () => {
 
                     <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-[8.5px]">
                       <span className="text-slate-450 font-bold uppercase">{loan.tipo_prestamo}</span>
-                      <div className="flex items-center gap-1 text-slate-400 font-bold">
-                        <span>Deslizar</span>
-                        <MoreHorizontal size={12} className="opacity-60" />
+                      <div className="flex items-center gap-2">
+                        {loan.estado === "activo" && waLink && (
+                          <a
+                            href={waLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-1.5 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition flex items-center justify-center decoration-none"
+                            title="Cobrar vía WhatsApp"
+                          >
+                            <MessageSquare size={12} />
+                          </a>
+                        )}
+                        {loan.estado === "activo" && recLink && (
+                          <a
+                            href={recLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-1.5 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition flex items-center justify-center decoration-none"
+                            title="Enviar recordatorio"
+                          >
+                            <Bell size={12} />
+                          </a>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEditModal(loan, e);
+                          }}
+                          className="p-1.5 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition flex items-center justify-center border-none cursor-pointer"
+                          title="Editar Parámetros"
+                        >
+                          <Edit size={12} />
+                        </button>
                       </div>
                     </div>
                   </motion.div>

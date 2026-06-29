@@ -9,7 +9,8 @@ import {
   Briefcase,
   Terminal,
   Cloud,
-  CloudOff
+  CloudOff,
+  FileText
 } from "lucide-react";
 import { FontSizeControl } from "../components/common/FontSizeControl";
 
@@ -81,6 +82,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
       label: "Bitácora",
       icon: Terminal,
       activePaths: ["/bitacora"],
+    },
+    {
+      path: "/vouchers",
+      label: "Vouchers",
+      icon: FileText,
+      activePaths: ["/vouchers"],
     },
   ];
 

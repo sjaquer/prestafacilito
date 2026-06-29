@@ -1533,7 +1533,9 @@ app.get("/api/amortizaciones", requireAuth, async (req, res) => {
       return {
         ...a,
         cliente_nombre: cliente ? cliente.nombre_completo : "Desconocido",
-        tipo_prestamo: prestamo ? prestamo.tipo_prestamo : "Personal"
+        cliente_telefono: cliente ? cliente.telefono : "",
+        tipo_prestamo: prestamo ? prestamo.tipo_prestamo : "Personal",
+        monto_capital: prestamo ? prestamo.monto_capital : 0
       };
     });
 

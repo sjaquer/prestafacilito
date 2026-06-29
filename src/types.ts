@@ -120,6 +120,7 @@ export interface EstadoDeudaPrestamo {
   cuotasVencidasDetalle: CuotaPrestamo[];
   clasificacionPagoSugerida?: string;
   planAyuda?: PlanAyudaCliente; // Resumen del plan de ayuda aplicado
+  pagosDistribuidos?: any[];
 }
 
 // ── Documentos de Cliente (v2) ─────────────────────────────

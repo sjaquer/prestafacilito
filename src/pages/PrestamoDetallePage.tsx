@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Loader2, AlertTriangle, MessageSquare, Send, HeartHandshake, Sparkles } from "lucide-react";
 import { usePrestamos } from "../hooks/usePrestamos";
@@ -16,7 +16,7 @@ import { ProrrogaSection } from "../components/prestamo/ProrrogaSection";
 import { VoucherGenerator } from "../components/prestamo/VoucherGenerator";
 
 import { useAuth } from "../hooks/useAuth";
-import { generarMensajeCobroPredeterminado } from "../lib/formatters";
+import { generarMensajeCobroPredeterminado, formatCurrency, formatDateShort, round2 } from "../lib/formatters";
 
 export const PrestamoDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -277,24 +277,44 @@ export const PrestamoDetallePage: React.FC = () => {
     if (!data?.prestamo || !schedule) return;
 
     const nextCuota = schedule.cuotaSiguiente;
-    const unpaidCuotas = schedule.cuotas.filter((c: any) => c.estado !== "Saldada");
     const isMora = schedule.resumen.moraAcumulada > 0;
-    const amount = isMora 
-      ? schedule.resumen.saldoPendiente
-      : (nextCuota?.montoExigible || schedule.resumen.saldoPendiente || 0);
+    const capitalPendiente = schedule.resumen.capitalPendiente;
+    const tasa = data.prestamo.tasa_interes_porcentaje || 0;
+    const interesMensual = round2(capitalPendiente * (tasa / 100));
+    const totalMes = round2(capitalPendiente + interesMensual);
 
-    const dueDate = nextCuota?.fechaVencimiento || data.prestamo.fecha_vencimiento;
-    const cuotasAtrasadas = unpaidCuotas.filter((c: any) => c.estado === "Vencida").length;
+    let msg = "";
+    if (isAlquiler) {
+      const pendingRent = schedule.resumen.saldoPendiente;
+      const dueDate = nextCuota?.fechaVencimiento || data.prestamo.fecha_vencimiento;
+      msg = `Estimado/a ${data.prestamo.cliente_nombre}.
 
-    const msg = generarMensajeCobroPredeterminado({
-      clienteNombre: data.prestamo.cliente_nombre,
-      tipoPrestamo: data.prestamo.tipo_prestamo,
-      remitenteRaw: user,
-      monto: amount,
-      fechaVencimiento: dueDate,
-      estadoCuotaMes: isMora ? "mora_mes" : "pendiente_mes",
-      cuotasAtrasadas: cuotasAtrasadas || undefined
-    });
+Le comparto el resumen actual de su contrato de alquiler de casa:
+
+* Renta mensual: *S/ ${data.prestamo.monto_capital.toLocaleString('es-PE', { minimumFractionDigits: 2 })}*
+* Saldo pendiente exigible: *S/ ${pendingRent.toLocaleString('es-PE', { minimumFractionDigits: 2 })}*
+* Próxima fecha de vencimiento: *${dueDate ? formatDateShort(dueDate) : "No programado"}*
+
+Le agradeceremos realizar su abono y enviarnos su comprobante por este medio. ¡Muchas gracias por su compromiso!`;
+    } else {
+      const overdueMora = schedule.resumen.moraAcumulada;
+      const totalPagarExigible = schedule.resumen.saldoPendiente;
+
+      msg = `Estimado/a ${data.prestamo.cliente_nombre}.
+
+Le comparto el resumen y estado actual de su crédito:
+
+* Capital prestado inicial: *S/ ${data.prestamo.monto_capital.toLocaleString('es-PE', { minimumFractionDigits: 2 })}*
+* Capital deudor pendiente actual: *S/ ${capitalPendiente.toLocaleString('es-PE', { minimumFractionDigits: 2 })}*
+* Interés del período (${tasa}%): *S/ ${interesMensual.toLocaleString('es-PE', { minimumFractionDigits: 2 })}*
+${overdueMora > 0 ? `* Mora acumulada: *S/ ${overdueMora.toLocaleString('es-PE', { minimumFractionDigits: 2 })}*\n` : ""}* Total para liquidar este mes: *S/ ${totalMes.toLocaleString('es-PE', { minimumFractionDigits: 2 })}*
+
+* Pago mínimo exigible actual: *S/ ${totalPagarExigible.toLocaleString('es-PE', { minimumFractionDigits: 2 })}*
+
+El interés de cada período se calcula sobre el capital deudor pendiente. Por ello, cualquier abono mayor al interés reduce directamente su capital deudor para el siguiente mes.
+
+Por favor, no olvide compartirnos su voucher una vez realizado su abono. ¡Muchas gracias y que tenga un excelente día!`;
+    }
 
     setAiMessage(msg);
     setAiError("");
@@ -338,8 +358,41 @@ export const PrestamoDetallePage: React.FC = () => {
 
   const { prestamo, pagosRealizados = [], ajustes = [], planAyuda } = data;
   const isActivo = prestamo.estado === "activo";
+  const isAlquiler = prestamo.tipo_prestamo === "Alquiler de Casa";
 
-    return (
+  // Calcular desglose de amortización para las barras de progreso lineales de alta definición
+  const { capitalAmortizado, capitalPct, interesPagado, interesTotal, interesPct, moraPagado, moraTotal, moraPct } = useMemo(() => {
+    if (!schedule || !prestamo) {
+      return { capitalAmortizado: 0, capitalPct: 0, interesPagado: 0, interesTotal: 0, interesPct: 0, moraPagado: 0, moraTotal: 0, moraPct: 0 };
+    }
+    const capTotal = Number(prestamo.monto_capital) || 0;
+    const capPendiente = Number(schedule.resumen?.capitalPendiente) || 0;
+    const capAmortizado = Math.max(0, capTotal - capPendiente);
+    const capPct = capTotal > 0 ? (capAmortizado / capTotal) * 100 : 0;
+
+    const intPagado = schedule.cuotas?.reduce((sum: number, c: any) => sum + (c.interesPagado || 0), 0) || 0;
+    const intPendiente = Number(schedule.resumen?.interesPendiente) || 0;
+    const intTotal = intPagado + intPendiente;
+    const intPct = intTotal > 0 ? (intPagado / intTotal) * 100 : 0;
+
+    const morPagado = schedule.cuotas?.reduce((sum: number, c: any) => sum + (c.moraPagado || 0), 0) || 0;
+    const morPendiente = Number(schedule.resumen?.moraAcumulada) || 0;
+    const morTotal = morPagado + morPendiente;
+    const morPct = morTotal > 0 ? (morPagado / morTotal) * 100 : 0;
+
+    return {
+      capitalAmortizado: capAmortizado,
+      capitalPct: Math.min(100, capPct),
+      interesPagado: intPagado,
+      interesTotal: intTotal,
+      interesPct: Math.min(100, intPct),
+      moraPagado: morPagado,
+      moraTotal: morTotal,
+      moraPct: Math.min(100, morPct)
+    };
+  }, [schedule, prestamo]);
+
+  return (
     <div className="space-y-6 select-none">
       {/* Header Info */}
       <LoanHeader
@@ -350,6 +403,70 @@ export const PrestamoDetallePage: React.FC = () => {
         onEdit={handleOpenEditModal}
         onProrroga={() => setShowProrrogaModal(true)}
       />
+
+      {/* 📊 Desglose de Retorno y Amortización */}
+      {!isAlquiler && schedule && (
+        <Card variant="simple" className="p-5 space-y-4">
+          <div>
+            <h3 className="font-black text-slate-800 text-sm tracking-tight leading-none">
+              📊 Distribución de Amortización y Retorno
+            </h3>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
+              Estado de recuperación de capital, intereses y mora en tiempo real
+            </p>
+          </div>
+          
+          <div className="border-t border-slate-200/60 pt-3 grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Capital */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-500 font-bold uppercase">Capital Recuperado</span>
+                <span className="text-emerald-700 font-black font-mono">
+                  {formatCurrency(capitalAmortizado)} / {formatCurrency(prestamo.monto_capital)} ({capitalPct.toFixed(1)}%)
+                </span>
+              </div>
+              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                <div 
+                  className="h-full rounded-full bg-emerald-500 transition-all duration-500" 
+                  style={{ width: `${capitalPct}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Interés */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-500 font-bold uppercase">Interés Cobrado</span>
+                <span className="text-indigo-700 font-black font-mono">
+                  {formatCurrency(interesPagado)} / {formatCurrency(interesTotal)} ({interesPct.toFixed(1)}%)
+                </span>
+              </div>
+              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                <div 
+                  className="h-full rounded-full bg-indigo-500 transition-all duration-500" 
+                  style={{ width: `${interesPct}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Mora */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-500 font-bold uppercase">Mora Cobrada</span>
+                <span className="text-amber-700 font-black font-mono">
+                  {formatCurrency(moraPagado)} / {formatCurrency(moraTotal)} ({moraPct.toFixed(1)}%)
+                </span>
+              </div>
+              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                <div 
+                  className="h-full rounded-full bg-amber-500 transition-all duration-500" 
+                  style={{ width: `${moraPct}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Main Content Details */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -367,6 +484,7 @@ export const PrestamoDetallePage: React.FC = () => {
           <PaymentHistory
             pagos={pagosRealizados}
             prestamo={prestamo}
+            pagosDistribuidos={schedule?.pagosDistribuidos || []}
             onVoucherClick={(pago) => setSelectedVoucherPago(pago)}
             onViewComprobante={(url) => window.open(url, "_blank")}
             resolveVoucherUrl={(url) => {
