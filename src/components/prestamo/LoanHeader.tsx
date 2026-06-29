@@ -12,6 +12,7 @@ interface LoanHeaderProps {
   planAyuda: any;
   onBack: () => void;
   onEdit?: () => void;
+  onProrroga?: () => void;
 }
 
 export const LoanHeader: React.FC<LoanHeaderProps> = ({
@@ -20,6 +21,7 @@ export const LoanHeader: React.FC<LoanHeaderProps> = ({
   planAyuda,
   onBack,
   onEdit,
+  onProrroga,
 }) => {
   const isAlquiler = prestamo.tipo_prestamo === "Alquiler de Casa";
   const recoveryRate = useMemo(() => {
@@ -58,6 +60,16 @@ export const LoanHeader: React.FC<LoanHeaderProps> = ({
               icon={<Pencil size={13} />}
             >
               Editar Parámetros
+            </Button>
+          )}
+          {onProrroga && prestamo.estado === "activo" && (
+            <Button
+              onClick={onProrroga}
+              variant="secondary"
+              size="sm"
+              icon={<Calendar size={13} />}
+            >
+              Solicitar Prórroga
             </Button>
           )}
           <Badge variant={prestamo.estado === "activo" ? "success" : "neutral"}>

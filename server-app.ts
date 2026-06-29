@@ -1247,7 +1247,7 @@ app.get("/api/prestamos/:id", requireAuth, async (req, res) => {
 app.put("/api/prestamos/:id", requireAuth, async (req, res) => {
   try {
     const prestamoId = req.params.id;
-    const { fecha_emision, fecha_vencimiento, monto_capital, tasa_interes_porcentaje } = req.body;
+    const { fecha_emision, fecha_vencimiento, monto_capital, tasa_interes_porcentaje, notas } = req.body;
 
     const updatePayload: any = {
       fecha_emision,
@@ -1256,6 +1256,7 @@ app.put("/api/prestamos/:id", requireAuth, async (req, res) => {
 
     if (monto_capital !== undefined) updatePayload.monto_capital = toNumber(monto_capital);
     if (tasa_interes_porcentaje !== undefined) updatePayload.tasa_interes_porcentaje = toNumber(tasa_interes_porcentaje);
+    if (notas !== undefined) updatePayload.notas = notas;
 
     // Obtener datos previos para la auditoría de cambios
     const { data: oldPrestamo } = await supabase
@@ -1282,7 +1283,8 @@ app.put("/api/prestamos/:id", requireAuth, async (req, res) => {
         monto_capital: "Capital",
         tasa_interes_porcentaje: "Tasa de Interés (%)",
         fecha_emision: "Fecha de Emisión",
-        fecha_vencimiento: "Fecha de Vencimiento"
+        fecha_vencimiento: "Fecha de Vencimiento",
+        notas: "Notas"
       });
       desc += ` ${diff}`;
     }

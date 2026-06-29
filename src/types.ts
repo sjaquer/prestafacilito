@@ -31,6 +31,7 @@ export interface Prestamo {
     periodo_gracia_dias?: number;
     [key: string]: any;
   };
+  notas?: string;
 }
 
 export interface Amortizacion {
