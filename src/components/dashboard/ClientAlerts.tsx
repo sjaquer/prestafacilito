@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { CalendarDays, MessageSquare, Bell, AlertTriangle, Clock, ArrowUpRight, CheckCircle2 } from "lucide-react";
-import { formatCurrency, formatDateWithDay, getNombreUsuario, round2 } from "../../lib/formatters";
+import { formatCurrency, formatDateWithDay, getNombreUsuario, round2, generarMensajeCobroPredeterminado } from "../../lib/formatters";
 import { Cliente } from "../../types";
 import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
@@ -54,75 +54,22 @@ export const ClientAlerts: React.FC<ClientAlertsProps> = ({
     const phone = cliente.telefono.replace(/[^\d+]/g, "").trim();
     if (!phone) return null;
 
-    const isAlquiler = loan.tipo_prestamo === "Alquiler de Casa";
     const amount = isMora ? loan.mora.montoTotalAtrasado : loan.mora.montoCuotaActual;
-    const formattedAmount = formatCurrency(amount);
-    const fechaFormato = isMora 
-      ? `cuotas vencidas (${loan.mora.cuotasAtrasadas} cuota(s) pendiente(s))`
-      : `el ${formatDateWithDay(loan.mora.fechaCuotaActual)}`;
-    
-    const text = isAlquiler
-      ? isMora
-        ? `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu mensualidad de alquiler pendiente de ${formattedAmount} (${loan.mora.cuotasAtrasadas} mes(es) vencido(s)). Agradecemos tu pronta regularización. ¡Que tengas un gran día!`
-        : `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu mensualidad de alquiler de ${formattedAmount} con vencimiento ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`
-      : isMora
-        ? `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} (${loan.mora.cuotasAtrasadas} cuota(s) vencida(s)). Agradecemos tu pronta regularización para no seguir generando intereses. ¡Que tengas un gran día!`
-        : `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota pendiente de ${formattedAmount} con vencimiento ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
+
+    const text = generarMensajeCobroPredeterminado({
+      clienteNombre: loan.cliente_nombre,
+      tipoPrestamo: loan.tipo_prestamo,
+      monto: amount,
+      fechaVencimiento: loan.mora.fechaCuotaActual,
+      estadoCuotaMes: isMora ? "mora_mes" : undefined,
+      cuotasAtrasadas: loan.mora.cuotasAtrasadas,
+    });
     
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   };
 
   const getRecordatorioLink = (loan: any, cliente: any, isMora: boolean) => {
-    if (!cliente || !cliente.telefono) return null;
-    const phone = cliente.telefono.replace(/\D/g, '').trim();
-    if (!phone) return null;
-
-    const NOMBRES_FEMENINOS = new Set([
-      'maria','ana','lucia','sofia','elena','carmen','rosa','claudia','andrea','patricia',
-      'laura','diana','gloria','monica','sandra','alejandra','valentina','gabriela','lorena',
-      'jessica','vanessa','adriana','paola','natalia','carolina','fernanda','daniela','sara',
-      'isabel','pilar','julia','alicia','beatriz','cristina','irene','mariana','raquel',
-      'silvia','yolanda','angela','consuelo','esperanza','graciela','luz','mercedes','norma',
-      'olga','rebeca','susana','veronica','wendy','xiomara','yasmin','zoraida','pamela',
-      'karina','brenda','gisela','rocio','miriam','nancy','marisol','milagros','flor',
-      'liliana','estela','cecilia','catalina','evelyn','fabiola','helen','iliana'
-    ]);
-    const primerNombre = loan.cliente_nombre.trim().split(/\s+/)[0].toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const tratamiento = NOMBRES_FEMENINOS.has(primerNombre) ? 'SRA.' : 'SR.';
-
-    const isAlquiler = loan.tipo_prestamo === "Alquiler de Casa";
-    const amount = isMora ? loan.mora.montoTotalAtrasado : loan.mora.montoCuotaActual;
-    const cuota = formatCurrency(amount);
-    const fecha = isMora ? "" : formatDateWithDay(loan.mora.fechaCuotaActual);
-    const nombreMayus = loan.cliente_nombre.toUpperCase();
-    const remitente = getNombreUsuario(user);
-
-    const mensaje = isAlquiler
-      ? isMora
-        ? `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
-          `Te escribo para recordarte amablemente tu mensualidad de alquiler vencida pendiente de pago:\n\n` +
-          `Monto: ${cuota} (${loan.mora.cuotasAtrasadas} mes(es) atrasado(s)).\n\n` +
-          `Agradezco tu apoyo en regularizarlo a la brevedad. ¡Que tengas un gran día!\n` +
-          `Cualquier cosa me lo escribe.`
-        : `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
-          `Te escribo para recordarte amablemente tu mensualidad de alquiler pendiente a cancelar:\n\n` +
-          `${cuota} con vencimiento el ${fecha}.\n\n` +
-          `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
-          `Cualquier cosa me lo escribe.`
-      : isMora
-        ? `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
-          `Te escribo para recordarte amablemente tu cuota vencida pendiente a cancelar:\n\n` +
-          `Monto: ${cuota} (${loan.mora.cuotasAtrasadas} cuota(s) sin pagar).\n\n` +
-          `Agradezco tu pronta regularización para no seguir generando intereses. ¡Que tengas un gran día!\n` +
-          `Cualquier cosa me lo escribe.`
-        : `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
-          `Te escribo para recordarte amablemente tu cuota pendiente a cancelar:\n\n` +
-          `${cuota} con vencimiento el ${fecha} para no generar intereses.\n\n` +
-          `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
-          `Cualquier cosa me lo escribe.`;
-
-    return `https://wa.me/${phone}?text=${encodeURIComponent(mensaje)}`;
+    return getWhatsAppLink(loan, cliente, isMora);
   };
 
   // Calcular estado de mora real para cada préstamo

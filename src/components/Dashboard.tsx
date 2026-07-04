@@ -10,7 +10,7 @@ import {
 import { Cliente } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import { METODOS_PAGO, BANCO_GRUPOS, getBancoForMetodo } from "../lib/constants";
-import { formatCurrency, formatDateWithDay } from "../lib/formatters";
+import { formatCurrency, formatDateWithDay, generarMensajeCobroPredeterminado, normalizeClientName } from "../lib/formatters";
 
 const resolveVoucherUrl = (url: string) => {
   if (!url) return "";
@@ -676,50 +676,22 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     const interest = parseFloat(loan.tasa_interes_porcentaje) || 0;
     const totalExigible = capital * (1 + interest / 100);
 
-    const formattedAmount = formatCurrency(totalExigible);
-    const fechaFormato = formatDateWithDay(loan.fecha_vencimiento);
-    const text = `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} con vencimiento el ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
+    const isMora = new Date(`${loan.fecha_vencimiento}T00:00:00`).getTime() < today.getTime();
+
+    const text = generarMensajeCobroPredeterminado({
+      clienteNombre: loan.cliente_nombre,
+      tipoPrestamo: loan.tipo_prestamo,
+      monto: totalExigible,
+      fechaVencimiento: loan.fecha_vencimiento,
+      estadoCuotaMes: isMora ? "mora_mes" : undefined,
+    });
     
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   };
 
-  // Generador de recordatorio formal con mensaje exacto de Sebastián
+  // Generador de recordatorio formal con mensaje exacto
   const getRecordatorioLink = (loan: any) => {
-    const cliente = clientes.find(c => c.id === loan.cliente_id);
-    if (!cliente || !cliente.telefono) return null;
-    const phone = cliente.telefono.replace(/\D/g, '').trim();
-    if (!phone) return null;
-
-    // Detectar género por nombre
-    const NOMBRES_FEMENINOS = new Set([
-      'maria','ana','lucia','sofia','elena','carmen','rosa','claudia','andrea','patricia',
-      'laura','diana','gloria','monica','sandra','alejandra','valentina','gabriela','lorena',
-      'jessica','vanessa','adriana','paola','natalia','carolina','fernanda','daniela','sara',
-      'isabel','pilar','julia','alicia','beatriz','cristina','irene','mariana','raquel',
-      'silvia','yolanda','angela','consuelo','esperanza','graciela','luz','mercedes','norma',
-      'olga','rebeca','susana','veronica','wendy','xiomara','yasmin','zoraida','pamela',
-      'karina','brenda','gisela','rocio','miriam','nancy','marisol','milagros','flor',
-      'liliana','estela','cecilia','catalina','evelyn','fabiola','helen','iliana'
-    ]);
-    const primerNombre = loan.cliente_nombre.trim().split(/\s+/)[0].toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const tratamiento = NOMBRES_FEMENINOS.has(primerNombre) ? 'SRA.' : 'SR.';
-
-    const capital = parseFloat(loan.monto_capital) || 0;
-    const interest = parseFloat(loan.tasa_interes_porcentaje) || 0;
-    const totalExigible = capital * (1 + interest / 100);
-    const cuota = formatCurrency(totalExigible);
-    const fecha = formatDateWithDay(loan.fecha_vencimiento);
-    const nombreMayus = loan.cliente_nombre.toUpperCase();
-
-    const mensaje =
-      `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda Sebastián.\n` +
-      `Te escribo para recordarte amablemente tu cuota pendiente a cancelar:\n\n` +
-      `${cuota} con vencimiento el ${fecha} para no generar intereses.\n\n` +
-      `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
-      `Cualquier cosa me lo escribe.`;
-
-    return `https://wa.me/${phone}?text=${encodeURIComponent(mensaje)}`;
+    return getWhatsAppLink(loan);
   };
 
   const dayMs = 24 * 60 * 60 * 1000;
@@ -736,6 +708,12 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     const dueDate = new Date(`${p.fecha_vencimiento}T00:00:00`);
     const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / dayMs);
     return diffDays >= 0 && diffDays <= 7;
+  });
+
+  const apuntoDeVencerLoans = activeLoans.filter((p) => {
+    const dueDate = new Date(`${p.fecha_vencimiento}T00:00:00`);
+    const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / dayMs);
+    return diffDays >= 0 && diffDays <= 2;
   });
 
   const estimatedExigible = ultimosPrestamos.reduce(
@@ -1092,6 +1070,71 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
           <span className="flex items-center gap-2"><span className="w-3 h-3 bg-indigo-500 rounded-full shadow-[0_0_6px_rgba(99,102,241,0.5)]" /> Saldo pendiente: <strong className="text-white font-mono">{formatCurrency(saldoPendiente)}</strong></span>
         </div>
       </div>
+
+      {/* SECCIÓN VENCIMIENTOS INMEDIATOS - ACCIÓN RÁPIDA DE WHATSAPP */}
+      {apuntoDeVencerLoans.length > 0 && (
+        <div className="space-y-4 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent border border-amber-500/25 p-6 rounded-3xl relative overflow-hidden shadow-xl shadow-amber-950/10">
+          <div className="absolute -top-12 -right-12 opacity-5 pointer-events-none">
+            <Bell size={160} className="text-amber-500" />
+          </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-black text-amber-400 tracking-tight leading-none flex items-center gap-2">
+              <span className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping" />
+              Pagos a Punto de Vencer
+            </h2>
+            <p className="text-[10px] text-amber-500/80 font-bold uppercase tracking-wider mt-1.5">
+              Acción rápida para enviar recordatorios de vencimientos de hoy y próximos 2 días
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {apuntoDeVencerLoans.map((loan) => {
+              const waLink = getWhatsAppLink(loan);
+              const dueDate = new Date(`${loan.fecha_vencimiento}T00:00:00`);
+              const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / dayMs);
+              const remainingLabel = diffDays === 0 ? "Hoy" : diffDays === 1 ? "Mañana" : `En ${diffDays} días`;
+
+              const capital = parseFloat(loan.monto_capital) || 0;
+              const interest = parseFloat(loan.tasa_interes_porcentaje) || 0;
+              const totalExigible = capital * (1 + interest / 100);
+
+              return (
+                <div key={loan.id} className="bg-black/40 border border-white/5 hover:border-amber-500/30 p-4 rounded-2xl flex flex-col justify-between gap-3 transition-all duration-200">
+                  <div className="flex justify-between items-start">
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-bold text-white leading-tight truncate">{normalizeClientName(loan.cliente_nombre)}</h4>
+                      <p className="text-[11px] text-gray-400 mt-0.5">{loan.tipo_prestamo}</p>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 border ${
+                      diffDays === 0 
+                        ? "bg-rose-500/20 text-rose-300 border-rose-500/30" 
+                        : "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                    }`}>
+                      {remainingLabel}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center mt-1">
+                    <div>
+                      <span className="text-[10px] text-gray-500 block uppercase font-bold">Monto Cuota</span>
+                      <span className="text-sm font-extrabold text-white font-mono">{formatCurrency(totalExigible)}</span>
+                    </div>
+                    {waLink && (
+                      <a
+                        href={waLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all duration-150 transform active:scale-95 shadow-md shadow-emerald-950/20 shrink-0"
+                      >
+                        <MessageSquare size={12} />
+                        <span>Enviar</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 4. RADAR DE VENCIMIENTOS (Círculos SVG estilizados) */}
       <div className="space-y-4">

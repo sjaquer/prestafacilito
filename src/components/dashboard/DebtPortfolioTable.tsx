@@ -5,7 +5,7 @@ import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { DataTable, ColumnDef } from "../ui/DataTable";
-import { formatCurrency, formatDateWithDay, getNombreUsuario, round2 } from "../../lib/formatters";
+import { formatCurrency, formatDateWithDay, getNombreUsuario, round2, generarMensajeCobroPredeterminado } from "../../lib/formatters";
 import { Cliente } from "../../types";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -51,70 +51,18 @@ export const DebtPortfolioTable: React.FC<DebtPortfolioTableProps> = ({
       amount = capital * (1 + interest / 100);
     }
 
-    const formattedAmount = formatCurrency(amount);
-    const fechaFormato = formatDateWithDay(loan.fecha_vencimiento);
-    
-    const text = isAlquiler
-      ? `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu mensualidad de alquiler de ${formattedAmount} con vencimiento el ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`
-      : `¡Hola, ${loan.cliente_nombre}! Te saludamos de la administración. 🇵🇪 Te recordamos amablemente tu cuota/saldo pendiente de ${formattedAmount} con vencimiento el ${fechaFormato}. Agradecemos tu puntualidad y apoyo. ¡Que tengas un gran día!`;
+    const text = generarMensajeCobroPredeterminado({
+      clienteNombre: loan.cliente_nombre,
+      tipoPrestamo: loan.tipo_prestamo,
+      monto: amount,
+      fechaVencimiento: loan.fecha_vencimiento,
+    });
     
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   };
 
   const getRecordatorioLink = (loan: any) => {
-    const cliente = clientes.find(c => c.id === loan.cliente_id);
-    if (!cliente || !cliente.telefono) return null;
-    const phone = cliente.telefono.replace(/\D/g, '').trim();
-    if (!phone) return null;
-
-    const NOMBRES_FEMENINOS = new Set([
-      'maria','ana','lucia','sofia','elena','carmen','rosa','claudia','andrea','patricia',
-      'laura','diana','gloria','monica','sandra','alejandra','valentina','gabriela','lorena',
-      'jessica','vanessa','adriana','paola','natalia','carolina','fernanda','daniela','sara',
-      'isabel','pilar','julia','alicia','beatriz','cristina','irene','mariana','raquel',
-      'silvia','yolanda','angela','consuelo','esperanza','graciela','luz','mercedes','norma',
-      'olga','rebeca','susana','veronica','wendy','xiomara','yasmin','zoraida','pamela',
-      'karina','brenda','gisela','rocio','miriam','nancy','marisol','milagros','flor',
-      'liliana','estela','cecilia','catalina','evelyn','fabiola','helen','iliana'
-    ]);
-    const primerNombre = loan.cliente_nombre.trim().split(/\s+/)[0].toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const tratamiento = NOMBRES_FEMENINOS.has(primerNombre) ? 'SRA.' : 'SR.';
-
-    const isAlquiler = loan.tipo_prestamo === "Alquiler de Casa";
-    let amount = 0;
-    if (isAlquiler) {
-      const start = new Date(loan.fecha_emision + "T12:00:00");
-      const end = loan.fecha_vencimiento ? new Date(loan.fecha_vencimiento + "T12:00:00") : null;
-      let duration = 6;
-      if (end && !isNaN(end.getTime()) && !isNaN(start.getTime())) {
-        duration = Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()));
-      }
-      amount = round2(parseFloat(loan.monto_capital) / duration);
-    } else {
-      const capital = parseFloat(loan.monto_capital) || 0;
-      const interest = parseFloat(loan.tasa_interes_porcentaje) || 0;
-      amount = capital * (1 + interest / 100);
-    }
-
-    const cuota = formatCurrency(amount);
-    const fecha = formatDateWithDay(loan.fecha_vencimiento);
-    const nombreMayus = loan.cliente_nombre.toUpperCase();
-    const remitente = getNombreUsuario(user);
-
-    const mensaje = isAlquiler
-      ? `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
-        `Te escribo para recordarte amablemente tu mensualidad de alquiler pendiente a cancelar:\n\n` +
-        `${cuota} con vencimiento el ${fecha}.\n\n` +
-        `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
-        `Cualquier cosa me lo escribe.`
-      : `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n` +
-        `Te escribo para recordarte amablemente tu cuota pendiente a cancelar:\n\n` +
-        `${cuota} con vencimiento el ${fecha} para no generar intereses.\n\n` +
-        `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
-        `Cualquier cosa me lo escribe.`;
-
-    return `https://wa.me/${phone}?text=${encodeURIComponent(mensaje)}`;
+    return getWhatsAppLink(loan);
   };
 
   const getRemainingDays = (dateValue: string) => {

@@ -8,7 +8,7 @@ import {
 import { Cliente, DocumentoCliente, TipoDocumento, TIPOS_DOCUMENTO_CONFIG, ACCEPT_DOCUMENTOS } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../hooks/useAuth";
-import { getNombreUsuario } from "../lib/formatters";
+import { getNombreUsuario, generarMensajeCobroPredeterminado, normalizeClientName } from "../lib/formatters";
 
 // ── Detección de género por nombre ─────────────────────────
 const NOMBRES_FEMENINOS = new Set([
@@ -30,18 +30,12 @@ function detectarGenero(nombre: string): 'SR.' | 'SRA.' {
 
 // ── Generador de mensaje recordatorio ─────────────────────
 function getMensajeRecordatorio(cliente: Cliente, username: string | null, montoCuota?: number, fechaVencimiento?: string): string {
-  const tratamiento = detectarGenero(cliente.nombre_completo);
-  const nombre = cliente.nombre_completo.toUpperCase();
-  const cuota = montoCuota ? `S/ ${montoCuota.toFixed(2)}` : 'la cuota o mensualidad pendiente';
-  const fecha = fechaVencimiento || 'la fecha de vencimiento';
-  const remitente = getNombreUsuario(username);
-  return (
-    `¡Hola, ${tratamiento} ${nombre}! Te saluda ${remitente}.\n` +
-    `Te escribo para recordarte amablemente tu pago pendiente a cancelar:\n\n` +
-    `${cuota} con vencimiento el ${fecha}.\n\n` +
-    `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
-    `Cualquier cosa me lo escribe.`
-  );
+  return generarMensajeCobroPredeterminado({
+    clienteNombre: cliente.nombre_completo,
+    tipoPrestamo: "Préstamo",
+    monto: montoCuota || Number(cliente.total_exigible || 0) - Number(cliente.total_amortizado || 0),
+    fechaVencimiento: fechaVencimiento || "",
+  });
 }
 
 export function Clientes() {
@@ -570,7 +564,7 @@ export function Clientes() {
                       {/* Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-white text-sm truncate">{cliente.nombre_completo}</span>
+                          <span className="font-bold text-white text-sm truncate">{normalizeClientName(cliente.nombre_completo)}</span>
                           {hasDebt ? (
                             <span className="badge bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 shrink-0">
                               {cliente.prestamos_activos} deuda{(cliente.prestamos_activos || 0) > 1 ? "s" : ""}
@@ -711,7 +705,7 @@ export function Clientes() {
                   </div>
                   <div>
                     <h3 className="font-black text-slate-900 text-sm">Editar Cliente</h3>
-                    <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">{selectedEditCliente.nombre_completo}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">{normalizeClientName(selectedEditCliente.nombre_completo)}</p>
                   </div>
                 </div>
                 <button onClick={() => setShowEditModal(false)}

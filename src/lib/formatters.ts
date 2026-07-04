@@ -146,12 +146,38 @@ export function parseVoucherUrls(comprobanteUrl: string | null | undefined): str
 }
 
 /**
+ * Normaliza el nombre del cliente a Title Case (primera letra de cada palabra en mayúscula, el resto minúscula)
+ */
+export function normalizeClientName(name: string): string {
+  if (!name) return "";
+  return name
+    .toLowerCase()
+    .trim()
+    .split(/\s+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+/**
+ * Genera un saludo dinámico según la hora del día
+ */
+export function getSaludoPorHora(): string {
+  const hora = new Date().getHours();
+  if (hora >= 6 && hora < 12) {
+    return "Buenos días";
+  } else if (hora >= 12 && hora < 19) {
+    return "Buenas tardes";
+  } else {
+    return "Buenas noches";
+  }
+}
+
+/**
  * Genera un mensaje de cobro o recordatorio predeterminado listo para WhatsApp.
  */
 export function generarMensajeCobroPredeterminado({
   clienteNombre,
   tipoPrestamo,
-  remitenteRaw,
   monto,
   fechaVencimiento,
   estadoCuotaMes,
@@ -159,32 +185,17 @@ export function generarMensajeCobroPredeterminado({
 }: {
   clienteNombre: string;
   tipoPrestamo: string;
-  remitenteRaw: string | null;
+  remitenteRaw?: string | null;
   monto: number;
   fechaVencimiento: string;
   estadoCuotaMes?: string;
   cuotasAtrasadas?: number;
 }): string {
-  const remitente = getNombreUsuario(remitenteRaw);
-  
-  const NOMBRES_FEMENINOS = new Set([
-    "maria", "ana", "lucia", "sofia", "elena", "carmen", "rosa", "claudia", "andrea", "patricia",
-    "laura", "diana", "gloria", "monica", "sandra", "alejandra", "valentina", "gabriela", "lorena",
-    "jessica", "vanessa", "adriana", "paola", "natalia", "carolina", "fernanda", "daniela", "sara",
-    "isabel", "pilar", "julia", "alicia", "beatriz", "cristina", "irene", "mariana", "raquel",
-    "silvia", "yolanda", "angela", "consuelo", "esperanza", "graciela", "luz", "mercedes", "norma",
-    "olga", "rebeca", "susana", "veronica", "wendy", "xiomara", "yasmin", "zoraida", "pamela",
-    "karina", "brenda", "gisela", "rocio", "miriam", "nancy", "marisol", "milagros", "flor",
-    "liliana", "estela", "cecilia", "catalina", "evelyn", "fabiola", "helen", "iliana"
-  ]);
-  const primerNombre = clienteNombre.trim().split(/\s+/)[0].toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const tratamiento = NOMBRES_FEMENINOS.has(primerNombre) ? "SRA." : "SR.";
-
-  const isAlquiler = tipoPrestamo === "Alquiler de Casa";
-  const isMora = estadoCuotaMes && ["mora_mes", "mora_acumulada"].includes(estadoCuotaMes);
+  const nombreNormalizado = normalizeClientName(clienteNombre);
+  const saludo = getSaludoPorHora();
+  const esAlquiler = tipoPrestamo === "Alquiler de Casa";
+  const esMora = estadoCuotaMes && ["mora_mes", "mora_acumulada"].includes(estadoCuotaMes);
   const formattedMonto = formatCurrency(monto);
-  const nombreMayus = clienteNombre.toUpperCase();
 
   let diffDays = 0;
   if (fechaVencimiento) {
@@ -196,33 +207,27 @@ export function generarMensajeCobroPredeterminado({
     diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
   }
 
-  const intro = `¡Hola, ${tratamiento} ${nombreMayus}! Te saluda ${remitente}.\n\n`;
+  const tipo = esAlquiler ? "mensualidad de alquiler" : "cuota";
 
-  if (isAlquiler) {
-    if (isMora) {
-      const mesesTexto = cuotasAtrasadas && cuotasAtrasadas > 1 ? `${cuotasAtrasadas} meses atrasados` : "1 mes atrasado";
-      return `${intro}Te escribo para recordarte amablemente tu mensualidad de alquiler vencida pendiente de pago de ${formattedMonto} (${mesesTexto}). Agradezco tu apoyo en regularizarlo a la brevedad y enviarme el voucher de pago una vez realizado el abono. ¡Muchas gracias y que tengas un excelente día!`;
-    } else if (diffDays === 0) {
-      return `${intro}Te escribo para recordarte amablemente que el día de hoy vence tu mensualidad de alquiler de ${formattedMonto}. Agradezco tu puntualidad y que por favor me compartas el voucher de pago cuando lo realices. ¡Muchas gracias y que tengas un excelente día!`;
-    } else if (diffDays === 1) {
-      return `${intro}Te escribo para recordarte amablemente que el día de mañana vence tu mensualidad de alquiler de ${formattedMonto}. Agradezco tu puntualidad y que por favor me compartas el voucher de pago cuando lo realices. ¡Muchas gracias y que tengas un excelente día!`;
-    } else {
-      const fecha = formatDateWithDay(fechaVencimiento);
-      return `${intro}Te escribo para recordarte amablemente tu mensualidad de alquiler de ${formattedMonto} con vencimiento el ${fecha}. Te agradecería si me compartes el voucher de pago una vez que realices el abono. ¡Muchas gracias y que tengas un excelente día!`;
-    }
-  } else {
-    if (isMora) {
-      const cuotasTexto = cuotasAtrasadas && cuotasAtrasadas > 1 ? `${cuotasAtrasadas} cuotas sin pagar` : "1 cuota sin pagar";
-      return `${intro}Te escribo para recordarte amablemente tu cuota vencida de ${formattedMonto} (${cuotasTexto}). Agradezco tu pronta regularización para no seguir generando mora, y que por favor me envíes el voucher de pago una vez realizado el abono. ¡Muchas gracias y que tengas un excelente día!`;
-    } else if (diffDays === 0) {
-      return `${intro}Te escribo para recordarte amablemente que el día de hoy vence tu cuota de ${formattedMonto}. Agradezco tu puntualidad para evitar intereses o mora, y que por favor me compartas el voucher de pago cuando lo realices. ¡Muchas gracias y que tengas un excelente día!`;
-    } else if (diffDays === 1) {
-      return `${intro}Te escribo para recordarte amablemente que el día de mañana vence tu cuota de ${formattedMonto}. Agradezco tu puntualidad para evitar intereses o mora, y que por favor me compartas el voucher de pago cuando lo realices. ¡Muchas gracias y que tengas un excelente día!`;
-    } else {
-      const fecha = formatDateWithDay(fechaVencimiento);
-      return `${intro}Te escribo para recordarte amablemente tu cuota de ${formattedMonto} con vencimiento el ${fecha} para no generar intereses. Te agradecería si me compartes el voucher de pago una vez que realices el abono. ¡Muchas gracias y que tengas un excelente día!`;
-    }
+  if (esMora) {
+    const detalleMora = cuotasAtrasadas && cuotasAtrasadas > 1 
+      ? `(${cuotasAtrasadas} meses vencidos)` 
+      : `(vencida)`;
+    return `¡Hola! ${saludo} ${nombreNormalizado}. 😊 Quería recordarle amablemente que su ${tipo} de ${formattedMonto} está pendiente de pago ${detalleMora}. Le agradecería regularizarlo y enviarme el comprobante. ¡Muchas gracias!`;
   }
+
+  let tiempoVencimiento = "";
+  if (diffDays === 0) {
+    tiempoVencimiento = "vence el día de hoy";
+  } else if (diffDays === 1) {
+    tiempoVencimiento = "vence el día de mañana";
+  } else if (diffDays < 0) {
+    tiempoVencimiento = "ya venció";
+  } else {
+    tiempoVencimiento = `vence el ${formatDateWithDay(fechaVencimiento)}`;
+  }
+
+  return `¡Hola! ${saludo} ${nombreNormalizado}. 😊 Quería recordarle amablemente que su ${tipo} de ${formattedMonto} está a punto de vencer (${tiempoVencimiento}). Quedo atento al envío del comprobante de pago. ¡Muchas gracias!`;
 }
 
 

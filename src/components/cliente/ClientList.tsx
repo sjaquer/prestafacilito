@@ -8,7 +8,7 @@ import {
 import { Cliente } from "../../types";
 import { Badge } from "../ui/Badge";
 import { DataTable, ColumnDef } from "../ui/DataTable";
-import { formatCurrency, formatDate, getNombreUsuario } from "../../lib/formatters";
+import { formatCurrency, formatDate, getNombreUsuario, generarMensajeCobroPredeterminado, normalizeClientName } from "../../lib/formatters";
 import { useAuth } from "../../hooks/useAuth";
 
 // Gender detection for WhatsApp templates
@@ -23,27 +23,16 @@ const NOMBRES_FEMENINOS = new Set([
   'liliana','estela','cecilia','catalina','evelyn','fabiola','helen','iliana'
 ]);
 
-function detectarGenero(nombre: string): 'SR.' | 'SRA.' {
-  const primerNombre = nombre.trim().split(/\s+/)[0].toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  return NOMBRES_FEMENINOS.has(primerNombre) ? 'SRA.' : 'SR.';
-}
-
 function getMensajeRecordatorio(cliente: Cliente, username: string | null): string {
-  const tratamiento = detectarGenero(cliente.nombre_completo);
-  const nombre = cliente.nombre_completo.toUpperCase();
   const exigible = Number(cliente.total_exigible) || 0;
   const amortizado = Number(cliente.total_amortizado) || 0;
   const saldo = Math.max(0, exigible - amortizado);
-  const cuota = saldo > 0 ? `S/ ${saldo.toFixed(2)}` : 'la cuota o mensualidad pendiente';
-  const remitente = getNombreUsuario(username);
-  return (
-    `¡Hola, ${tratamiento} ${nombre}! Te saluda ${remitente}.\n` +
-    `Te escribo para recordarte amablemente tu pago pendiente a cancelar:\n\n` +
-    `${cuota}.\n\n` +
-    `Agradezco tu puntualidad y apoyo. ¡Que tengas un gran día!\n` +
-    `Cualquier cosa me lo escribe.`
-  );
+  return generarMensajeCobroPredeterminado({
+    clienteNombre: cliente.nombre_completo,
+    tipoPrestamo: "Préstamo",
+    monto: saldo,
+    fechaVencimiento: "",
+  });
 }
 
 interface ClientListProps {
@@ -148,7 +137,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clientes, onEditClient }
       cell: (c) => {
         return (
           <div className="flex flex-col py-0.5">
-            <span className="font-bold text-slate-900 leading-none">{c.nombre_completo}</span>
+            <span className="font-bold text-slate-900 leading-none">{normalizeClientName(c.nombre_completo)}</span>
             <span className="text-[10px] text-slate-550 font-semibold mt-1 flex items-center gap-1">
               <Calendar size={10} className="shrink-0" /> Registrado: {formatDate(c.fecha_registro || "")}
             </span>
