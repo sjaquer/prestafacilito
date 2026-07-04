@@ -11,6 +11,7 @@ import { Cliente } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import { METODOS_PAGO, BANCO_GRUPOS, getBancoForMetodo } from "../lib/constants";
 import { formatCurrency, formatDateWithDay, generarMensajeCobroPredeterminado, normalizeClientName } from "../lib/formatters";
+import Tesseract from "tesseract.js";
 
 const resolveVoucherUrl = (url: string) => {
   if (!url) return "";
@@ -174,6 +175,7 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
   const [showVcrClienteDropdown, setShowVcrClienteDropdown] = useState(false);
   const [vcrSelectedLoanId, setVcrSelectedLoanId] = useState("");
   const [vcrRegistering, setVcrRegistering] = useState(false);
+  const [vcrOcrLoading, setVcrOcrLoading] = useState(false);
 
   // Lightbox para previsualizar vouchers registrados a pantalla completa
   const [selectedLightboxImage, setSelectedLightboxImage] = useState<string | null>(null);
@@ -526,17 +528,81 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
     }
   };
 
-  // Carga directa de voucher (sin OCR)
+  // Carga directa de voucher (con OCR de Tesseract.js)
   const handleVoucherFileSelect = async (file: File) => {
     setVcrFile(file);
     setVcrFileName(file.name);
     setVcrMimeType(file.type);
     setShowVoucherModal(true);
+    setVcrOcrLoading(true);
 
     const reader = new FileReader();
-    reader.onloadend = () => {
+    reader.onloadend = async () => {
       if (typeof reader.result === "string") {
-        setVcrBase64(reader.result.split(",")[1]);
+        const base64Data = reader.result.split(",")[1];
+        setVcrBase64(base64Data);
+
+        try {
+          // Ejecutar OCR local en español
+          const { data: { text } } = await Tesseract.recognize(
+            reader.result,
+            "spa"
+          );
+
+          console.log("OCR Extracted Text:", text);
+
+          // 1. Detectar método de pago (Yape / Plin / Transferencia)
+          const lowerText = text.toLowerCase();
+          if (lowerText.includes("yape")) {
+            setVcrMetodoPago("Yape");
+          } else if (lowerText.includes("plin")) {
+            setVcrMetodoPago("Plin");
+          } else if (lowerText.includes("bcp") || lowerText.includes("interbank") || lowerText.includes("bbva") || lowerText.includes("transferencia")) {
+            setVcrMetodoPago("Transferencia Bancaria");
+          }
+
+          // 2. Detectar monto
+          const cleanText = text.replace(/,/g, "");
+          // Patrón clásico de Yape/Plin/Bancos en Soles (s/120.00, s/. 120, etc.)
+          const montoMatch = cleanText.match(/(?:s\/\.?\s*|monto\s*|total\s*|s\/\s*|s\/\.\s*)(\d+(?:\.\d{1,2})?)/i)
+            || cleanText.match(/(\d+\.\d{2})/);
+          
+          if (montoMatch) {
+            setVcrMonto(montoMatch[1]);
+          }
+
+          // 3. Detectar cliente por coincidencia de palabras
+          const normalizeStr = (str: string) => 
+            str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, "");
+          
+          const normalizedOcr = normalizeStr(text);
+          const ocrWords = new Set(normalizedOcr.split(/\s+/).filter(w => w.length > 2));
+
+          let bestClient = null;
+          let maxMatches = 0;
+
+          for (const c of clientes) {
+            const normalizedName = normalizeStr(c.nombre_completo);
+            const clientWords = normalizedName.split(/\s+/).filter(w => w.length > 2);
+            if (clientWords.length === 0) continue;
+
+            const matches = clientWords.filter(w => ocrWords.has(w)).length;
+            
+            if (matches > maxMatches && matches >= Math.min(2, clientWords.length)) {
+              maxMatches = matches;
+              bestClient = c;
+            }
+          }
+
+          if (bestClient) {
+            setVcrSelectedClienteId(bestClient.id);
+            setVcrClienteSearch(bestClient.nombre_completo);
+          }
+        } catch (err) {
+          console.error("Error al procesar OCR:", err);
+        } finally {
+          setVcrOcrLoading(false);
+        }
       }
     };
     reader.readAsDataURL(file);
@@ -2264,6 +2330,12 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                   onClick={() => fileInputRef.current?.click()}
                   className="flex-1 flex items-center justify-center min-h-[200px] max-h-[280px] bg-white rounded-2xl border border-dashed border-slate-300 hover:border-emerald-500 overflow-hidden relative cursor-pointer transition-all group shadow-sm"
                 >
+                  {vcrOcrLoading && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 text-white z-10">
+                      <Loader2 className="animate-spin text-emerald-400" size={24} />
+                      <span className="text-[10px] font-black uppercase tracking-wider">Leyendo Voucher (OCR)...</span>
+                    </div>
+                  )}
                   {vcrBase64 ? (
                     <>
                       <img
@@ -2405,21 +2477,32 @@ export function Dashboard({ onSelectLoan, onNavigateToClients }: DashboardProps)
                         <div className="space-y-2">
                           <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-[10.5px] leading-normal font-semibold flex items-center gap-2">
                             <CheckCircle size={14} className="shrink-0 text-emerald-600" />
-                            <span>Se asociará automáticamente.</span>
+                            <span>{vcrSelectedLoanId ? "Préstamo seleccionado." : "Haz clic abajo para seleccionar el préstamo/alquiler correspondiente:"}</span>
                           </div>
-                          {vcrClientLoans.length > 1 && (
-                            <div className="space-y-1.5">
-                              {vcrClientLoans.slice(0, 3).map((loan) => (
-                                <div key={loan.id} className="p-2.5 bg-white rounded-xl border border-slate-200 text-[10.5px] leading-normal font-semibold flex items-center justify-between gap-2 shadow-sm">
-                                  <div>
-                                    <span className="block text-slate-800">{loan.tipo_prestamo}</span>
-                                    <span className="block text-slate-500 font-mono">{loan.fecha_emision} · {formatCurrency(loan.monto_capital)}</span>
-                                  </div>
-                                  <span className="text-[9px] uppercase tracking-wider text-indigo-600 font-black">Candidato</span>
+                          <div className="space-y-1.5">
+                            {vcrClientLoans.map((loan) => (
+                              <button
+                                key={loan.id}
+                                type="button"
+                                onClick={() => setVcrSelectedLoanId(loan.id)}
+                                className={`w-full p-2.5 rounded-xl border text-[10.5px] leading-normal font-semibold flex items-center justify-between gap-2 shadow-sm transition-all text-left cursor-pointer ${
+                                  vcrSelectedLoanId === loan.id 
+                                    ? "border-indigo-500 bg-indigo-50/40 text-indigo-700 font-extrabold" 
+                                    : "border-slate-250 bg-white text-slate-700 hover:bg-slate-50"
+                                }`}
+                              >
+                                <div>
+                                  <span className="block text-slate-800 font-bold">{loan.tipo_prestamo}</span>
+                                  <span className="block text-slate-550 font-mono">{loan.fecha_emision} · {formatCurrency(loan.monto_capital)}</span>
                                 </div>
-                              ))}
-                            </div>
-                          )}
+                                <span className={`text-[9px] uppercase tracking-wider font-black ${
+                                  vcrSelectedLoanId === loan.id ? "text-indigo-650" : "text-slate-450"
+                                }`}>
+                                  {vcrSelectedLoanId === loan.id ? "Seleccionado ✓" : "Seleccionar"}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>

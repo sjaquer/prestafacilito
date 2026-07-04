@@ -18,6 +18,7 @@ import {
   Scissors
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import Tesseract from "tesseract.js";
 
 import { buildPaymentSchedule } from "../lib/loanLogic";
 import { formatDateWithDay, formatDateShort } from "../lib/formatters";
@@ -174,6 +175,29 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
     reader.onload = async () => {
       try {
         const base64Data = (reader.result as string).split(",")[1];
+
+        // Ejecutar OCR local para sugerir el monto y método de pago
+        Tesseract.recognize(reader.result as string, "spa").then(({ data: { text } }) => {
+          console.log("OCR General Payment Text:", text);
+          const lowerText = text.toLowerCase();
+          if (lowerText.includes("yape")) {
+            setMetodoPago("Yape");
+          } else if (lowerText.includes("plin")) {
+            setMetodoPago("Plin");
+          } else if (lowerText.includes("bcp") || lowerText.includes("interbank") || lowerText.includes("bbva") || lowerText.includes("transferencia")) {
+            setMetodoPago("Transferencia Bancaria");
+          }
+
+          const cleanText = text.replace(/,/g, "");
+          const montoMatch = cleanText.match(/(?:s\/\.?\s*|monto\s*|total\s*|s\/\s*|s\/\.\s*)(\d+(?:\.\d{1,2})?)/i)
+            || cleanText.match(/(\d+\.\d{2})/);
+          if (montoMatch) {
+            setMonto(montoMatch[1]);
+          }
+        }).catch(err => {
+          console.error("Error en OCR de voucher general:", err);
+        });
+
         const uploadRes = await fetch("/api/upload-voucher", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
