@@ -138,6 +138,30 @@ function isGoogleCalendarConfigured(): boolean {
 /** Obtiene el token de acceso de Google (reutiliza el flujo de Drive) */
 const getGoogleAccessToken = getGoogleDriveAccessToken;
 
+/** Busca un evento en Google Calendar que corresponda al cliente y número de cuota. */
+async function findGoogleCalendarEvent(clienteNombre: string, cuotaNumero: number): Promise<string | null> {
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const query = encodeURIComponent(clienteNombre);
+    const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?q=${query}&singleEvents=true`;
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (response.ok) {
+      const data = await response.json();
+      // Buscar coincidencia donde el resumen contenga tanto "Cuota {cuotaNumero}" como el nombre del cliente
+      const found = (data.items || []).find((item: any) => {
+        const sum = item.summary || "";
+        return sum.includes(`Cuota ${cuotaNumero}`) && sum.includes(clienteNombre);
+      });
+      return found ? found.id : null;
+    }
+  } catch (err: any) {
+    console.error("Error al buscar evento en Google Calendar:", err.message);
+  }
+  return null;
+}
+
 /**
  * Crea o actualiza un evento de Google Calendar.
  * Devuelve el objeto del evento creado/actualizado.
@@ -183,6 +207,24 @@ async function createOrUpdateGoogleCalendarEvent({
   });
 
   if (!response.ok) {
+    if (method === "PUT" && response.status === 404) {
+      console.warn(`Evento ${eventId} no encontrado (404). Intentando crear uno nuevo...`);
+      const postUrl = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
+      const postResponse = await fetch(postUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(eventBody)
+      });
+      if (postResponse.ok) {
+        return await postResponse.json();
+      }
+      const postErrText = await postResponse.text();
+      console.error(`Error de Google Calendar API al recrear evento: ${postErrText}`);
+      throw new Error(`Error en Google Calendar API al recrear: ${postErrText}`);
+    }
     const errText = await response.text();
     console.error(`Error de Google Calendar API (event ${eventId || 'new'}): ${errText}`);
     throw new Error(`Error en Google Calendar API: ${errText}`);
@@ -246,42 +288,74 @@ async function syncLoanScheduleToGoogleCalendar(prestamoId: string) {
       ? prestamo.google_calendar_events
       : [];
 
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+    const hh = String(d.getHours()).padStart(2, "0");
+    const min = String(d.getMinutes()).padStart(2, "0");
+    const ss = String(d.getSeconds()).padStart(2, "0");
+    const timestamp = `${todayStr} ${hh}:${min}:${ss}`;
+
     const updatedEvents = [];
 
     for (const cuota of cuotas) {
       const existing = existingEvents.find((e: any) => e.numero === cuota.numero);
-      const eventId = existing?.eventId;
+      let eventId = existing?.eventId;
+
+      const isPast = cuota.fechaVencimiento < todayStr;
+
+      if (isPast) {
+        // Si ya pasó la cuota, eliminar el evento si existe
+        if (!eventId) {
+          eventId = await findGoogleCalendarEvent(cliente.nombre_completo, cuota.numero);
+        }
+        if (eventId) {
+          console.log(`Eliminando evento pasado de la cuota ${cuota.numero} (Vencimiento: ${cuota.fechaVencimiento})`);
+          await deleteGoogleCalendarEvent(eventId).catch(err =>
+            console.error("Error al borrar evento de calendario pasado:", err)
+          );
+        }
+        continue;
+      }
+
+      // Si no tenemos el eventId en BD, intentar buscarlo en Google Calendar para no duplicar
+      if (!eventId) {
+        eventId = await findGoogleCalendarEvent(cliente.nombre_completo, cuota.numero);
+      }
 
       let colorId = "5"; // Yellow (Banana) - Pendiente por defecto
-      let statusPrefix = "🔔 [PENDIENTE]";
+      let statusPrefix = "[PENDIENTE]";
 
       if (cuota.estado === "Saldada") {
         colorId = "10"; // Green (Basil)
-        statusPrefix = "✅ [PAGADO]";
+        statusPrefix = "[PAGADO]";
       } else if (cuota.estado === "Parcial") {
         colorId = "6"; // Orange (Tangerine)
-        statusPrefix = "🔶 [PARCIAL]";
+        statusPrefix = "[PARCIAL]";
       } else if (cuota.estado === "Vencida") {
         colorId = "11"; // Red (Tomato)
-        statusPrefix = "🚨 [VENCIDO]";
+        statusPrefix = "[VENCIDO]";
       }
 
       const summary = `${statusPrefix} Cuota ${cuota.numero} - ${cliente.nombre_completo}`;
       const description = [
-        `📊 ESTADO DEL CRÉDITO:`,
-        `• Cliente: ${cliente.nombre_completo}`,
-        `• Teléfono: ${cliente.telefono || "No registrado"}`,
-        `• Tipo de Préstamo: ${prestamo.tipo_prestamo || "Personal"}`,
-        `• N° de Cuota: ${cuota.numero} de ${debtState.resumen.totalCuotas}`,
-        `• Monto de la Cuota: S/. ${cuota.montoExigible.toFixed(2)}`,
-        `• Capital de Cuota: S/. ${cuota.capitalPendiente.toFixed(2)}`,
-        cuota.interesOriginal ? `• Interés de Cuota: S/. ${cuota.interesOriginal.toFixed(2)}` : null,
-        cuota.moraPendiente > 0 ? `• Mora Pendiente: S/. ${cuota.moraPendiente.toFixed(2)}` : null,
-        `• Total Pagado en esta cuota: S/. ${cuota.pagado.toFixed(2)}`,
-        `• Saldo Pendiente: S/. ${cuota.saldoPendiente.toFixed(2)}`,
-        `• Fecha de Vencimiento: ${cuota.fechaVencimiento}`,
-        `• Estado de la Cuota: ${cuota.estado}`,
-        `\n📅 Registro actualizado automáticamente desde PrestaFacilito.`
+        `ESTADO DEL CRÉDITO:`,
+        `Cliente: ${cliente.nombre_completo}`,
+        `Teléfono: ${cliente.telefono || "No registrado"}`,
+        `Tipo de Préstamo: ${prestamo.tipo_prestamo || "Personal"}`,
+        `N° de Cuota: ${cuota.numero} de ${debtState.resumen.totalCuotas}`,
+        `Monto de la Cuota: S/. ${cuota.montoExigible.toFixed(2)}`,
+        `Capital de Cuota: S/. ${cuota.capitalPendiente.toFixed(2)}`,
+        cuota.interesOriginal ? `Interés de Cuota: S/. ${cuota.interesOriginal.toFixed(2)}` : null,
+        cuota.moraPendiente > 0 ? `Mora Pendiente: S/. ${cuota.moraPendiente.toFixed(2)}` : null,
+        `Total Pagado en esta cuota: S/. ${cuota.pagado.toFixed(2)}`,
+        `Saldo Pendiente: S/. ${cuota.saldoPendiente.toFixed(2)}`,
+        `Fecha de Vencimiento: ${cuota.fechaVencimiento}`,
+        `Estado de la Cuota: ${cuota.estado}`,
+        `Última actualización de sincronización: ${timestamp}`,
+        `\nRegistro actualizado automáticamente desde PrestaFacilito.`
       ].filter(Boolean).join("\n");
 
       try {
@@ -340,17 +414,17 @@ async function logPaymentToGoogleCalendar(
   if (!isGoogleCalendarConfigured()) return;
 
   try {
-    const summary = `💰 Cobro Recibido: S/. ${monto.toFixed(2)} - ${cliente.nombre_completo}`;
+    const summary = `Cobro Recibido: S/. ${monto.toFixed(2)} - ${cliente.nombre_completo}`;
     const description = [
-      `💰 REGISTRO DE COBRO RECIBIDO:`,
-      `• Cliente: ${cliente.nombre_completo}`,
-      `• Teléfono: ${cliente.telefono || "No registrado"}`,
-      `• Monto Recibido: S/. ${monto.toFixed(2)}`,
-      `• Método de Pago: ${metodoPago}`,
-      `• Tipo de Movimiento: ${clasificacion}`,
-      `• Préstamo de Capital: S/. ${toNumber(prestamo.monto_capital).toFixed(2)}`,
-      `• Fecha del Pago: ${fechaPago}`,
-      `\n📅 Registro creado automáticamente desde PrestaFacilito.`
+      `REGISTRO DE COBRO RECIBIDO:`,
+      `Cliente: ${cliente.nombre_completo}`,
+      `Teléfono: ${cliente.telefono || "No registrado"}`,
+      `Monto Recibido: S/. ${monto.toFixed(2)}`,
+      `Método de Pago: ${metodoPago}`,
+      `Tipo de Movimiento: ${clasificacion}`,
+      `Préstamo de Capital: S/. ${toNumber(prestamo.monto_capital).toFixed(2)}`,
+      `Fecha del Pago: ${fechaPago}`,
+      `\nRegistro creado automáticamente desde PrestaFacilito.`
     ].join("\n");
 
     // Color verde suave es '2' (Sage)
@@ -2643,49 +2717,81 @@ app.post("/api/calendar/sync-month", requireAuth, async (req, res) => {
           const updatedEventsList: any[] = [];
 
           // Procesar todas las cuotas del préstamo
+          const d = new Date();
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, "0");
+          const dd = String(d.getDate()).padStart(2, "0");
+          const todayStr = `${yyyy}-${mm}-${dd}`;
+          const hh = String(d.getHours()).padStart(2, "0");
+          const min = String(d.getMinutes()).padStart(2, "0");
+          const ss = String(d.getSeconds()).padStart(2, "0");
+          const timestamp = `${todayStr} ${hh}:${min}:${ss}`;
+
           for (const cuota of cuotas) {
             const isCurrentMonth = cuota.fechaVencimiento >= curStart && cuota.fechaVencimiento <= curEnd;
             const isPastMonth = cuota.fechaVencimiento >= pastStart && cuota.fechaVencimiento <= pastEnd;
 
             const existing = existingEvents.find((e: any) => e.numero === cuota.numero);
+            let eventId = existing?.eventId;
+
+            const isPast = cuota.fechaVencimiento < todayStr;
+
+            if (isPast) {
+              // Si ya pasó la cuota, eliminar el evento si existe
+              if (!eventId) {
+                eventId = await findGoogleCalendarEvent(cliente.nombre_completo, cuota.numero);
+              }
+              if (eventId) {
+                console.log(`[CalendarSync] Eliminando evento pasado del préstamo ${prestamo.id}, cuota ${cuota.numero}`);
+                await deleteGoogleCalendarEvent(eventId).catch(err =>
+                  console.error("Error al borrar evento de calendario pasado:", err)
+                );
+              }
+              continue;
+            }
 
             if (isCurrentMonth) {
               // Sincronizar cuota de mes actual
+              if (!eventId) {
+                eventId = await findGoogleCalendarEvent(cliente.nombre_completo, cuota.numero);
+              }
+
               let colorId = "5"; // Yellow (Banana) - Pendiente por defecto
-              let statusPrefix = "🔔 [PENDIENTE]";
+              let statusPrefix = "[PENDIENTE]";
 
               if (cuota.estado === "Saldada") {
                 colorId = "10"; // Green (Basil)
-                statusPrefix = "✅ [PAGADO]";
+                statusPrefix = "[PAGADO]";
               } else if (cuota.estado === "Parcial") {
                 colorId = "6"; // Orange (Tangerine)
-                statusPrefix = "🔶 [PARCIAL]";
+                statusPrefix = "[PARCIAL]";
               } else if (cuota.estado === "Vencida") {
                 colorId = "11"; // Red (Tomato)
-                statusPrefix = "🚨 [VENCIDO]";
+                statusPrefix = "[VENCIDO]";
               }
 
               const summary = `${statusPrefix} Cuota ${cuota.numero} - ${cliente.nombre_completo}`;
               const description = [
-                `📊 ESTADO DEL CRÉDITO:`,
-                `• Cliente: ${cliente.nombre_completo}`,
-                `• Teléfono: ${cliente.telefono || "No registrado"}`,
-                `• Tipo de Préstamo: ${prestamo.tipo_prestamo || "Personal"}`,
-                `• N° de Cuota: ${cuota.numero} de ${debtState.resumen.totalCuotas}`,
-                `• Monto de la Cuota: S/. ${cuota.montoExigible.toFixed(2)}`,
-                `• Capital de Cuota: S/. ${cuota.capitalPendiente.toFixed(2)}`,
-                `• Interés de Cuota: S/. ${(cuota.interesOriginal ?? 0).toFixed(2)}`,
-                cuota.moraPendiente > 0 ? `• Mora Pendiente: S/. ${cuota.moraPendiente.toFixed(2)}` : null,
-                `• Total Pagado en esta cuota: S/. ${cuota.pagado.toFixed(2)}`,
-                `• Saldo Pendiente: S/. ${cuota.saldoPendiente.toFixed(2)}`,
-                `• Fecha de Vencimiento: ${cuota.fechaVencimiento}`,
-                `• Estado de la Cuota: ${cuota.estado}`,
-                `\n📅 Registro actualizado automáticamente desde PrestaFacilito.`
+                `ESTADO DEL CRÉDITO:`,
+                `Cliente: ${cliente.nombre_completo}`,
+                `Teléfono: ${cliente.telefono || "No registrado"}`,
+                `Tipo de Préstamo: ${prestamo.tipo_prestamo || "Personal"}`,
+                `N° de Cuota: ${cuota.numero} de ${debtState.resumen.totalCuotas}`,
+                `Monto de la Cuota: S/. ${cuota.montoExigible.toFixed(2)}`,
+                `Capital de Cuota: S/. ${cuota.capitalPendiente.toFixed(2)}`,
+                `Interés de Cuota: S/. ${(cuota.interesOriginal ?? 0).toFixed(2)}`,
+                cuota.moraPendiente > 0 ? `Mora Pendiente: S/. ${cuota.moraPendiente.toFixed(2)}` : null,
+                `Total Pagado en esta cuota: S/. ${cuota.pagado.toFixed(2)}`,
+                `Saldo Pendiente: S/. ${cuota.saldoPendiente.toFixed(2)}`,
+                `Fecha de Vencimiento: ${cuota.fechaVencimiento}`,
+                `Estado de la Cuota: ${cuota.estado}`,
+                `Última actualización de sincronización: ${timestamp}`,
+                `\nRegistro actualizado automáticamente desde PrestaFacilito.`
               ].filter(Boolean).join("\n");
 
               try {
                 const calEvent = await createOrUpdateGoogleCalendarEvent({
-                  eventId: existing?.eventId,
+                  eventId,
                   summary,
                   description,
                   dateStr: cuota.fechaVencimiento,
