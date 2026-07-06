@@ -31,7 +31,7 @@ export const PrestamoDetallePage: React.FC = () => {
     toggleAdjustmentActive
   } = usePrestamos();
 
-  const { registerPago, updatePagoFecha } = usePagos();
+  const { registerPago, updatePagoFecha, deletePago } = usePagos();
 
   const [data, setData] = useState<any>(null);
   const [schedule, setSchedule] = useState<any>(null);
@@ -214,6 +214,17 @@ export const PrestamoDetallePage: React.FC = () => {
       return true;
     } else {
       alert(res.error || "No se pudo actualizar la fecha de pago.");
+      return false;
+    }
+  };
+
+  const handleDeletePago = async (pagoId: string) => {
+    const res = await deletePago(pagoId);
+    if (res.success) {
+      await loadData();
+      return true;
+    } else {
+      alert(res.error || "No se pudo eliminar el pago.");
       return false;
     }
   };
@@ -498,6 +509,7 @@ Por favor, no olvide compartirnos su voucher una vez realizado su abono. ¡Mucha
               return url;
             }}
             onUpdateFechaPago={handleUpdateFechaPago}
+            onDeletePago={handleDeletePago}
           />
         </div>
 

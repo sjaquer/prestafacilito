@@ -129,14 +129,22 @@ export function usePagos() {
     }
   };
 
-  const updatePagoFecha = async (pagoId: string, fechaPago: string) => {
+  const updatePago = async (
+    pagoId: string,
+    pagoData: {
+      fecha_pago?: string;
+      prestamo_id?: string;
+      monto?: number;
+      metodo_pago?: string;
+    }
+  ) => {
     try {
       setLoading(true);
       setError(null);
       const res = await fetch(`/api/amortizaciones/${pagoId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fecha_pago: fechaPago }),
+        body: JSON.stringify(pagoData),
       });
 
       if (res.ok) {
@@ -144,7 +152,33 @@ export function usePagos() {
         return { success: true, data };
       } else {
         const errData = await res.json();
-        return { success: false, error: errData.error || "No se pudo actualizar la fecha de pago." };
+        return { success: false, error: errData.error || "No se pudo actualizar el pago." };
+      }
+    } catch (err: any) {
+      return { success: false, error: err.message || "Error al conectar con el servidor." };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updatePagoFecha = async (pagoId: string, fechaPago: string) => {
+    return updatePago(pagoId, { fecha_pago: fechaPago });
+  };
+
+  const deletePago = async (pagoId: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`/api/amortizaciones/${pagoId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return { success: true, data };
+      } else {
+        const errData = await res.json();
+        return { success: false, error: errData.error || "No se pudo eliminar el pago." };
       }
     } catch (err: any) {
       return { success: false, error: err.message || "Error al conectar con el servidor." };
@@ -161,6 +195,8 @@ export function usePagos() {
     smartAutoSelectLoan,
     fetchAmortizaciones,
     uploadVoucherDirectly,
+    updatePago,
     updatePagoFecha,
+    deletePago,
   };
 }

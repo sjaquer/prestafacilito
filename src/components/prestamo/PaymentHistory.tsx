@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { MessageSquare, Eye, FileText, Image, Calendar, Check, X } from "lucide-react";
+import { MessageSquare, Eye, FileText, Image, Calendar, Check, X, Trash2 } from "lucide-react";
 import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
@@ -14,6 +14,7 @@ interface PaymentHistoryProps {
   onViewComprobante: (url: string) => void;
   resolveVoucherUrl: (url: string | null | undefined) => string;
   onUpdateFechaPago?: (pagoId: string, nuevaFecha: string) => Promise<boolean>;
+  onDeletePago?: (pagoId: string) => Promise<boolean>;
 }
 
 export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
@@ -24,6 +25,7 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
   onViewComprobante,
   resolveVoucherUrl,
   onUpdateFechaPago,
+  onDeletePago,
 }) => {
   const [editingPagoId, setEditingPagoId] = useState<string | null>(null);
   const [editFecha, setEditFecha] = useState<string>("");
@@ -53,6 +55,20 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
       console.error("Error al actualizar la fecha:", err);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (pagoId: string) => {
+    if (!onDeletePago) return;
+    const confirmDelete = window.confirm(
+      "⚠️ ¿Estás seguro de que deseas eliminar este pago de forma permanente? Esto anulará el abono y recalculará el saldo del préstamo."
+    );
+    if (!confirmDelete) return;
+
+    try {
+      await onDeletePago(pagoId);
+    } catch (err) {
+      console.error("Error al eliminar el pago:", err);
     }
   };
 
@@ -265,6 +281,15 @@ Folio de Comprobante: ${folio}. ¡Muchas gracias por su compromiso!`;
                           >
                             <MessageSquare size={13} />
                           </a>
+                        )}
+                        {onDeletePago && (
+                          <button
+                            onClick={() => handleDelete(pago.id)}
+                            className="text-rose-650 hover:text-rose-850 p-1.5 hover:bg-rose-50 rounded-lg transition border-none bg-transparent cursor-pointer"
+                            title="Eliminar abono"
+                          >
+                            <Trash2 size={13} />
+                          </button>
                         )}
                       </div>
                     </div>

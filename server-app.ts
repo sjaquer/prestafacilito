@@ -1617,6 +1617,7 @@ app.get("/api/amortizaciones", requireAuth, async (req, res) => {
       const cliente = prestamo ? clientes.find(c => c.id === prestamo.cliente_id) : null;
       return {
         ...a,
+        cliente_id: cliente ? cliente.id : null,
         cliente_nombre: cliente ? cliente.nombre_completo : "Desconocido",
         cliente_telefono: cliente ? cliente.telefono : "",
         tipo_prestamo: prestamo ? prestamo.tipo_prestamo : "Personal",
@@ -1636,12 +1637,7 @@ app.get("/api/amortizaciones", requireAuth, async (req, res) => {
 app.put("/api/amortizaciones/:id", requireAuth, async (req, res) => {
   try {
     const amortizacionId = req.params.id;
-    const { fecha_pago } = req.body;
-
-    if (!fecha_pago) {
-      res.status(400).json({ error: "La fecha de pago es requerida." });
-      return;
-    }
+    const { fecha_pago, prestamo_id, monto, metodo_pago } = req.body;
 
     // 1. Obtener la amortización actual
     const { data: amortizacion, error: amortErr } = await supabase
@@ -1655,20 +1651,141 @@ app.put("/api/amortizaciones/:id", requireAuth, async (req, res) => {
       return;
     }
 
+    const prestamoIdOld = amortizacion.prestamo_id;
     const fechaAnterior = amortizacion.fecha_pago;
-    const prestamoId = amortizacion.prestamo_id;
 
-    // 2. Actualizar la fecha de pago en Supabase
+    // 2. Preparar campos a actualizar
+    const updateData: any = {};
+    if (fecha_pago !== undefined) updateData.fecha_pago = fecha_pago;
+    if (prestamo_id !== undefined) updateData.prestamo_id = prestamo_id;
+    if (monto !== undefined) updateData.monto = monto;
+    if (metodo_pago !== undefined) updateData.metodo_pago = metodo_pago;
+
+    // Actualizar en Supabase
     const { data: updatedAmort, error: updateErr } = await supabase
       .from("amortizaciones")
-      .update({ fecha_pago })
+      .update(updateData)
       .eq("id", amortizacionId)
       .select()
       .single();
 
     if (updateErr) throw updateErr;
 
-    // 3. Obtener el préstamo
+    // 3. Identificar los préstamos a recalcular
+    const prestamoIdsToRecalculate = [prestamoIdOld];
+    if (prestamo_id && prestamo_id !== prestamoIdOld) {
+      prestamoIdsToRecalculate.push(prestamo_id);
+    }
+
+    const recalculateResults: Record<string, any> = {};
+
+    for (const pId of prestamoIdsToRecalculate) {
+      const { data: prestamo, error: pErr } = await supabase
+        .from("prestamos")
+        .select("*")
+        .eq("id", pId)
+        .single();
+      if (pErr) throw pErr;
+
+      const [aRes, ajRes] = await Promise.all([
+        supabase.from("amortizaciones").select("*").eq("prestamo_id", pId),
+        supabase.from("ajustes_prestamo").select("*").eq("prestamo_id", pId)
+      ]);
+      if (aRes.error) throw aRes.error;
+      if (ajRes.error) throw ajRes.error;
+
+      const pagosActualizados = aRes.data || [];
+      const ajustes = ajRes.data || [];
+
+      const deudaDespues = buildPaymentSchedule(prestamo, pagosActualizados, ajustes, new Date());
+
+      let nuevoEstado = prestamo.estado;
+      if (deudaDespues.resumen.saldoPendiente <= 0.01) {
+        nuevoEstado = "pagado";
+        await supabase
+          .from("prestamos")
+          .update({ estado: "pagado" })
+          .eq("id", pId);
+      } else if (prestamo.estado === "pagado") {
+        nuevoEstado = "activo";
+        await supabase
+          .from("prestamos")
+          .update({ estado: "activo" })
+          .eq("id", pId);
+      }
+
+      // Sincronizar cuotas en Google Calendar
+      syncLoanScheduleToGoogleCalendar(pId).catch((calErr) => {
+        console.error(`Error al sincronizar cuotas tras edición de pago para préstamo ${pId} en Google Calendar:`, calErr);
+      });
+
+      recalculateResults[pId] = {
+        estado_prestamo: nuevoEstado,
+        deuda_actualizada: deudaDespues.resumen,
+        cuotas_actualizadas: deudaDespues.cuotas
+      };
+    }
+
+    // 4. Loguear la acción en bitácora de auditoría
+    const { data: prestamoInfo } = await supabase.from("prestamos").select("cliente_id").eq("id", prestamoIdOld).single();
+    const { data: cliente } = prestamoInfo ? await supabase.from("clientes").select("*").eq("id", prestamoInfo.cliente_id).single() : { data: null };
+    const username = (req as any).user?.username || "sistema";
+
+    const changes = [];
+    if (fecha_pago && fecha_pago !== fechaAnterior) changes.push(`fecha de ${fechaAnterior} a ${fecha_pago}`);
+    if (prestamo_id && prestamo_id !== prestamoIdOld) changes.push(`préstamo de ${prestamoIdOld} a ${prestamo_id}`);
+    if (monto !== undefined && monto !== amortizacion.monto) changes.push(`monto de S/. ${amortizacion.monto} a S/. ${monto}`);
+    if (metodo_pago && metodo_pago !== amortizacion.metodo_pago) changes.push(`método de ${amortizacion.metodo_pago} a ${metodo_pago}`);
+
+    const detailsStr = changes.length > 0 ? `Modificó el pago de S/. ${amortizacion.monto} (${changes.join(", ")}).` : `Modificó el pago sin cambios.`;
+
+    await logAction(
+      username,
+      "EDITAR_PAGO",
+      `${detailsStr} para el cliente ${cliente ? cliente.nombre_completo : "Desconocido"}.`,
+      req,
+      { prestamo_id: prestamoIdOld, cliente_id: prestamoInfo?.cliente_id, amortizacion_id: amortizacionId }
+    );
+
+    res.json({
+      success: true,
+      amortizacion: updatedAmort,
+      ...recalculateResults[updatedAmort.prestamo_id]
+    });
+  } catch (err: any) {
+    console.error("Error al editar pago:", err);
+    res.status(500).json({ error: "Error al editar pago", detail: err.message });
+  }
+});
+
+app.delete("/api/amortizaciones/:id", requireAuth, async (req, res) => {
+  try {
+    const amortizacionId = req.params.id;
+
+    // 1. Obtener la amortización actual
+    const { data: amortizacion, error: amortErr } = await supabase
+      .from("amortizaciones")
+      .select("*")
+      .eq("id", amortizacionId)
+      .single();
+
+    if (amortErr || !amortizacion) {
+      res.status(404).json({ error: "No se encontró la amortización solicitada o no existe." });
+      return;
+    }
+
+    const prestamoId = amortizacion.prestamo_id;
+    const montoEliminado = amortizacion.monto;
+
+    // 2. Eliminar la amortización de Supabase
+    const { error: deleteErr } = await supabase
+      .from("amortizaciones")
+      .delete()
+      .eq("id", amortizacionId);
+
+    if (deleteErr) throw deleteErr;
+
+    // 3. Obtener el préstamo para recalcular
     const { data: prestamo, error: pErr } = await supabase
       .from("prestamos")
       .select("*")
@@ -1711,27 +1828,26 @@ app.put("/api/amortizaciones/:id", requireAuth, async (req, res) => {
     const username = (req as any).user?.username || "sistema";
     await logAction(
       username,
-      "EDITAR_FECHA_PAGO",
-      `Editó la fecha de pago de la amortización de S/. ${amortizacion.monto} del contrato de ${cliente ? cliente.nombre_completo : prestamo.cliente_id}. Cambió de ${fechaAnterior} a ${fecha_pago}.`,
+      "ELIMINAR_PAGO",
+      `Eliminó el pago de S/. ${montoEliminado} registrado con fecha ${amortizacion.fecha_pago} para el cliente ${cliente ? cliente.nombre_completo : "Desconocido"}.`,
       req,
       { prestamo_id: prestamoId, cliente_id: prestamo.cliente_id, amortizacion_id: amortizacionId }
     );
 
-    // 6. Sincronizar cuotas actualizadas en Google Calendar
+    // 6. Sincronizar cuotas en Google Calendar
     syncLoanScheduleToGoogleCalendar(prestamoId).catch((calErr) => {
-      console.error("Error al sincronizar cuotas tras edición de pago en Google Calendar:", calErr);
+      console.error(`Error al sincronizar cuotas tras eliminación de pago para préstamo ${prestamoId} en Google Calendar:`, calErr);
     });
 
     res.json({
       success: true,
-      amortizacion: updatedAmort,
       estado_prestamo: nuevoEstado,
       deuda_actualizada: deudaDespues.resumen,
       cuotas_actualizadas: deudaDespues.cuotas
     });
   } catch (err: any) {
-    console.error("Error al editar fecha de pago:", err);
-    res.status(500).json({ error: "Error al editar fecha de pago", detail: err.message });
+    console.error("Error al eliminar pago:", err);
+    res.status(500).json({ error: "Error al eliminar el pago", detail: err.message });
   }
 });
 
