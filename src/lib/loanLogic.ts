@@ -560,7 +560,7 @@ export const buildPaymentSchedule = (
         const targetCuota = cuotaAfectada || processedCuotas[processedCuotas.length - 1];
         if (targetCuota) {
           targetCuota.capitalAmortizado = round2((targetCuota.capitalAmortizado || 0) + remaining);
-          targetCuota.pagado = round2((targetCuota.pagado || 0) + remaining);
+          targetCuota.pagado = round2((targetCuota.moraPagado || 0) + (targetCuota.interesPagado || 0) + targetCuota.capitalAmortizado);
         } else {
           accumulatedCapitalAmortizado = round2(accumulatedCapitalAmortizado + remaining);
         }
