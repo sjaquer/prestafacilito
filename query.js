@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { supabase } from './src/lib/supabase';
 
 async function test() {
-  const clienteId = '98417e57-fef3-41d3-89ed-ef5cd82c6fac';
+  const clienteId = '2d9f7455-8f26-4499-83ba-513ffa016960';
   
   // Clientes
   const { data: cliente } = await supabase.from('clientes').select('*').eq('id', clienteId).single();

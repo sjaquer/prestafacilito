@@ -427,111 +427,48 @@ export const buildPaymentSchedule = (
       let moraCobrada = 0;
       let interesCobrado = 0;
 
-      // REGLA 1: Pre-generar la cuota correspondiente si aún no existe en processedCuotas
-      const nextCuotaEvent = events.find(
-        (e) => e.tipo === "cuota" && e.fecha.getTime() >= paymentDate.getTime()
-      );
+      // Buscar si existe una cuota correspondiente a este período o previa no saldada
+      let cuotaAfectada = processedCuotas.find((c) => c.estado !== "Saldada");
 
-      if (nextCuotaEvent) {
-        const numero = nextCuotaEvent.numero!;
-        if (!processedCuotas.some((c) => c.numero === numero)) {
+      // Si no hay cuotas no saldadas, crear la siguiente cuota del período
+      if (!cuotaAfectada) {
+        const nextCuotaEvent = events.find((e) => e.tipo === "cuota" && !processedCuotas.some((c) => c.numero === e.numero));
+        if (nextCuotaEvent) {
+          const numero = nextCuotaEvent.numero!;
           const duePoint = nextCuotaEvent.fecha;
           const fechaVencimiento = nextCuotaEvent.fechaStr;
-
-          // Calcular interés mensual base basado en el capital pendiente actual
           const originalInterest = round2(currentCapital * (tasaInteres / 100));
-          let monthlyInterest = originalInterest;
 
-          const startPeriodDate = numero === 1 ? emissionDate : addMonthsClamped(firstDueDate, numero - 2);
-          const diasDesdeInicio = Math.max(0, Math.ceil((paymentDate.getTime() - startPeriodDate.getTime()) / DAY_MS));
-
-          // REGLA 2: Liquidación Express (Primeros 7 días del mes, pago especial para liquidar el saldo total)
-          const isExpressLiquidation = (
-            (event.pago!.raw.tipo_movimiento === "Liquidación Express" ||
-             event.pago!.raw.tipo_movimiento === "Liquidacion Express") &&
-            diasDesdeInicio <= 7
-          );
-
-          // Evaluar ajustes de interés activos sobre esta cuota
-          const ajustesAplicados: string[] = [];
-          let isCongelada = false;
-
-          if (isExpressLiquidation) {
-            monthlyInterest = 0;
-            isCongelada = true;
-          } else {
-            // A. Congelar interés permanente
-            const congelarPerm = activeAjustes.find(
-              (a) => a.tipo === "congelar_interes_permanente" && normalizeDate(a.fecha_inicio).getTime() <= duePoint.getTime()
-            );
-            if (congelarPerm) {
-              monthlyInterest = 0;
-              isCongelada = true;
-              ajustesAplicados.push(congelarPerm.id);
-              interesCongelado = true;
-            }
-
-            // B. Congelar interés temporal
-            const congelarTemp = activeAjustes.find(
-              (a) => a.tipo === "congelar_interes_temporal" &&
-                     normalizeDate(a.fecha_inicio).getTime() <= duePoint.getTime() &&
-                     (!a.fecha_fin || normalizeDate(a.fecha_fin).getTime() >= duePoint.getTime())
-            );
-            if (congelarTemp && !isCongelada) {
-              monthlyInterest = 0;
-              isCongelada = true;
-              ajustesAplicados.push(congelarTemp.id);
-              interesCongelado = true;
-              if (!fechaCongelamientoHasta || new Date(congelarTemp.fecha_fin || "").getTime() > new Date(fechaCongelamientoHasta).getTime()) {
-                fechaCongelamientoHasta = congelarTemp.fecha_fin || "permanente";
-              }
-            }
-
-            // C. Eliminar interés cuota específica
-            const eliminarIntCuota = activeAjustes.find(
-              (a) => a.tipo === "eliminar_interes_cuota" && a.cuota_numero === numero
-            );
-            if (eliminarIntCuota && !isCongelada) {
-              monthlyInterest = 0;
-              isCongelada = true;
-              ajustesAplicados.push(eliminarIntCuota.id);
-            }
-          }
-
-          if (isCongelada && !isExpressLiquidation) {
-            totalBeneficioAplicado = round2(totalBeneficioAplicado + originalInterest);
-          } else if (isExpressLiquidation) {
-            totalBeneficioAplicado = round2(totalBeneficioAplicado + originalInterest); // Cuenta como beneficio de descuento de liquidación
-          }
-
-          processedCuotas.push({
+          cuotaAfectada = {
             numero,
             fechaVencimiento,
             capitalPendiente: currentCapital,
-            interesPendiente: monthlyInterest,
+            interesPendiente: originalInterest,
             moraPendiente: 0,
             penalidad: 0,
             cargosAdicionales: 0,
             montoCuotaBase: originalInterest,
-            montoExigible: monthlyInterest,
+            montoExigible: originalInterest,
             pagado: 0,
-            saldoPendiente: monthlyInterest,
+            saldoPendiente: originalInterest,
             diasVencidos: 0,
             estado: duePoint.getTime() <= now.getTime() ? "Vencida" : "Pendiente",
-            ajustesAplicados,
+            ajustesAplicados: [],
             interesOriginal: originalInterest,
-            congelada: isCongelada,
+            congelada: false,
             moraOriginal: 0,
             capitalAmortizado: 0,
             interesPagado: 0,
             moraPagado: 0,
             ultimoCalculoMoraDate: duePoint,
-            expressLiquidacion: isExpressLiquidation
-          } as any);
+          } as any;
+          processedCuotas.push(cuotaAfectada);
+        } else if (processedCuotas.length > 0) {
+          cuotaAfectada = processedCuotas[processedCuotas.length - 1];
         }
       }
 
-      // Primero calcular y acumular mora para todas las cuotas vencidas hasta la fecha de este pago
+      // 1. Calcular y acumular mora para cuotas vencidas hasta la fecha de este pago
       for (const cuota of processedCuotas) {
         if (cuota.estado === "Saldada") continue;
 
@@ -580,7 +517,7 @@ export const buildPaymentSchedule = (
         cuota.ultimoCalculoMoraDate = paymentDate;
       }
 
-      // Distribuir el pago a las cuotas vencidas/pendientes generadas hasta el momento
+      // 2. Imputar el pago a las cuotas existentes sin desbordar intereses a cuotas futuras
       for (const cuota of processedCuotas) {
         if (remaining <= EPSILON) break;
         if (cuota.estado === "Saldada") continue;
@@ -605,7 +542,7 @@ export const buildPaymentSchedule = (
           interesCobrado = round2(interesCobrado + pagoInteres);
         }
 
-        cuota.pagado = round2((cuota.moraPagado || 0) + (cuota.interesPagado || 0));
+        cuota.pagado = round2((cuota.moraPagado || 0) + (cuota.interesPagado || 0) + (cuota.capitalAmortizado || 0));
         cuota.saldoPendiente = round2(cuota.interesPendiente + cuota.moraPendiente);
         cuota.montoExigible = round2(cuota.interesPendiente + cuota.moraPendiente + cuota.penalidad + cuota.cargosAdicionales);
 
@@ -618,11 +555,12 @@ export const buildPaymentSchedule = (
       }
 
       let capitalAmortizado = 0;
-      // Si aún queda saldo del pago, reduce el capital (Pago Anticipado / Amortización de Capital)
+      // 3. Si queda excedente del pago, se asigna 100% como Amortización de Capital a la cuota actual y reduce el capital pendiente
       if (remaining > EPSILON) {
-        const lastCuota = processedCuotas[processedCuotas.length - 1];
-        if (lastCuota) {
-          lastCuota.capitalAmortizado = round2((lastCuota.capitalAmortizado || 0) + remaining);
+        const targetCuota = cuotaAfectada || processedCuotas[processedCuotas.length - 1];
+        if (targetCuota) {
+          targetCuota.capitalAmortizado = round2((targetCuota.capitalAmortizado || 0) + remaining);
+          targetCuota.pagado = round2((targetCuota.pagado || 0) + remaining);
         } else {
           accumulatedCapitalAmortizado = round2(accumulatedCapitalAmortizado + remaining);
         }
