@@ -2,7 +2,7 @@ import { Amortizacion, CuotaPrestamo, EstadoDeudaPrestamo, Prestamo, AjustePrest
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_INSTALLMENTS = 3;
-const DEFAULT_LATE_INTEREST_RATE_DAILY = 0.001;
+const DEFAULT_LATE_INTEREST_RATE_DAILY = 0;
 const EPSILON = 0.01;
 
 export const round2 = (n: number): number => {
