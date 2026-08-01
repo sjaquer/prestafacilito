@@ -90,6 +90,7 @@ export interface CuotaPrestamo {
   congelada?: boolean;
   moraOriginal?: number;
   capitalAmortizado?: number;
+  capitalAmortizadoPagado?: number;
   interesPagado?: number;
   moraPagado?: number;
   ultimoCalculoMoraDate?: Date;

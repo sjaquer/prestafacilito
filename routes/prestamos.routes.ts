@@ -176,7 +176,7 @@ prestamosRouter.get("/:id", requireAuth, async (req: express.Request, res: expre
     const debtState = buildPaymentSchedule(prestamo, pagosRealizados, { ajustes, referenceDate: new Date() });
     const capital = toNumber(prestamo.monto_capital);
     const tasaInteres = toNumber(prestamo.tasa_interes_porcentaje);
-    const totalBaseExigible = capital + (capital * (tasaInteres / 100) * debtState.resumen.totalCuotas);
+    const totalBaseExigible = debtState.cuotas.reduce((sum, c) => sum + c.montoCuotaBase, 0);
 
     res.json({
       prestamo: {
@@ -190,7 +190,7 @@ prestamosRouter.get("/:id", requireAuth, async (req: express.Request, res: expre
         saldo_pendiente: debtState.resumen.saldoPendiente,
         capital_pendiente: debtState.resumen.capitalPendiente,
         interes_pendiente: debtState.resumen.interesPendiente,
-        mora_acumulada: debtState.resumen.moraAcumulada,
+        mora_acumulada: 0,
         cuotas_totales: debtState.resumen.totalCuotas,
         cuotas_pendientes: debtState.resumen.cuotasPendientes,
         cuotas_vencidas: debtState.resumen.cuotasVencidas,

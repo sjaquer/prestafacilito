@@ -1,4 +1,4 @@
--- PRESTAFACILITO — SCHEMA COMPLETO DE BASE DE DATOS (Fase 2)
+-- PRESTAFACILITO — SCHEMA COMPLETO DE BASE DE DATOS (Fase 3)
 -- Base de Datos: PostgreSQL / Supabase
 
 -- Extensiones requeridas
@@ -33,7 +33,6 @@ CREATE TABLE IF NOT EXISTS prestamos (
   estado TEXT DEFAULT 'activo' CHECK (estado IN ('activo', 'pagado')),
   tipo_prestamo TEXT DEFAULT 'Personal',
   notas TEXT DEFAULT '',
-  migrado_a_alquiler BOOLEAN DEFAULT false,
   google_calendar_events JSONB DEFAULT '[]'::jsonb,
   fecha_registro TIMESTAMPTZ DEFAULT clock_timestamp()
 );
@@ -137,16 +136,15 @@ SELECT
   c.banco_cuenta,
   c.informacion_adicional,
   c.drive_folder_id,
-  COALESCE(COUNT(p.id) FILTER (WHERE (p.migrado_a_alquiler IS NULL OR p.migrado_a_alquiler = false)), 0) AS total_prestamos,
-  COALESCE(COUNT(p.id) FILTER (WHERE p.estado = 'activo' AND (p.migrado_a_alquiler IS NULL OR p.migrado_a_alquiler = false)), 0) AS prestamos_activos,
-  COALESCE(COUNT(p.id) FILTER (WHERE p.estado = 'pagado' AND (p.migrado_a_alquiler IS NULL OR p.migrado_a_alquiler = false)), 0) AS prestamos_liquidados,
-  COALESCE(SUM(p.monto_capital) FILTER (WHERE (p.migrado_a_alquiler IS NULL OR p.migrado_a_alquiler = false)), 0) AS capital_total_prestado,
+  COALESCE(COUNT(p.id), 0) AS total_prestamos,
+  COALESCE(COUNT(p.id) FILTER (WHERE p.estado = 'activo'), 0) AS prestamos_activos,
+  COALESCE(COUNT(p.id) FILTER (WHERE p.estado = 'pagado'), 0) AS prestamos_liquidados,
+  COALESCE(SUM(p.monto_capital), 0) AS capital_total_prestado,
   COALESCE((
     SELECT SUM(a.monto)
     FROM amortizaciones a
     JOIN prestamos pr ON a.prestamo_id = pr.id
     WHERE pr.cliente_id = c.id
-      AND (pr.migrado_a_alquiler IS NULL OR pr.migrado_a_alquiler = false)
   ), 0) AS total_amortizado,
   COALESCE(COUNT(al.id) FILTER (WHERE al.estado = 'activo'), 0) AS alquileres_activos
 FROM clientes c

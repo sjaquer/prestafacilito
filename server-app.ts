@@ -11,6 +11,7 @@ import dashboardRoutes from "./routes/dashboard.routes.js";
 import driveRoutes from "./routes/drive.routes.js";
 import calendarRoutes from "./routes/calendar.routes.js";
 import aiRoutes from "./routes/ai.routes.js";
+import alquileresRoutes from "./routes/alquileres.routes.js";
 
 // Validar JWT_SECRET al arrancar
 getJwtSecret();
@@ -48,6 +49,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/clientes", clientesRoutes);
 app.use("/api/prestamos", prestamosRouter);
 app.use("/api/amortizaciones", amortizacionesRouter);
+app.use("/api/alquileres", alquileresRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/drive", driveRoutes);
 app.use("/api", driveRoutes);
