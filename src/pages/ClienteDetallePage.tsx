@@ -24,6 +24,7 @@ export const ClienteDetallePage: React.FC = () => {
   const { fetchAmortizaciones } = usePagos();
   
   const [clientLoans, setClientLoans] = useState<any[]>([]);
+  const [clientAlquileres, setClientAlquileres] = useState<any[]>([]);
   const [amortizaciones, setAmortizaciones] = useState<any[]>([]);
   const [loadingLoans, setLoadingLoans] = useState(true);
   const [loanError, setLoanError] = useState("");
@@ -37,16 +38,17 @@ export const ClienteDetallePage: React.FC = () => {
 
   const cliente = clientes.find(c => c.id === id);
 
-  // Fetch loans for this client from dashboard API
+  // Fetch loans & alquileres for this client
   const fetchClientLoans = useCallback(async () => {
     if (!id) return;
     setLoadingLoans(true);
     setLoanError("");
     
     try {
-      const [dashRes, amortList] = await Promise.all([
+      const [dashRes, amortList, alquileresRes] = await Promise.all([
         fetch("/api/dashboard"),
-        fetchAmortizaciones()
+        fetchAmortizaciones(),
+        fetch("/api/alquileres")
       ]);
       if (dashRes.ok) {
         const data = await dashRes.json();
@@ -56,6 +58,13 @@ export const ClienteDetallePage: React.FC = () => {
       } else {
         setLoanError("No se pudieron cargar los préstamos del cliente.");
       }
+
+      if (alquileresRes.ok) {
+        const alqData = await alquileresRes.json();
+        const filteredAlq = (alqData || []).filter((a: any) => a.cliente_id === id);
+        setClientAlquileres(filteredAlq);
+      }
+
       setAmortizaciones(amortList || []);
     } catch (err: any) {
       setLoanError(err.message || "Error de red al buscar préstamos.");
@@ -666,6 +675,42 @@ export const ClienteDetallePage: React.FC = () => {
               </div>
             )}
           </Card>
+
+          {/* 🏠 SECCIÓN 5 — ALQUILERES DEL CLIENTE (Fase 7) */}
+          {clientAlquileres.length > 0 && (
+            <Card variant="simple" className="space-y-4">
+              <div>
+                <h3 className="font-black text-slate-900 text-base tracking-tight leading-none flex items-center gap-2">
+                  🏠 Contratos de Alquiler
+                </h3>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
+                  Contratos de arrendamiento activos e históricos del cliente
+                </p>
+              </div>
+
+              <div className="border-t border-slate-200/80" />
+
+              <div className="space-y-2">
+                {clientAlquileres.map((alq) => (
+                  <div
+                    key={alq.id}
+                    className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs flex items-center justify-between gap-3"
+                  >
+                    <div>
+                      <span className="font-extrabold text-slate-900 block">{alq.propiedad_direccion || "Propiedad sin dirección"}</span>
+                      <span className="text-slate-500 font-medium">
+                        Renta: S/ {(Number(alq.monto_renta_mensual) || 0).toFixed(2)}/mes • Día {alq.dia_pago_mensual || 1} c/mes
+                      </span>
+                    </div>
+
+                    <Badge variant={alq.estado === "activo" ? "success" : "neutral"}>
+                      {alq.estado === "activo" ? "Activo" : "Finalizado"}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Right Column: Interaction timeline Notes */}

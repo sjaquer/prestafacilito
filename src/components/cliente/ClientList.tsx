@@ -1,378 +1,93 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import {
-  Phone, Calendar, AlertCircle, CheckCircle, ChevronDown, ChevronUp,
-  Edit3, Eye, Shield, ShieldCheck, ShieldAlert, MapPin, CreditCard,
-  Info, MessageSquare, Bell
-} from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { Search, UserPlus, Users } from "lucide-react";
 import { Cliente } from "../../types";
-import { Badge } from "../ui/Badge";
-import { DataTable, ColumnDef } from "../ui/DataTable";
-import { formatCurrency, formatDate, getNombreUsuario, generarMensajeCobroPredeterminado, normalizeClientName } from "../../lib/formatters";
-import { useAuth } from "../../hooks/useAuth";
-
-// Gender detection for WhatsApp templates
-const NOMBRES_FEMENINOS = new Set([
-  'maria','ana','lucia','sofia','elena','carmen','rosa','claudia','andrea','patricia',
-  'laura','diana','gloria','monica','sandra','alejandra','valentina','gabriela','lorena',
-  'jessica','vanessa','adriana','paola','natalia','carolina','fernanda','daniela','sara',
-  'isabel','pilar','julia','alicia','beatriz','cristina','irene','mariana','raquel',
-  'silvia','yolanda','angela','consuelo','esperanza','graciela','luz','mercedes','norma',
-  'olga','rebeca','susana','veronica','wendy','xiomara','yasmin','zoraida','pamela',
-  'karina','brenda','gisela','rocio','miriam','nancy','marisol','milagros','flor',
-  'liliana','estela','cecilia','catalina','evelyn','fabiola','helen','iliana'
-]);
-
-function getMensajeRecordatorio(cliente: Cliente, username: string | null): string {
-  const exigible = Number(cliente.total_exigible) || 0;
-  const amortizado = Number(cliente.total_amortizado) || 0;
-  const saldo = Math.max(0, exigible - amortizado);
-  return generarMensajeCobroPredeterminado({
-    clienteNombre: cliente.nombre_completo,
-    tipoPrestamo: "Préstamo",
-    monto: saldo,
-    fechaVencimiento: "",
-  });
-}
+import { ClientCard } from "./ClientCard";
 
 interface ClientListProps {
   clientes: Cliente[];
-  onEditClient: (cliente: Cliente) => void;
+  isLoading?: boolean;
+  onEditClient?: (cliente: Cliente) => void;
+  onOpenNewClientForm?: () => void;
 }
 
-export const ClientList: React.FC<ClientListProps> = ({ clientes, onEditClient }) => {
-  const { user } = useAuth();
-  const [filterType, setFilterType] = useState<"todos" | "con_deuda" | "sin_deuda">("todos");
+export const ClientList: React.FC<ClientListProps> = ({
+  clientes,
+  isLoading = false,
+  onEditClient,
+  onOpenNewClientForm
+}) => {
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const getClientRiskAssessment = (cliente: Cliente) => {
-    const activeLoans = cliente.prestamos_activos || 0;
-    const totalLoans = cliente.total_prestamos || 0;
-    const exigible = Number(cliente.total_exigible) || 0;
-    const amortizado = Number(cliente.total_amortizado) || 0;
-    const outstanding = Math.max(0, exigible - amortizado);
-    let level: "Excelente" | "Bajo" | "Medio" | "Alto";
-    let score = 100;
-    let rationale = "";
-    let recommendations: string[] = [];
+  const clientesFiltrados = useMemo(() => {
+    const query = searchTerm.toLowerCase().trim();
+    if (!query) return clientes;
 
-    if (activeLoans > 1 || outstanding > 1500) {
-      level = "Alto";
-      score = activeLoans > 2 ? 25 : 45;
-      rationale = `El prestatario tiene un nivel de endeudamiento elevado con ${activeLoans} deudas activas y un saldo pendiente de S/. ${outstanding.toLocaleString("es-PE", { minimumFractionDigits: 2 })}.`;
-      recommendations = [
-        "Rechazar preventivamente nuevos préstamos hasta liquidar deudas vigentes.",
-        "Priorizar visitas y llamadas en el canal de cobros.",
-        "Solicitar un codeudor solidario o aval para futuras deudas."
-      ];
-    } else if (activeLoans === 1 || outstanding > 0) {
-      level = "Medio";
-      score = 70;
-      rationale = `El cliente cuenta con una deuda vigente y un saldo pendiente de S/. ${outstanding.toLocaleString("es-PE", { minimumFractionDigits: 2 })}. Comportamiento regular.`;
-      recommendations = [
-        "Limitar nuevas deudas o ampliaciones de capital por el momento.",
-        "Monitorear la puntualidad de sus cuotas actuales.",
-        "Enviar recordatorios amistosos 2 días antes de la fecha de cobro."
-      ];
-    } else if (totalLoans > 0) {
-      level = "Excelente";
-      score = 98;
-      rationale = `¡Excelente historial! Cuenta con ${totalLoans} deuda(s) totalmente cancelada(s) y sin atrasos.`;
-      recommendations = [
-        "Aprobar ampliaciones de crédito de forma rápida y preferente.",
-        "Ofrecer incentivos de fidelidad o flexibilizar plazos."
-      ];
-    } else {
-      level = "Bajo";
-      score = 90;
-      rationale = "Cliente nuevo sin historial de deudas registrado en la plataforma.";
-      recommendations = [
-        "Comenzar con montos prudentes (menores a S/. 500) para medir puntualidad.",
-        "Evaluar estabilidad residencial y referencias personales básicas."
-      ];
-    }
+    return clientes.filter(
+      (c) =>
+        (c.nombre_completo || "").toLowerCase().includes(query) ||
+        (c.apodo || "").toLowerCase().includes(query) ||
+        (c.telefono || "").includes(query)
+    );
+  }, [clientes, searchTerm]);
 
-    return { level, score, rationale, recommendations };
-  };
-
-  const getAvatarGradient = (name: string) => {
-    const gradients = [
-      "from-indigo-500 to-violet-600",
-      "from-emerald-500 to-teal-600",
-      "from-amber-500 to-orange-500",
-      "from-rose-500 to-pink-600",
-      "from-blue-500 to-cyan-600",
-      "from-purple-500 to-fuchsia-600"
-    ];
-    return gradients[name.charCodeAt(0) % gradients.length];
-  };
-
-  const riskConfig = {
-    Excelente: { color: "text-emerald-700", bg: "bg-emerald-50 border border-emerald-200", bar: "bg-emerald-600", Icon: ShieldCheck },
-    Bajo: { color: "text-blue-700", bg: "bg-blue-50 border border-blue-200", bar: "bg-blue-600", Icon: Shield },
-    Medio: { color: "text-amber-700", bg: "bg-amber-50 border border-amber-250", bar: "bg-amber-600", Icon: ShieldAlert },
-    Alto: { color: "text-rose-700", bg: "bg-rose-50 border border-rose-200", bar: "bg-rose-600", Icon: ShieldAlert },
-  };
-
-  const displayPhone = (phoneNum?: string) => {
-    if (!phoneNum) return "Sin teléfono";
-    const clean = phoneNum.replace(/\D/g, '');
-    if (clean.startsWith('51') && clean.length === 11) {
-      return `+51 ${clean.slice(2, 5)} ${clean.slice(5, 8)} ${clean.slice(8)}`;
-    }
-    return phoneNum.startsWith("'") ? phoneNum.substring(1) : phoneNum;
-  };
-
-  // Filtrar clientes
-  const clientesFiltrados = clientes.filter((c) => {
-    if (filterType === "con_deuda") return (c.prestamos_activos || 0) > 0;
-    if (filterType === "sin_deuda") return !(c.prestamos_activos || 0);
-    return true;
-  });
-
-  const columns: ColumnDef<Cliente>[] = [
-    {
-      header: "Cliente",
-      accessorKey: "nombre_completo",
-      sortable: true,
-      cell: (c) => {
-        return (
-          <div className="flex flex-col py-0.5">
-            <span className="font-bold text-slate-900 leading-none">{normalizeClientName(c.nombre_completo)}</span>
-            <span className="text-[10px] text-slate-550 font-semibold mt-1 flex items-center gap-1">
-              <Calendar size={10} className="shrink-0" /> Registrado: {formatDate(c.fecha_registro || "")}
-            </span>
-          </div>
-        );
-      }
-    },
-    {
-      header: "Contacto",
-      accessorKey: "telefono",
-      sortable: true,
-      cell: (c) => (
-        <div className="flex flex-col gap-1">
-          <span className="text-xs text-slate-700 font-mono font-bold">{displayPhone(c.telefono)}</span>
-          {c.direccion && (
-            <span className="text-[10px] text-slate-500 flex items-center gap-1 max-w-[180px] truncate">
-              <MapPin size={9} className="shrink-0" /> {c.direccion}
-            </span>
-          )}
-        </div>
-      )
-    },
-    {
-      header: "Deuda Activa",
-      accessorKey: "prestamos_activos",
-      sortable: true,
-      cell: (c) => {
-        const hasDebt = (c.prestamos_activos || 0) > 0;
-        const exigible = Number(c.total_exigible) || 0;
-        const amortizado = Number(c.total_amortizado) || 0;
-        const saldo = Math.max(0, exigible - amortizado);
-
-        return (
-          <div className="flex flex-col gap-1">
-            {hasDebt ? (
-              <>
-                <span className="font-mono text-rose-600 font-extrabold text-xs md:text-sm">
-                  {formatCurrency(saldo)}
-                </span>
-                <span className="text-[10px] text-indigo-600 font-bold">
-                  {c.prestamos_activos} deuda{c.prestamos_activos !== 1 ? "s" : ""} activa{c.prestamos_activos !== 1 ? "s" : ""}
-                </span>
-              </>
-            ) : (
-              <span className="text-emerald-650 text-xs font-bold flex items-center gap-1 select-none">
-                <CheckCircle size={11} /> Al día
-              </span>
-            )}
-          </div>
-        );
-      }
-    },
-    {
-      header: "Riesgo & Score",
-      accessorKey: "total_prestamos",
-      sortable: true,
-      cell: (c) => {
-        const assessment = getClientRiskAssessment(c);
-        const risk = riskConfig[assessment.level];
-        return (
-          <div className="flex flex-col gap-1">
-            <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider ${risk.color}`}>
-              <risk.Icon size={12} className="shrink-0" /> {assessment.level}
-            </span>
-            <span className="text-[10px] text-slate-550 font-semibold font-mono">
-              Score: {assessment.score}/100
-            </span>
-          </div>
-        );
-      }
-    },
-    {
-      header: "Acciones",
-      cell: (c) => {
-        const hasDebt = (c.prestamos_activos || 0) > 0;
-        const waPhone = (c.telefono || '').replace(/\D/g, '');
-        const recordatorio = getMensajeRecordatorio(c, user);
-
-        return (
-          <div className="flex items-center justify-end gap-1.5 flex-wrap">
-            {waPhone && hasDebt && (
-              <a
-                href={`https://wa.me/${waPhone}?text=${encodeURIComponent(recordatorio)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition min-w-[34px] h-[34px] flex items-center justify-center shrink-0 decoration-none cursor-pointer"
-                title="Enviar recordatorio de cuota"
-              >
-                <Bell size={13} />
-              </a>
-            )}
-            
-            {waPhone && (
-              <a
-                href={`https://wa.me/${waPhone}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 rounded-xl bg-emerald-50 border border-emerald-250/80 text-emerald-700 hover:bg-emerald-100 transition min-w-[34px] h-[34px] flex items-center justify-center shrink-0 decoration-none cursor-pointer"
-                title="WhatsApp Directo"
-              >
-                <Phone size={13} />
-              </a>
-            )}
-
-            <button
-              onClick={() => onEditClient(c)}
-              className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition min-w-[34px] h-[34px] flex items-center justify-center shrink-0 border-none cursor-pointer"
-              title="Editar cliente"
-            >
-              <Edit3 size={13} />
-            </button>
-
-            <Link
-              to={`/clientes/${c.id}`}
-              className="p-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition min-w-[34px] h-[34px] flex items-center justify-center shrink-0 decoration-none cursor-pointer"
-              title="Ver Perfil y Notas"
-            >
-              <Eye size={13} />
-            </Link>
-          </div>
-        );
-      }
-    }
-  ];
-
-  const renderExpandedRow = (c: Cliente) => {
-    const assessment = getClientRiskAssessment(c);
-    const risk = riskConfig[assessment.level];
-
+  if (isLoading) {
     return (
-      <div className="space-y-4">
-        <div className="flex flex-col md:flex-row gap-4 justify-between">
-          <div className="space-y-2 flex-1">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-indigo-650 uppercase tracking-widest block">Evaluación de Crédito</span>
-              <span className={`text-[10px] font-black font-mono px-2.5 py-0.5 rounded-lg border ${risk.bg} ${risk.color}`}>
-                Score: {assessment.score}/100
-              </span>
-            </div>
-            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-              <div className={`h-full rounded-full transition-all duration-700 ${risk.bar}`} style={{ width: `${assessment.score}%` }} />
-            </div>
-            <p className="text-xs text-slate-650 leading-relaxed font-semibold mt-1.5">{assessment.rationale}</p>
-          </div>
-
-          {(c.numero_cuenta || c.informacion_adicional) && (
-            <div className="md:w-72 bg-slate-50 border border-slate-200/80 rounded-2xl p-3 space-y-2">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">Datos Financieros</span>
-              {c.numero_cuenta && (
-                <div className="flex items-start gap-2 text-xs">
-                  <CreditCard size={12} className="text-indigo-650 shrink-0 mt-0.5" />
-                  <span className="text-slate-750 font-mono break-all">{c.numero_cuenta}</span>
-                </div>
-              )}
-              {c.informacion_adicional && (
-                <div className="flex items-start gap-2 text-xs">
-                  <Info size={12} className="text-slate-550 shrink-0 mt-0.5" />
-                  <span className="text-slate-700 font-medium">{c.informacion_adicional}</span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="border-t border-slate-200/60 pt-3">
-          <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-2">Recomendaciones del Evaluador</span>
-          <ul className="space-y-1.5 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1.5">
-            {assessment.recommendations.map((rec, i) => (
-              <li key={i} className="flex items-start gap-2 text-xs text-slate-600 font-semibold leading-relaxed">
-                <CheckCircle size={12} className="text-indigo-600 shrink-0 mt-0.5" />
-                <span>{rec}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-8 shadow-sm flex flex-col items-center justify-center min-h-[350px] space-y-3">
+        <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-xs font-medium text-slate-500">Cargando directorio de clientes...</p>
       </div>
     );
-  };
-
-  const handleExportCsv = () => {
-    const csvHeaders = ["Nombre Completo", "Telefono", "Direccion", "Registro", "Préstamos Activos", "Total Exigible", "Total Amortizado", "Observaciones"];
-    const csvRows = clientes.map(c => [
-      c.nombre_completo,
-      c.telefono || "",
-      c.direccion || "",
-      c.fecha_registro || "",
-      c.prestamos_activos || 0,
-      c.total_exigible || 0,
-      c.total_amortizado || 0,
-      c.observaciones || ""
-    ]);
-
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [csvHeaders.join(","), ...csvRows.map(e => e.join(","))].join("\n");
-      
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `prestafacilito_clientes_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  }
 
   return (
     <div className="space-y-4">
-      {/* Filtros Rápidos */}
-      <div className="flex justify-between items-center gap-4">
-        <div className="flex bg-slate-100 border border-slate-200 p-1 rounded-xl gap-0.5 select-none shrink-0">
-          {(["todos", "con_deuda", "sin_deuda"] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFilterType(f)}
-              className={`px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer border-none ${
-                filterType === f 
-                  ? "bg-indigo-650 text-white shadow-md shadow-indigo-650/10" 
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              {f === "todos" ? "Todos" : f === "con_deuda" ? "Con Deuda" : "Sin Deuda"}
-            </button>
-          ))}
+      {/* Buscador de Clientes */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por nombre, apodo o teléfono..."
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50 transition-all font-medium"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 self-end sm:self-auto">
+          <span>Mostrando {clientesFiltrados.length} de {clientes.length} clientes</span>
         </div>
       </div>
 
-      <DataTable
-        data={clientesFiltrados}
-        columns={columns}
-        searchPlaceholder="Buscar clientes por nombre, teléfono..."
-        searchKey={(c) => `${c.nombre_completo} ${c.telefono || ""} ${c.direccion || ""}`}
-        pageSize={12}
-        renderExpandedRow={renderExpandedRow}
-        emptyMessage="No se encontraron clientes registrados con los filtros actuales."
-        onExportCsv={handleExportCsv}
-      />
+      {/* Grid de Tarjetas de Cliente */}
+      {clientesFiltrados.length === 0 ? (
+        <div className="p-12 text-center bg-white border border-dashed border-slate-200 rounded-2xl space-y-3">
+          <Users className="w-8 h-8 text-slate-300 mx-auto" />
+          <p className="text-xs text-slate-500 font-medium">
+            {searchTerm
+              ? `No se encontraron clientes que coincidan con "${searchTerm}".`
+              : "No hay clientes registrados en el sistema."}
+          </p>
+          {onOpenNewClientForm && (
+            <button
+              onClick={onOpenNewClientForm}
+              className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl shadow-sm hover:bg-emerald-700 transition-all inline-flex items-center gap-1.5"
+            >
+              <UserPlus className="w-4 h-4" /> Registrar Primer Cliente
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {clientesFiltrados.map((cliente) => (
+            <ClientCard
+              key={cliente.id}
+              cliente={cliente}
+              onEditClient={onEditClient}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

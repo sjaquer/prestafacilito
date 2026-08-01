@@ -12,12 +12,16 @@ export interface Cliente {
   drive_folder_id?: string;
   // Campos calculados desde la vista
   prestamos_activos?: number;
+  prestamos_liquidados?: number;
   total_prestamos?: number;
   capital_total_prestado?: number;
   total_exigible?: number;
   total_amortizado?: number;
   alquileres_activos?: number;
   score?: 'A' | 'B' | 'C' | null;
+  score_efectivo?: 'A' | 'B' | 'C' | null;
+  score_sobreescrito?: boolean;
+  score_numerico?: number;
 }
 
 export interface Prestamo {
