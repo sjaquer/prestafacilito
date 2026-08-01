@@ -10,6 +10,8 @@ import {
   GOOGLE_DRIVE_CLIENTES_FOLDER_ID
 } from "../services/google-drive.js";
 
+import { calcularScoreCliente } from "../src/lib/scoreLogic.js";
+
 const router = express.Router();
 
 // Listar todos los clientes
@@ -218,6 +220,94 @@ router.delete("/:id/documentos/:docId", requireAuth, async (req: AuthRequest, re
   } catch (err: any) {
     console.error('Error al eliminar documento:', err);
     res.status(500).json({ error: 'Error al eliminar documento', detail: err.message });
+  }
+});
+
+// Obtener / Calcular Score del Cliente (Fase 6)
+router.get("/:id/score", requireAuth, async (req: express.Request, res: express.Response) => {
+  try {
+    const clienteId = req.params.id;
+
+    const [prestamosRes, amortRes, scoreRes] = await Promise.all([
+      supabase.from("prestamos").select("*").eq("cliente_id", clienteId),
+      supabase.from("amortizaciones").select("*"),
+      supabase.from("score_clientes").select("*").eq("cliente_id", clienteId).maybeSingle()
+    ]);
+
+    const prestamos = prestamosRes.data || [];
+    const amortizaciones = amortRes.data || [];
+    const scoreExistente = scoreRes.data;
+
+    const scoreCalculado = calcularScoreCliente(prestamos, amortizaciones);
+
+    // Persistir o actualizar en score_clientes
+    await supabase.from("score_clientes").upsert(
+      {
+        cliente_id: clienteId,
+        score_numerico: scoreCalculado.scoreNumerico,
+        score_letra: scoreCalculado.scoreLetra,
+        cuotas_totales: scoreCalculado.cuotasTotales,
+        cuotas_a_tiempo: scoreCalculado.cuotasPagadasATiempo,
+        cuotas_completas: scoreCalculado.cuotasPagadasCompletas,
+        prestamos_liquidados: scoreCalculado.prestamosLiquidados,
+        prestamos_totales: scoreCalculado.prestamosTotales,
+        dias_atraso_promedio: scoreCalculado.diasAtrasoPromedio,
+        ultima_actualizacion: new Date().toISOString()
+      },
+      { onConflict: "cliente_id" }
+    );
+
+    const scoreEfectivo = scoreExistente?.score_manual || scoreCalculado.scoreLetra;
+
+    res.json({
+      scoreNumerico: scoreCalculado.scoreNumerico,
+      scoreLetra: scoreCalculado.scoreLetra,
+      scoreEfectivo,
+      sobreescrito: !!scoreExistente?.score_manual,
+      scoreManual: scoreExistente?.score_manual || null,
+      motivoOverride: scoreExistente?.motivo_override || "",
+      detalle: {
+        cuotasTotales: scoreCalculado.cuotasTotales,
+        cuotasPagadasATiempo: scoreCalculado.cuotasPagadasATiempo,
+        cuotasPagadasCompletas: scoreCalculado.cuotasPagadasCompletas,
+        prestamosLiquidados: scoreCalculado.prestamosLiquidados,
+        prestamosTotales: scoreCalculado.prestamosTotales,
+        diasAtrasoPromedio: scoreCalculado.diasAtrasoPromedio
+      }
+    });
+  } catch (err: any) {
+    console.error("Error al obtener score de cliente:", err);
+    res.status(500).json({ error: "Error al obtener score del cliente", detail: err.message });
+  }
+});
+
+// Override manual del Score del Cliente (Fase 6)
+router.put("/:id/score/override", requireAuth, async (req: AuthRequest, res: express.Response) => {
+  try {
+    const clienteId = req.params.id;
+    const { score_manual, motivo } = req.body;
+
+    if (score_manual !== null && !["A", "B", "C"].includes(score_manual)) {
+      res.status(400).json({ error: "El score manual debe ser 'A', 'B', 'C' o null" });
+      return;
+    }
+
+    const { error } = await supabase.from("score_clientes").upsert(
+      {
+        cliente_id: clienteId,
+        score_manual: score_manual || null,
+        motivo_override: motivo || "",
+        ultima_actualizacion: new Date().toISOString()
+      },
+      { onConflict: "cliente_id" }
+    );
+
+    if (error) throw error;
+
+    res.json({ success: true, scoreManual: score_manual, motivoOverride: motivo || "" });
+  } catch (err: any) {
+    console.error("Error al sobreescribir score:", err);
+    res.status(500).json({ error: "Error al sobreescribir score", detail: err.message });
   }
 });
 

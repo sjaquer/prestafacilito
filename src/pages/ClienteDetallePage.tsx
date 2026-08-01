@@ -14,6 +14,8 @@ import { Badge } from "../components/ui/Badge";
 import { ClientFinancialSummary } from "../components/cliente/ClientFinancialSummary";
 import { ClientNotes } from "../components/cliente/ClientNotes";
 import { formatCurrency, formatDate } from "../lib/formatters";
+import { ScoreBadge } from "../components/ui/ScoreBadge";
+import { Modal } from "../components/ui/Modal";
 
 export const ClienteDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +27,13 @@ export const ClienteDetallePage: React.FC = () => {
   const [amortizaciones, setAmortizaciones] = useState<any[]>([]);
   const [loadingLoans, setLoadingLoans] = useState(true);
   const [loanError, setLoanError] = useState("");
+
+  // Score State (Fase 6)
+  const [scoreData, setScoreData] = useState<any>(null);
+  const [showScoreModal, setShowScoreModal] = useState(false);
+  const [overrideScore, setOverrideScore] = useState<"A" | "B" | "C" | "restablecer">("A");
+  const [overrideMotivo, setOverrideMotivo] = useState("");
+  const [isSavingScore, setIsSavingScore] = useState(false);
 
   const cliente = clientes.find(c => c.id === id);
 
@@ -55,9 +64,51 @@ export const ClienteDetallePage: React.FC = () => {
     }
   }, [id, fetchAmortizaciones]);
 
+  const fetchScore = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await fetch(`/api/clientes/${id}/score`);
+      if (res.ok) {
+        const data = await res.json();
+        setScoreData(data);
+      }
+    } catch (err) {
+      console.error("Error al cargar score del cliente:", err);
+    }
+  }, [id]);
+
   useEffect(() => {
     fetchClientLoans();
-  }, [fetchClientLoans]);
+    fetchScore();
+  }, [fetchClientLoans, fetchScore]);
+
+  const handleSaveScoreOverride = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id) return;
+    setIsSavingScore(true);
+
+    try {
+      const targetScore = overrideScore === "restablecer" ? null : overrideScore;
+      const res = await fetch(`/api/clientes/${id}/score/override`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          score_manual: targetScore,
+          motivo: overrideMotivo
+        })
+      });
+
+      if (res.ok) {
+        setShowScoreModal(false);
+        setOverrideMotivo("");
+        await fetchScore();
+      }
+    } catch (err) {
+      console.error("Error al guardar override del score:", err);
+    } finally {
+      setIsSavingScore(false);
+    }
+  };
 
   const clientMoraDetails = useMemo(() => {
     const activeClientLoans = clientLoans.filter(l => l.estado === "activo");
@@ -308,6 +359,169 @@ export const ClienteDetallePage: React.FC = () => {
 
       {/* Financial Summary KPIs */}
       <ClientFinancialSummary cliente={cliente} />
+
+      {/* 🏆 TARJETA DE SCORE DE CLIENTE (Fase 6) */}
+      <Card variant="simple" className="p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2">
+            <h3 className="font-extrabold text-slate-800 text-sm">Score de Comportamiento de Pago</h3>
+            <ScoreBadge
+              score={scoreData?.scoreEfectivo}
+              sobreescrito={scoreData?.sobreescrito}
+              size="md"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowScoreModal(true)}
+            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all self-start sm:self-auto"
+          >
+            ⚙️ Sobreescribir Score Manualmente
+          </button>
+        </div>
+
+        {scoreData ? (
+          <div className="space-y-3 text-xs">
+            <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+              <span className="font-semibold text-slate-600">Puntuación Numérica Calculada:</span>
+              <span className="font-extrabold text-slate-900 text-sm">
+                {scoreData.scoreNumerico} / 100
+              </span>
+            </div>
+
+            {scoreData.sobreescrito && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 font-medium">
+                <strong>Score Manual Activo ({scoreData.scoreManual}):</strong> {scoreData.motivoOverride || "Sin motivo especificado"}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-slate-700">
+              <div className="p-2.5 bg-white border border-slate-200 rounded-xl">
+                <span className="text-[10px] text-slate-400 font-bold block">Cuotas a Tiempo</span>
+                <span className="font-bold text-emerald-600">
+                  {scoreData.detalle.cuotasPagadasATiempo} / {scoreData.detalle.cuotasTotales}
+                </span>
+              </div>
+
+              <div className="p-2.5 bg-white border border-slate-200 rounded-xl">
+                <span className="text-[10px] text-slate-400 font-bold block">Cuotas Completas</span>
+                <span className="font-bold text-slate-800">
+                  {scoreData.detalle.cuotasPagadasCompletas} / {scoreData.detalle.cuotasTotales}
+                </span>
+              </div>
+
+              <div className="p-2.5 bg-white border border-slate-200 rounded-xl">
+                <span className="text-[10px] text-slate-400 font-bold block">Préstamos Liquidados</span>
+                <span className="font-bold text-blue-600">
+                  {scoreData.detalle.prestamosLiquidados} / {scoreData.detalle.prestamosTotales}
+                </span>
+              </div>
+
+              <div className="p-2.5 bg-white border border-slate-200 rounded-xl">
+                <span className="text-[10px] text-slate-400 font-bold block">Atraso Promedio</span>
+                <span className="font-bold text-red-600">
+                  {scoreData.detalle.diasAtrasoPromedio} días
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400 italic">Cargando score del cliente...</p>
+        )}
+      </Card>
+
+      {/* Modal para Sobreescribir Score Manualmente */}
+      <Modal
+        isOpen={showScoreModal}
+        onClose={() => setShowScoreModal(false)}
+        title="Cambiar Score Manualmente"
+        size="sm"
+      >
+        <form onSubmit={handleSaveScoreOverride} className="space-y-4 text-xs">
+          <p className="text-slate-600">
+            Score calculado automáticamente: <strong>{scoreData?.scoreLetra || "Sin datos"}</strong>
+          </p>
+
+          <div>
+            <label className="font-bold text-slate-700 block mb-1.5">Nuevo Score Manual:</label>
+            <div className="grid grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setOverrideScore("A")}
+                className={`py-2 rounded-xl font-extrabold border transition-all ${
+                  overrideScore === "A"
+                    ? "bg-emerald-600 text-white border-emerald-600"
+                    : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                }`}
+              >
+                A
+              </button>
+              <button
+                type="button"
+                onClick={() => setOverrideScore("B")}
+                className={`py-2 rounded-xl font-extrabold border transition-all ${
+                  overrideScore === "B"
+                    ? "bg-amber-500 text-white border-amber-500"
+                    : "bg-amber-50 text-amber-700 border-amber-200"
+                }`}
+              >
+                B
+              </button>
+              <button
+                type="button"
+                onClick={() => setOverrideScore("C")}
+                className={`py-2 rounded-xl font-extrabold border transition-all ${
+                  overrideScore === "C"
+                    ? "bg-red-600 text-white border-red-600"
+                    : "bg-red-50 text-red-700 border-red-200"
+                }`}
+              >
+                C
+              </button>
+              <button
+                type="button"
+                onClick={() => setOverrideScore("restablecer")}
+                className={`py-2 rounded-xl font-bold text-[10px] border transition-all ${
+                  overrideScore === "restablecer"
+                    ? "bg-slate-800 text-white border-slate-800"
+                    : "bg-slate-100 text-slate-700 border-slate-200"
+                }`}
+              >
+                Auto
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="font-bold text-slate-700 block mb-1">Motivo u Observación:</label>
+            <textarea
+              rows={2}
+              placeholder="Explique el motivo de la sobreescritura manual..."
+              value={overrideMotivo}
+              onChange={(e) => setOverrideMotivo(e.target.value)}
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 outline-none focus:border-indigo-500 transition-all resize-none"
+            />
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowScoreModal(false)}
+              className="flex-1 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={isSavingScore}
+              className="flex-1 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            >
+              {isSavingScore ? "Guardando..." : "Guardar Score"}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* 📊 Desglose de Retorno y Amortización Agregado del Cliente */}
       {clientFinancialDistribution && clientFinancialDistribution.capitalTotal > 0 && (
