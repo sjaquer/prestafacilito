@@ -1,5 +1,6 @@
 import express from "express";
 import { requireAuth } from "../middleware/auth.js";
+import { supabase } from "../src/lib/supabase.js";
 import {
   isDriveConfigured,
   getDriveFolderId,
@@ -77,10 +78,23 @@ router.post("/upload-voucher", requireAuth, async (req: express.Request, res: ex
   }
 });
 
-// Proxy para visualizar vouchers
+// Proxy para visualizar vouchers (Tarea 9.2.6 con validación de seguridad)
 router.get("/vouchers/proxy/:fileId", requireAuth, async (req: express.Request, res: express.Response) => {
   try {
     const { fileId } = req.params;
+
+    // Validar en BD que el fileId esté registrado en amortizaciones o pagos_alquiler
+    const [amortRes, alqRes] = await Promise.all([
+      supabase.from("amortizaciones").select("id").eq("voucher_drive_file_id", fileId).limit(1),
+      supabase.from("pagos_alquiler").select("id").eq("voucher_drive_file_id", fileId).limit(1)
+    ]);
+
+    const registrado = (amortRes.data && amortRes.data.length > 0) || (alqRes.data && alqRes.data.length > 0);
+    if (!registrado) {
+      res.status(403).json({ error: "Acceso denegado: el comprobante no se encuentra registrado en el sistema." });
+      return;
+    }
+
     const accessToken = await getGoogleDriveAccessToken();
 
     const driveRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {

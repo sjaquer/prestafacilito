@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, User, Phone, MapPin, Calendar, CreditCard,
-  Info, Loader2, ArrowUpRight, CheckCircle2, TrendingUp, Sparkles, AlertTriangle
+  Info, Loader2, ArrowUpRight, CheckCircle2, TrendingUp, Sparkles, AlertTriangle,
+  Paperclip, FileText, Trash2, FolderOpen, Upload
 } from "lucide-react";
 import { usePagos } from "../hooks/usePagos";
 import { calcularEstadoMora } from "../lib/moraLogic";
@@ -16,6 +17,7 @@ import { ClientNotes } from "../components/cliente/ClientNotes";
 import { formatCurrency, formatDate } from "../lib/formatters";
 import { ScoreBadge } from "../components/ui/ScoreBadge";
 import { Modal } from "../components/ui/Modal";
+import { comprimirImagen } from "../lib/imageCompression";
 
 export const ClienteDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,9 +27,13 @@ export const ClienteDetallePage: React.FC = () => {
   
   const [clientLoans, setClientLoans] = useState<any[]>([]);
   const [clientAlquileres, setClientAlquileres] = useState<any[]>([]);
+  const [documentos, setDocumentos] = useState<any[]>([]);
   const [amortizaciones, setAmortizaciones] = useState<any[]>([]);
   const [loadingLoans, setLoadingLoans] = useState(true);
   const [loanError, setLoanError] = useState("");
+
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [tipoDocInput, setTipoDocInput] = useState("DNI");
 
   // Score State (Fase 6)
   const [scoreData, setScoreData] = useState<any>(null);
@@ -45,10 +51,11 @@ export const ClienteDetallePage: React.FC = () => {
     setLoanError("");
     
     try {
-      const [dashRes, amortList, alquileresRes] = await Promise.all([
+      const [dashRes, amortList, alquileresRes, docsRes] = await Promise.all([
         fetch("/api/dashboard"),
         fetchAmortizaciones(),
-        fetch("/api/alquileres")
+        fetch("/api/alquileres"),
+        fetch(`/api/clientes/${id}/documentos`)
       ]);
       if (dashRes.ok) {
         const data = await dashRes.json();
@@ -63,6 +70,11 @@ export const ClienteDetallePage: React.FC = () => {
         const alqData = await alquileresRes.json();
         const filteredAlq = (alqData || []).filter((a: any) => a.cliente_id === id);
         setClientAlquileres(filteredAlq);
+      }
+
+      if (docsRes.ok) {
+        const docsData = await docsRes.json();
+        setDocumentos(docsData || []);
       }
 
       setAmortizaciones(amortList || []);
@@ -116,6 +128,56 @@ export const ClienteDetallePage: React.FC = () => {
       console.error("Error al guardar override del score:", err);
     } finally {
       setIsSavingScore(false);
+    }
+  };
+
+  const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !id) return;
+
+    setIsUploadingDoc(true);
+
+    try {
+      const compressedDataUrl = await comprimirImagen(file, 1024, 0.7);
+      const base64Data = compressedDataUrl.replace(/^data:\w+\/\w+;base64,/, "");
+
+      const res = await fetch(`/api/clientes/${id}/documentos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tipo_documento: tipoDocInput,
+          fileName: file.name,
+          mimeType: file.type || "application/octet-stream",
+          base64Data
+        })
+      });
+
+      if (res.ok) {
+        await fetchClientLoans();
+      } else {
+        const errData = await res.json();
+        alert(errData.error || "No se pudo subir el documento.");
+      }
+    } catch (err: any) {
+      alert("Error al subir documento: " + err.message);
+    } finally {
+      setIsUploadingDoc(false);
+    }
+  };
+
+  const handleDeleteDoc = async (docId: string) => {
+    if (!id || !window.confirm("¿Confirmar que desea eliminar este documento?")) return;
+
+    try {
+      const res = await fetch(`/api/clientes/${id}/documentos/${docId}`, {
+        method: "DELETE"
+      });
+
+      if (res.ok) {
+        await fetchClientLoans();
+      }
+    } catch (err) {
+      console.error("Error al eliminar documento:", err);
     }
   };
 
@@ -713,12 +775,126 @@ export const ClienteDetallePage: React.FC = () => {
           )}
         </div>
 
-        {/* Right Column: Interaction timeline Notes */}
-        <div>
+        {/* Right Column: Interaction timeline Notes & Client Documents (Tarea 9.2.4) */}
+        <div className="space-y-6">
           <ClientNotes
             cliente={cliente}
             onUpdateClient={handleUpdateClient}
           />
+
+          {/* 📄 SECCIÓN — DOCUMENTOS DEL CLIENTE (Fase 9) */}
+          <Card variant="simple" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-slate-900 text-base tracking-tight leading-none flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-indigo-600" /> Documentos del Cliente
+                </h3>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
+                  DNI, Recibos y Contratos almacenados en Google Drive
+                </p>
+              </div>
+
+              {cliente?.drive_folder_id && (
+                <a
+                  href={`https://drive.google.com/drive/folders/${cliente.drive_folder_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1"
+                  title="Abrir Carpeta en Google Drive"
+                >
+                  <FolderOpen className="w-3.5 h-3.5" /> Drive
+                </a>
+              )}
+            </div>
+
+            <div className="border-t border-slate-200/80" />
+
+            {/* Formulario rápido para subir documento */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+              <span className="font-bold text-slate-700 block text-[11px]">
+                [+ Subir Nuevo Documento]
+              </span>
+
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={tipoDocInput}
+                  onChange={(e) => setTipoDocInput(e.target.value)}
+                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none"
+                >
+                  <option value="DNI">DNI / Documento Identidad</option>
+                  <option value="Recibo de Luz/Agua">Recibo de Luz / Agua</option>
+                  <option value="Contrato Firmado">Contrato Firmado</option>
+                  <option value="Garantía">Garantía / Titulo</option>
+                  <option value="Otro">Otro Documento</option>
+                </select>
+
+                <label className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                  {isUploadingDoc ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Subiendo...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-3.5 h-3.5" /> Seleccionar Archivo
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={handleDocUpload}
+                    disabled={isUploadingDoc}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Lista de Documentos del Cliente */}
+            {documentos.length === 0 ? (
+              <div className="p-6 text-center border border-dashed border-slate-200 rounded-xl text-xs text-slate-500 font-medium">
+                No hay documentos registrados para este cliente.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {documentos.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="p-2.5 bg-white border border-slate-200 rounded-xl text-xs flex items-center justify-between gap-2 hover:border-indigo-300 transition-all"
+                  >
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
+                      <div className="truncate">
+                        <span className="font-bold text-slate-800 block truncate">{doc.nombre_archivo}</span>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          Tipo: {doc.tipo_documento} • {doc.fecha_subida ? doc.fecha_subida.split("T")[0] : ""}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      {doc.drive_file_id && (
+                        <a
+                          href={`/api/documentos/proxy/${doc.drive_file_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[10px]"
+                        >
+                          Ver
+                        </a>
+                      )}
+                      <button
+                        onClick={() => handleDeleteDoc(doc.id)}
+                        className="p-1 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
+                        title="Eliminar Documento"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
         </div>
       </div>
     </div>

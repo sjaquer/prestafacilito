@@ -301,6 +301,30 @@ prestamosRouter.put("/:id", requireAuth, async (req: AuthRequest, res: express.R
   }
 });
 
+// Adjuntar comprobante/voucher a una amortización existente (Fase 9)
+prestamosRouter.post("/amortizaciones/:id/voucher", requireAuth, async (req: AuthRequest, res: express.Response) => {
+  try {
+    const { id } = req.params;
+    const { comprobante_url, voucher_drive_file_id } = req.body;
+
+    const { data, error } = await supabase
+      .from("amortizaciones")
+      .update({
+        comprobante_url: comprobante_url || null,
+        voucher_drive_file_id: voucher_drive_file_id || null
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, amortizacion: data });
+  } catch (err: any) {
+    console.error("Error al actualizar voucher de amortización:", err);
+    res.status(500).json({ error: "Error al actualizar voucher", detail: err.message });
+  }
+});
+
 // Eliminar préstamo
 prestamosRouter.delete("/:id", requireAuth, async (_req: express.Request, res: express.Response) => {
   res.status(405).json({
