@@ -71,33 +71,20 @@ export const getInstallmentCount = (prestamo: Pick<Prestamo, "fecha_emision" | "
   return Math.max(1, Math.min(120, monthsApprox || DEFAULT_INSTALLMENTS));
 };
 
+export interface BuildScheduleOptions {
+  ajustes?: AjustePrestamo[];
+  referenceDate?: Date;
+  lateInterestRateDaily?: number;
+}
+
 export const buildPaymentSchedule = (
   prestamo: Prestamo,
   pagos: Amortizacion[] = [],
-  ajustesOrReferenceDate?: AjustePrestamo[] | Date,
-  referenceDateOrRate?: Date | number,
-  lateInterestRateDailyInput?: number
+  options: BuildScheduleOptions = {}
 ): EstadoDeudaPrestamo => {
-  let ajustes: AjustePrestamo[] = [];
-  let referenceDate = new Date();
-  let lateInterestRateDaily = DEFAULT_LATE_INTEREST_RATE_DAILY;
-
-  if (ajustesOrReferenceDate instanceof Date) {
-    referenceDate = ajustesOrReferenceDate;
-    if (typeof referenceDateOrRate === "number") {
-      lateInterestRateDaily = referenceDateOrRate;
-    }
-  } else {
-    if (Array.isArray(ajustesOrReferenceDate)) {
-      ajustes = ajustesOrReferenceDate;
-    }
-    if (referenceDateOrRate instanceof Date) {
-      referenceDate = referenceDateOrRate;
-    }
-    if (typeof lateInterestRateDailyInput === "number") {
-      lateInterestRateDaily = lateInterestRateDailyInput;
-    }
-  }
+  const ajustes: AjustePrestamo[] = options.ajustes || [];
+  const referenceDate: Date = options.referenceDate || new Date();
+  const lateInterestRateDaily: number = options.lateInterestRateDaily ?? DEFAULT_LATE_INTEREST_RATE_DAILY;
 
   // Bypassear lógica de préstamos tradicionales para Alquiler de Casa (Contrato de Arrendamiento)
   if (prestamo.tipo_prestamo === "Alquiler de Casa") {

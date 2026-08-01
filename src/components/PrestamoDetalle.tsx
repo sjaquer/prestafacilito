@@ -567,7 +567,7 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
   }
 
   const { prestamo, pagosRealizados, ajustes = [], planAyuda } = data;
-  const debtState = buildPaymentSchedule(prestamo, pagosRealizados, ajustes, new Date());
+  const debtState = buildPaymentSchedule(prestamo, pagosRealizados, { ajustes, referenceDate: new Date() });
   const resumenDeuda = debtState.resumen;
   const cuotaSiguiente = debtState.cuotaSiguiente;
   const progressPercent = Math.min(100, resumenDeuda.totalExigible > 0 ? (resumenDeuda.totalPagado / resumenDeuda.totalExigible) * 100 : 0);

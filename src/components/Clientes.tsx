@@ -10,24 +10,6 @@ import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../hooks/useAuth";
 import { getNombreUsuario, generarMensajeCobroPredeterminado, normalizeClientName } from "../lib/formatters";
 
-// ── Detección de género por nombre ─────────────────────────
-const NOMBRES_FEMENINOS = new Set([
-  'maria','ana','lucia','sofia','elena','carmen','rosa','claudia','andrea','patricia',
-  'laura','diana','gloria','monica','sandra','alejandra','valentina','gabriela','lorena',
-  'jessica','vanessa','adriana','paola','natalia','carolina','fernanda','daniela','sara',
-  'isabel','pilar','julia','alicia','beatriz','cristina','irene','mariana','raquel',
-  'silvia','yolanda','angela','consuelo','esperanza','graciela','luz','mercedes','norma',
-  'olga','rebeca','susana','veronica','wendy','xiomara','yasmin','zoraida','pamela',
-  'karina','brenda','gisela','rocio','miriam','nancy','marisol','milagros','flor',
-  'liliana','estela','cecilia','catalina','evelyn','fabiola','helen','iliana'
-]);
-
-function detectarGenero(nombre: string): 'SR.' | 'SRA.' {
-  const primerNombre = nombre.trim().split(/\s+/)[0].toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  return NOMBRES_FEMENINOS.has(primerNombre) ? 'SRA.' : 'SR.';
-}
-
 // ── Generador de mensaje recordatorio ─────────────────────
 function getMensajeRecordatorio(cliente: Cliente, username: string | null, montoCuota?: number, fechaVencimiento?: string): string {
   return generarMensajeCobroPredeterminado({

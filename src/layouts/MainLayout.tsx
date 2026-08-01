@@ -72,18 +72,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
       activePaths: ["/clientes"],
     },
     {
-      path: "/reportes",
-      label: "Análisis IA",
-      icon: Sparkles,
-      activePaths: ["/reportes"],
-    },
-    {
-      path: "/bitacora",
-      label: "Bitácora",
-      icon: Terminal,
-      activePaths: ["/bitacora"],
-    },
-    {
       path: "/vouchers",
       label: "Vouchers",
       icon: FileText,

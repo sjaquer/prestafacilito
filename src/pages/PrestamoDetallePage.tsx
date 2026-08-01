@@ -65,8 +65,7 @@ export const PrestamoDetallePage: React.FC = () => {
       const computed = buildPaymentSchedule(
         result.prestamo,
         result.pagosRealizados,
-        result.ajustes,
-        new Date()
+        { ajustes: result.ajustes, referenceDate: new Date() }
       );
       setSchedule(computed);
     }

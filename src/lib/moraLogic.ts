@@ -27,7 +27,7 @@ export function calcularEstadoMora(
   const ajustes = prestamo.ajustes || [];
   
   // Calcular el cronograma de cuotas usando la lógica de negocio oficial del sistema
-  const schedule = buildPaymentSchedule(prestamo, pagosDelPrestamo, ajustes, hoy);
+  const schedule = buildPaymentSchedule(prestamo, pagosDelPrestamo, { ajustes, referenceDate: hoy });
   const cuotas = schedule.cuotas;
 
   // Buscar último pago registrado

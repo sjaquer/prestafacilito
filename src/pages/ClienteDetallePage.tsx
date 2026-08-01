@@ -113,7 +113,7 @@ export const ClienteDetallePage: React.FC = () => {
       if (loan.tipo_prestamo === "Alquiler de Casa") return; // Alquileres no entran en desglose de interés/mora tradicional
       
       const pagosDelPrestamo = amortizaciones.filter(a => a.prestamo_id === loan.id);
-      const computed = buildPaymentSchedule(loan, pagosDelPrestamo, [], new Date());
+      const computed = buildPaymentSchedule(loan, pagosDelPrestamo, { ajustes: [], referenceDate: new Date() });
       
       const capTotal = Number(loan.monto_capital) || 0;
       const capPendiente = Number(computed.resumen?.capitalPendiente) || 0;
