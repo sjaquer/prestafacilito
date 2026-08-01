@@ -11,6 +11,7 @@ import { CarteraPage } from "./pages/CarteraPage";
 import { VouchersPage } from "./pages/VouchersPage";
 import { AlquileresPage } from "./pages/AlquileresPage";
 import { AlquilerDetallePage } from "./pages/AlquilerDetallePage";
+import { DashboardBIPage } from "./pages/DashboardBIPage";
 import { Coins, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -113,6 +114,7 @@ export default function App() {
           }
         >
           <Route index element={<DashboardPage />} />
+          <Route path="bi" element={<DashboardBIPage />} />
           <Route path="cartera" element={<CarteraPage />} />
           <Route path="alquileres" element={<AlquileresPage />} />
           <Route path="alquileres/:id" element={<AlquilerDetallePage />} />

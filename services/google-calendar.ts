@@ -1,5 +1,6 @@
 import { supabase } from "../src/lib/supabase.js";
 import { buildPaymentSchedule, toNumber } from "../src/lib/loanLogic.js";
+import { buildAlquilerSchedule } from "../src/lib/alquilerLogic.js";
 import {
   getGoogleDriveAccessToken,
   getGoogleClientId,
@@ -11,13 +12,38 @@ export function isGoogleCalendarConfigured(): boolean {
   return !!getGoogleClientId() && !!getGoogleClientSecret() && !!getGoogleRefreshToken();
 }
 
+export function getGoogleCalendarId(): string {
+  return process.env.GOOGLE_CALENDAR_ID || "primary";
+}
+
 export const getGoogleAccessToken = getGoogleDriveAccessToken;
+
+/**
+ * Reintentos con backoff exponencial para llamadas a APIs de Google (Tarea 10.1.7)
+ */
+export async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      if (attempt === maxRetries) throw err;
+      const status = err.status || err.statusCode;
+      if (status !== 429 && status !== 503 && !err.message?.includes("timeout")) {
+        throw err;
+      }
+      const delay = Math.pow(2, attempt) * 1000;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error("Máximo de reintentos alcanzado");
+}
 
 export async function findGoogleCalendarEvent(clienteNombre: string, cuotaNumero: number): Promise<string | null> {
   try {
     const accessToken = await getGoogleAccessToken();
+    const calendarId = getGoogleCalendarId();
     const query = encodeURIComponent(clienteNombre);
-    const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?q=${query}&singleEvents=true`;
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?q=${query}&singleEvents=true`;
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
@@ -48,75 +74,75 @@ export async function createOrUpdateGoogleCalendarEvent({
   dateStr: string;
   colorId?: string;
 }) {
-  const accessToken = await getGoogleAccessToken();
-  const url = eventId
-    ? `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`
-    : "https://www.googleapis.com/calendar/v3/calendars/primary/events";
-  const method = eventId ? "PUT" : "POST";
+  return withRetry(async () => {
+    const accessToken = await getGoogleAccessToken();
+    const calendarId = getGoogleCalendarId();
+    const url = eventId
+      ? `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`
+      : `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
+    const method = eventId ? "PUT" : "POST";
 
-  const eventBody = {
-    summary,
-    description,
-    start: {
-      date: dateStr
-    },
-    end: {
-      date: dateStr
-    },
-    ...(colorId ? { colorId } : {})
-  };
+    const eventBody = {
+      summary,
+      description,
+      start: { date: dateStr },
+      end: { date: dateStr },
+      ...(colorId ? { colorId } : {})
+    };
 
-  const response = await fetch(url, {
-    method,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(eventBody)
-  });
+    const response = await fetch(url, {
+      method,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(eventBody)
+    });
 
-  if (!response.ok) {
-    if (method === "PUT" && response.status === 404) {
-      console.warn(`Evento ${eventId} no encontrado (404). Intentando crear uno nuevo...`);
-      const postUrl = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
-      const postResponse = await fetch(postUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(eventBody)
-      });
-      if (postResponse.ok) {
-        return await postResponse.json();
+    if (!response.ok) {
+      if (method === "PUT" && response.status === 404) {
+        console.warn(`Evento ${eventId} no encontrado. Intentando crear uno nuevo...`);
+        const postUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
+        const postResponse = await fetch(postUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(eventBody)
+        });
+        if (postResponse.ok) {
+          return await postResponse.json();
+        }
+        const postErrText = await postResponse.text();
+        throw new Error(`Error en Google Calendar API al recrear: ${postErrText}`);
       }
-      const postErrText = await postResponse.text();
-      console.error(`Error de Google Calendar API al recrear evento: ${postErrText}`);
-      throw new Error(`Error en Google Calendar API al recrear: ${postErrText}`);
+      const errText = await response.text();
+      throw new Error(`Error en Google Calendar API: ${errText}`);
     }
-    const errText = await response.text();
-    console.error(`Error de Google Calendar API (event ${eventId || 'new'}): ${errText}`);
-    throw new Error(`Error en Google Calendar API: ${errText}`);
-  }
 
-  return await response.json();
+    return await response.json();
+  });
 }
 
 export async function deleteGoogleCalendarEvent(eventId: string) {
-  const accessToken = await getGoogleAccessToken();
-  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`;
+  return withRetry(async () => {
+    const accessToken = await getGoogleAccessToken();
+    const calendarId = getGoogleCalendarId();
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`;
 
-  const response = await fetch(url, {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${accessToken}`
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    if (!response.ok && response.status !== 404) {
+      const errText = await response.text();
+      console.error(`Error de Google Calendar API al eliminar event ${eventId}: ${errText}`);
     }
   });
-
-  if (!response.ok && response.status !== 404) {
-    const errText = await response.text();
-    console.error(`Error de Google Calendar API al eliminar event ${eventId}: ${errText}`);
-  }
 }
 
 export async function syncLoanScheduleToGoogleCalendar(prestamoId: string) {
@@ -153,33 +179,16 @@ export async function syncLoanScheduleToGoogleCalendar(prestamoId: string) {
       ? prestamo.google_calendar_events
       : [];
 
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const todayStr = `${yyyy}-${mm}-${dd}`;
-    const hh = String(d.getHours()).padStart(2, "0");
-    const min = String(d.getMinutes()).padStart(2, "0");
-    const ss = String(d.getSeconds()).padStart(2, "0");
-    const timestamp = `${todayStr} ${hh}:${min}:${ss}`;
-
     const updatedEvents = [];
 
     for (const cuota of cuotas) {
       const existing = existingEvents.find((e: any) => e.numero === cuota.numero);
       let eventId = existing?.eventId;
 
-      const isPast = cuota.fechaVencimiento < todayStr;
-
-      if (isPast) {
-        if (!eventId) {
-          eventId = await findGoogleCalendarEvent(cliente.nombre_completo, cuota.numero);
-        }
+      // Si la cuota ya fue saldada, eliminar el evento pendiente de Calendar (Tarea 10.1.4)
+      if (cuota.estado === "Saldada") {
         if (eventId) {
-          console.log(`Eliminando evento pasado de la cuota ${cuota.numero} (Vencimiento: ${cuota.fechaVencimiento})`);
-          await deleteGoogleCalendarEvent(eventId).catch(err =>
-            console.error("Error al borrar evento de calendario pasado:", err)
-          );
+          await deleteGoogleCalendarEvent(eventId).catch(() => {});
         }
         continue;
       }
@@ -188,19 +197,8 @@ export async function syncLoanScheduleToGoogleCalendar(prestamoId: string) {
         eventId = await findGoogleCalendarEvent(cliente.nombre_completo, cuota.numero);
       }
 
-      let colorId = "5";
-      let statusPrefix = "[PENDIENTE]";
-
-      if (cuota.estado === "Saldada") {
-        colorId = "10";
-        statusPrefix = "[PAGADO]";
-      } else if (cuota.estado === "Parcial") {
-        colorId = "6";
-        statusPrefix = "[PARCIAL]";
-      } else if (cuota.estado === "Vencida") {
-        colorId = "11";
-        statusPrefix = "[VENCIDO]";
-      }
+      const colorId = cuota.estado === "Vencida" ? "11" : "5";
+      const statusPrefix = cuota.estado === "Vencida" ? "[VENCIDO]" : cuota.estado === "Parcial" ? "[PARCIAL]" : "[PENDIENTE]";
 
       const summary = `${statusPrefix} Cuota ${cuota.numero} - ${cliente.nombre_completo}`;
       const description = [
@@ -212,13 +210,10 @@ export async function syncLoanScheduleToGoogleCalendar(prestamoId: string) {
         `Monto de la Cuota: S/. ${cuota.montoExigible.toFixed(2)}`,
         `Capital de Cuota: S/. ${cuota.capitalPendiente.toFixed(2)}`,
         cuota.interesOriginal ? `Interés de Cuota: S/. ${cuota.interesOriginal.toFixed(2)}` : null,
-        cuota.moraPendiente > 0 ? `Mora Pendiente: S/. ${cuota.moraPendiente.toFixed(2)}` : null,
-        `Total Pagado en esta cuota: S/. ${cuota.pagado.toFixed(2)}`,
+        `Total Pagado: S/. ${cuota.pagado.toFixed(2)}`,
         `Saldo Pendiente: S/. ${cuota.saldoPendiente.toFixed(2)}`,
         `Fecha de Vencimiento: ${cuota.fechaVencimiento}`,
-        `Estado de la Cuota: ${cuota.estado}`,
-        `Última actualización de sincronización: ${timestamp}`,
-        `\nRegistro actualizado automáticamente desde PrestaFacilito.`
+        `\nRegistro actualizado desde PrestaFacilito.`
       ].filter(Boolean).join("\n");
 
       try {
@@ -243,16 +238,6 @@ export async function syncLoanScheduleToGoogleCalendar(prestamoId: string) {
       }
     }
 
-    const newCuotasNums = cuotas.map((c: any) => c.numero);
-    const toDelete = existingEvents.filter((e: any) => !newCuotasNums.includes(e.numero));
-    for (const d of toDelete) {
-      if (d.eventId) {
-        await deleteGoogleCalendarEvent(d.eventId).catch(err =>
-          console.error("Error al borrar evento de calendario sobrante:", err)
-        );
-      }
-    }
-
     await supabase
       .from("prestamos")
       .update({ google_calendar_events: updatedEvents })
@@ -260,6 +245,47 @@ export async function syncLoanScheduleToGoogleCalendar(prestamoId: string) {
 
   } catch (err: any) {
     console.error("Error en syncLoanScheduleToGoogleCalendar:", err);
+  }
+}
+
+/**
+ * Sincronización de contratos de alquiler a Google Calendar (Tarea 10.1.5)
+ */
+export async function syncAlquilerToGoogleCalendar(alquilerId: string) {
+  if (!isGoogleCalendarConfigured()) return;
+
+  try {
+    const [alqRes, pagosRes] = await Promise.all([
+      supabase.from("alquileres").select("*").eq("id", alquilerId).single(),
+      supabase.from("pagos_alquiler").select("*").eq("alquiler_id", alquilerId)
+    ]);
+
+    if (!alqRes.data) return;
+
+    const alquiler = alqRes.data;
+    const pagos = pagosRes.data || [];
+
+    const { data: cliente } = await supabase
+      .from("clientes")
+      .select("nombre_completo, telefono")
+      .eq("id", alquiler.cliente_id)
+      .single();
+
+    const schedule = buildAlquilerSchedule(alquiler, pagos);
+
+    if (schedule.mesSiguiente) {
+      const summary = `🏠 Alquiler (${alquiler.descripcion_inmueble}) — ${cliente?.nombre_completo || "Inquilino"} — S/ ${alquiler.monto_mensual.toFixed(2)}`;
+      const description = `Pago de Renta Mensual:\nInmueble: ${alquiler.descripcion_inmueble}\nInquilino: ${cliente?.nombre_completo}\nMonto: S/ ${alquiler.monto_mensual.toFixed(2)}`;
+
+      await createOrUpdateGoogleCalendarEvent({
+        summary,
+        description,
+        dateStr: schedule.mesSiguiente.fechaVencimiento,
+        colorId: "6"
+      });
+    }
+  } catch (err: any) {
+    console.error("Error en syncAlquilerToGoogleCalendar:", err);
   }
 }
 

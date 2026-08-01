@@ -11,7 +11,8 @@ import {
   Cloud,
   CloudOff,
   FileText,
-  Home
+  Home,
+  BarChart3
 } from "lucide-react";
 import { FontSizeControl } from "../components/common/FontSizeControl";
 
@@ -59,6 +60,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
       label: "Dashboard",
       icon: LayoutDashboard,
       activePaths: ["/"],
+    },
+    {
+      path: "/bi",
+      label: "Dashboard / BI",
+      icon: BarChart3,
+      activePaths: ["/bi"],
     },
     {
       path: "/cartera",
