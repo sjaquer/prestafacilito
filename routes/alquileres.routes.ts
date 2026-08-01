@@ -193,4 +193,27 @@ router.delete("/:id/pagos/:pagoId", requireAuth, async (req: AuthRequest, res: e
   }
 });
 
+// Finalizar contrato de alquiler (Fase 8)
+router.put("/:id/finalizar", requireAuth, async (req: AuthRequest, res: express.Response) => {
+  try {
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from("alquileres")
+      .update({
+        estado: "finalizado",
+        fecha_fin: new Date().toISOString().split("T")[0]
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, alquiler: data });
+  } catch (err: any) {
+    console.error("Error al finalizar contrato de alquiler:", err);
+    res.status(500).json({ error: "Error al finalizar contrato de alquiler", detail: err.message });
+  }
+});
+
 export default router;

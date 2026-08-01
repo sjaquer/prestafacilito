@@ -10,7 +10,8 @@ import {
   Terminal,
   Cloud,
   CloudOff,
-  FileText
+  FileText,
+  Home
 } from "lucide-react";
 import { FontSizeControl } from "../components/common/FontSizeControl";
 
@@ -64,6 +65,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
       label: "Cartera",
       icon: Briefcase,
       activePaths: ["/cartera", "/prestamos"],
+    },
+    {
+      path: "/alquileres",
+      label: "Alquileres",
+      icon: Home,
+      activePaths: ["/alquileres"],
     },
     {
       path: "/clientes",

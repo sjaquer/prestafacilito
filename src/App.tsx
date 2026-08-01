@@ -9,6 +9,8 @@ import { ClienteDetallePage } from "./pages/ClienteDetallePage";
 import { PrestamoDetallePage } from "./pages/PrestamoDetallePage";
 import { CarteraPage } from "./pages/CarteraPage";
 import { VouchersPage } from "./pages/VouchersPage";
+import { AlquileresPage } from "./pages/AlquileresPage";
+import { AlquilerDetallePage } from "./pages/AlquilerDetallePage";
 import { Coins, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -112,6 +114,8 @@ export default function App() {
         >
           <Route index element={<DashboardPage />} />
           <Route path="cartera" element={<CarteraPage />} />
+          <Route path="alquileres" element={<AlquileresPage />} />
+          <Route path="alquileres/:id" element={<AlquilerDetallePage />} />
           <Route path="clientes" element={<ClientesPage />} />
           <Route path="clientes/:id" element={<ClienteDetallePage />} />
           <Route path="prestamos/:id" element={<PrestamoDetallePage />} />
