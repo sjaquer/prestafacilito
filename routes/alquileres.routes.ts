@@ -68,7 +68,7 @@ router.get("/:id", requireAuth, async (req: express.Request, res: express.Respon
     const estadoAlquiler = buildAlquilerSchedule(alquiler, pagos);
 
     res.json({
-      ...alquiler,
+      alquiler,
       cliente: clienteRes.data || null,
       pagos,
       estado_calculado: estadoAlquiler

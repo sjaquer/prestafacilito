@@ -41,13 +41,14 @@ export const AlquilerDetallePage: React.FC = () => {
       }
 
       const data = await res.json();
-      setAlquiler(data.alquiler || null);
+      const alquilerData = data.alquiler || (data.id ? data : null);
+      setAlquiler(alquilerData);
       setCliente(data.cliente || null);
       setPagos(data.pagos || []);
       setEstadoCalculado(data.estado || data.estado_calculado || null);
 
-      if (data.alquiler) {
-        setMontoPago(String(data.alquiler.monto_mensual || ""));
+      if (alquilerData) {
+        setMontoPago(String(alquilerData.monto_mensual || ""));
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Error al conectar con el servidor");

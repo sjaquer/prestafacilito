@@ -51,60 +51,67 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
         referenceDate: now
       });
 
-      // Encontrar la cuota correspondiente a este mes o la cuota vencida más relevante
-      const cuotaMes = debtState.cuotas.find(c => {
-        const d = normalizeDate(c.fechaVencimiento);
-        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-      }) || debtState.cuotaSiguiente || debtState.cuotas[debtState.cuotas.length - 1];
+      // Extraer el día de vencimiento habitual del préstamo (de la fecha de emisión o vencimiento)
+      const baseDateStr = prestamo.fecha_vencimiento || prestamo.fecha_emision;
+      const dayOfLoan = baseDateStr ? parseInt(baseDateStr.split("-")[2] || "5", 10) : 5;
+      
+      const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const targetDay = Math.min(Math.max(1, dayOfLoan), lastDayOfMonth);
+      
+      const fechaVencMesObj = new Date(currentYear, currentMonth, targetDay);
+      const fechaVencMesStr = fechaVencMesObj.toISOString().split("T")[0];
 
-      // Determinar si el deudor debe figurar en la lista del mes actual:
-      // Figuran si tienen una cuota en el mes actual o si tienen cuotas vencidas pendientes.
-      const tieneCuotaEsteMes = debtState.cuotas.some(c => {
-        const d = normalizeDate(c.fechaVencimiento);
+      // Verificar si hubo pagos realizados en el mes actual
+      const pagosMesActual = pagosDelPrestamo.filter(a => {
+        const d = normalizeDate(a.fecha_pago);
         return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
       });
 
-      const tieneMoraOpendientes = debtState.resumen.cuotasVencidas > 0 || debtState.resumen.cuotasPendientes > 0;
+      const totalPagadoMesActual = pagosMesActual.reduce((sum, a) => sum + toNumber(a.monto), 0);
 
-      if (tieneCuotaEsteMes || tieneMoraOpendientes) {
-        let estadoPagoMes: 'atrasado' | 'pendiente' | 'pagado' = 'pendiente';
-        let diasAtraso = 0;
+      // Determinar cuota del mes
+      const cuotaMes = debtState.cuotas.find(c => {
+        const d = normalizeDate(c.fechaVencimiento);
+        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+      }) || debtState.cuotaSiguiente || debtState.cuotas[0];
 
-        if (debtState.resumen.cuotasVencidas > 0) {
-          estadoPagoMes = 'atrasado';
-          prestamosAtrasadosCount++;
-          diasAtraso = debtState.cuotasVencidasDetalle[0]?.diasVencidos || 0;
-        } else if (cuotaMes && cuotaMes.estado === 'Saldada') {
-          estadoPagoMes = 'pagado';
-        } else if (cuotaMes && cuotaMes.estado === 'Parcial') {
-          estadoPagoMes = cuotaMes.diasVencidos > 0 ? 'atrasado' : 'pendiente';
-        }
+      const cuotaMontoBase = cuotaMes ? cuotaMes.montoCuotaBase : (toNumber(prestamo.monto_capital) * (toNumber(prestamo.tasa_interes_porcentaje) / 100));
 
-        const fechaVencMes = cuotaMes ? cuotaMes.fechaVencimiento : prestamo.fecha_vencimiento || prestamo.fecha_emision;
+      let estadoPagoMes: 'atrasado' | 'pendiente' | 'pagado' = 'pendiente';
+      let diasAtraso = 0;
 
-        deudoresDelMes.push({
-          prestamo_id: prestamo.id,
-          cliente_id: prestamo.cliente_id,
-          cliente_nombre: cliente?.nombre_completo || "Cliente Desconocido",
-          cliente_apodo: cliente?.apodo || "",
-          cliente_telefono: cliente?.telefono || "",
-          score: cliente?.score || null,
-          monto_capital: toNumber(prestamo.monto_capital),
-          tasa_interes_porcentaje: toNumber(prestamo.tasa_interes_porcentaje),
-          tipo_prestamo: prestamo.tipo_prestamo,
-          fecha_emision: prestamo.fecha_emision,
-          fecha_vencimiento: prestamo.fecha_vencimiento,
-          dia_vencimiento_mes: fechaVencMes,
-          cuota_actual: cuotaMes ? cuotaMes.montoCuotaBase : 0,
-          cuota_exigible: cuotaMes ? cuotaMes.montoExigible : 0,
-          cuota_pagado: cuotaMes ? cuotaMes.pagado : 0,
-          cuota_numero: cuotaMes ? cuotaMes.numero : 1,
-          total_cuotas: debtState.resumen.totalCuotas,
-          estado_pago_mes: estadoPagoMes,
-          saldo_pendiente: debtState.resumen.saldoPendiente,
-          dias_atraso: diasAtraso
-        });
+      if (debtState.resumen.saldoPendiente <= 0.01 || totalPagadoMesActual >= (cuotaMontoBase - 0.01)) {
+        estadoPagoMes = 'pagado';
+      } else if (now > fechaVencMesObj) {
+        estadoPagoMes = 'atrasado';
+        prestamosAtrasadosCount++;
+        diasAtraso = Math.floor((now.getTime() - fechaVencMesObj.getTime()) / (24 * 60 * 60 * 1000));
+      } else {
+        estadoPagoMes = 'pendiente';
       }
+
+      deudoresDelMes.push({
+        prestamo_id: prestamo.id,
+        cliente_id: prestamo.cliente_id,
+        cliente_nombre: cliente?.nombre_completo || "Cliente Desconocido",
+        cliente_apodo: cliente?.apodo || "",
+        cliente_telefono: cliente?.telefono || "",
+        score: cliente?.score || null,
+        monto_capital: toNumber(prestamo.monto_capital),
+        tasa_interes_porcentaje: toNumber(prestamo.tasa_interes_porcentaje),
+        tipo_prestamo: prestamo.tipo_prestamo,
+        fecha_emision: prestamo.fecha_emision,
+        fecha_vencimiento: prestamo.fecha_vencimiento,
+        dia_vencimiento_mes: fechaVencMesStr,
+        cuota_actual: cuotaMontoBase,
+        cuota_exigible: cuotaMes ? cuotaMes.montoExigible : cuotaMontoBase,
+        cuota_pagado: totalPagadoMesActual,
+        cuota_numero: cuotaMes ? cuotaMes.numero : 1,
+        total_cuotas: debtState.resumen.totalCuotas,
+        estado_pago_mes: estadoPagoMes,
+        saldo_pendiente: debtState.resumen.saldoPendiente,
+        dias_atraso: diasAtraso
+      });
     }
 
     // Ordenar deudores: 1° atrasado, 2° pendiente, 3° pagado
