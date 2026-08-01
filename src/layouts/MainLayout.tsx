@@ -57,7 +57,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
   const navItems = [
     {
       path: "/",
-      label: "Dashboard",
+      label: "Inicio",
       icon: LayoutDashboard,
       activePaths: ["/"],
     },

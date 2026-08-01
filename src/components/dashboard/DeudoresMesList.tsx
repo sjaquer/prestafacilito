@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { MessageCircle, FileText, DollarSign, Calendar, AlertTriangle, Clock, CheckCircle2, Search } from "lucide-react";
+import { MessageCircle, FileText, DollarSign, Calendar, AlertTriangle, Clock, CheckCircle2, Search, Home, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export interface DeudorMesItem {
@@ -9,6 +9,8 @@ export interface DeudorMesItem {
   cliente_apodo?: string;
   cliente_telefono?: string;
   score?: 'A' | 'B' | 'C' | null;
+  es_alquiler?: boolean;
+  descripcion_inmueble?: string;
   monto_capital: number;
   tasa_interes_porcentaje: number;
   tipo_prestamo: string;
@@ -20,6 +22,7 @@ export interface DeudorMesItem {
   cuota_pagado: number;
   cuota_numero: number;
   total_cuotas: number;
+  cuotas_debiendo?: number;
   estado_pago_mes: 'atrasado' | 'pendiente' | 'pagado';
   saldo_pendiente: number;
   dias_atraso: number;
@@ -44,8 +47,9 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
     const term = filterTerm.toLowerCase().trim();
     const nombreMatch = d.cliente_nombre.toLowerCase().includes(term);
     const apodoMatch = (d.cliente_apodo || "").toLowerCase().includes(term);
+    const inmuebleMatch = (d.descripcion_inmueble || "").toLowerCase().includes(term);
     const stateMatch = filterState === "todos" || d.estado_pago_mes === filterState;
-    return (nombreMatch || apodoMatch) && stateMatch;
+    return (nombreMatch || apodoMatch || inmuebleMatch) && stateMatch;
   });
 
   const getWhatsAppLink = (deudor: DeudorMesItem) => {
@@ -53,8 +57,10 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
     const telFinal = telSanitized.startsWith("51") ? telSanitized : `51${telSanitized}`;
 
     let mensaje = "";
-    if (deudor.estado_pago_mes === "atrasado") {
-      mensaje = `Hola ${deudor.cliente_nombre}, te saludamos de PrestaFacilito. Te recordamos que tienes una cuota pendiente de S/ ${deudor.cuota_actual.toFixed(2)} de tu préstamo. Por favor coordinar el pago a la brevedad. Gracias.`;
+    if (deudor.es_alquiler) {
+      mensaje = `Hola ${deudor.cliente_nombre}, le saludamos de PrestaFacilito. Le recordamos la cuota de su alquiler (${deudor.descripcion_inmueble}) por S/ ${deudor.cuota_actual.toFixed(2)}. Gracias.`;
+    } else if (deudor.estado_pago_mes === "atrasado") {
+      mensaje = `Hola ${deudor.cliente_nombre}, te saludamos de PrestaFacilito. Te recordamos la cuota pendiente de S/ ${deudor.cuota_actual.toFixed(2)} de tu préstamo. Por favor coordinar el pago a la brevedad. Gracias.`;
     } else {
       mensaje = `Hola ${deudor.cliente_nombre}, le saludamos de PrestaFacilito. Le recordamos que su próxima cuota de S/ ${deudor.cuota_actual.toFixed(2)} vence el ${deudor.dia_vencimiento_mes}. ¡Gracias por su preferencia!`;
     }
@@ -80,7 +86,7 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
     return (
       <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col items-center justify-center min-h-[400px] space-y-3">
         <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-xs font-medium text-slate-500">Cargando deudores del mes actual...</p>
+        <p className="text-xs font-medium text-slate-500">Cargando cuentas del mes en Inicio...</p>
       </div>
     );
   }
@@ -90,12 +96,12 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
         <div>
           <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-            Deudores del Mes Actual
+            Cobros y Vencimientos del Mes
             <span className="px-2 py-0.5 text-xs bg-slate-100 text-slate-600 rounded-full font-semibold">
               {deudores.length}
             </span>
           </h2>
-          <p className="text-xs text-slate-500">Todos los deudores con cuotas en el mes actual</p>
+          <p className="text-xs text-slate-500">Préstamos e Inquilinos de Alquiler del mes actual</p>
         </div>
 
         {/* Filtros rápidos de estado */}
@@ -118,7 +124,7 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
                 : "bg-red-50 text-red-700 hover:bg-red-100"
             }`}
           >
-            Atrasados ({deudores.filter((d) => d.estado_pago_mes === "atrasado").length})
+            Por cobrar ({deudores.filter((d) => d.estado_pago_mes === "atrasado").length})
           </button>
           <button
             onClick={() => setFilterState("pendiente")}
@@ -150,20 +156,21 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
           type="text"
           value={filterTerm}
           onChange={(e) => setFilterTerm(e.target.value)}
-          placeholder="Filtrar por deudor o apodo..."
+          placeholder="Filtrar por deudor, apodo o inmueble..."
           className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50 transition-all"
         />
       </div>
 
       {filteredDeudores.length === 0 ? (
         <div className="p-8 text-center border border-dashed border-slate-200 rounded-xl space-y-2">
-          <p className="text-xs text-slate-500">No se encontraron deudores con los criterios seleccionados.</p>
+          <p className="text-xs text-slate-500">No se encontraron cuentas con los criterios seleccionados.</p>
         </div>
       ) : (
         <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
           {filteredDeudores.map((deudor) => {
             const isAtrasado = deudor.estado_pago_mes === "atrasado";
             const isPagado = deudor.estado_pago_mes === "pagado";
+            const cuotasDebiendo = deudor.cuotas_debiendo || 0;
 
             return (
               <div
@@ -179,7 +186,16 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
                 {/* Header de la tarjeta */}
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {deudor.es_alquiler ? (
+                        <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-md text-[10px] font-black flex items-center gap-1">
+                          <Home className="w-3 h-3" /> ALQUILER
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-md text-[10px] font-black flex items-center gap-1">
+                          <Wallet className="w-3 h-3" /> PRÉSTAMO
+                        </span>
+                      )}
                       <h3 className="text-sm font-bold text-slate-900">
                         {deudor.cliente_nombre}
                       </h3>
@@ -190,16 +206,19 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
                       )}
                       {getScoreBadge(deudor.score)}
                     </div>
-                    <p className="text-[11px] text-slate-500">
-                      {deudor.tipo_prestamo} • Capital prestado: S/ {deudor.monto_capital.toFixed(2)} (Tasa {deudor.tasa_interes_porcentaje}%)
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      {deudor.es_alquiler 
+                        ? `Inmueble: ${deudor.descripcion_inmueble || "Alquiler"} • Mensualidad: S/ ${deudor.monto_capital.toFixed(2)}`
+                        : `${deudor.tipo_prestamo} • Capital prestado: S/ ${deudor.monto_capital.toFixed(2)} (Tasa ${deudor.tasa_interes_porcentaje}%)`
+                      }
                     </p>
                   </div>
 
                   {/* Insignia de Estado */}
                   <div>
                     {isAtrasado && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-100 text-orange-800 border border-orange-200 rounded-lg text-xs font-bold">
-                        <Clock className="w-3.5 h-3.5" /> POR COBRAR
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-100 text-red-800 border border-red-200 rounded-lg text-xs font-bold">
+                        <AlertTriangle className="w-3.5 h-3.5" /> POR COBRAR
                       </span>
                     )}
                     {isPagado && (
@@ -215,28 +234,34 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
                   </div>
                 </div>
 
-                {/* Detalles de la Cuota del Mes */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-2.5 bg-white/80 border border-slate-200/60 rounded-lg text-xs">
+                {/* Detalles de Cuota y Casilla de Meses/Cuotas en Deuda */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2.5 bg-white/90 border border-slate-200/60 rounded-lg text-xs">
                   <div>
-                    <span className="text-[10px] text-slate-400 block font-medium">Cuota {deudor.cuota_numero}/{deudor.total_cuotas}</span>
+                    <span className="text-[10px] text-slate-400 block font-medium">Cuota del Mes</span>
                     <span className="font-bold text-slate-800">S/ {deudor.cuota_actual.toFixed(2)}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block font-medium">Vencimiento del Mes</span>
+                    <span className="text-[10px] text-slate-400 block font-medium">Día de Cobro / Venc.</span>
                     <span className="font-semibold text-slate-700 flex items-center gap-1">
                       <Calendar className="w-3 h-3 text-slate-400" /> {deudor.dia_vencimiento_mes}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block font-medium">Saldo Pendiente Deuda</span>
-                    <span className="font-bold text-red-600">S/ {deudor.saldo_pendiente.toFixed(2)}</span>
+                    <span className="text-[10px] text-slate-400 block font-medium">Cuotas / Meses en Deuda</span>
+                    <span className={`font-black ${cuotasDebiendo > 0 ? "text-red-600" : "text-emerald-600"}`}>
+                      {cuotasDebiendo > 0 ? `${cuotasDebiendo} ${deudor.es_alquiler ? 'mes(es)' : 'cuota(s)'} en deuda` : "Al día"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-medium">Saldo Pendiente Total</span>
+                    <span className="font-bold text-slate-900">S/ {deudor.saldo_pendiente.toFixed(2)}</span>
                   </div>
                 </div>
 
                 {/* Botones de Acción */}
                 <div className="flex items-center justify-end gap-2 pt-1">
                   <button
-                    onClick={() => navigate(`/prestamos/${deudor.prestamo_id}`)}
+                    onClick={() => navigate(deudor.es_alquiler ? `/alquileres/${deudor.prestamo_id}` : `/prestamos/${deudor.prestamo_id}`)}
                     className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 shadow-2xs"
                   >
                     <FileText className="w-3.5 h-3.5 text-slate-500" /> Ver Detalle
