@@ -1655,25 +1655,9 @@ export function PrestamoDetalle({ loanId, onBack }: PrestamoDetalleProps) {
                         tipoBadge = "bg-blue-50 text-blue-700 border-blue-200";
                         tipoTexto = "Congelar Interés Temporal";
                         break;
-                      case "congelar_interes_permanente":
-                        tipoBadge = "bg-cyan-50 text-cyan-700 border-cyan-200";
-                        tipoTexto = "Congelar Interés Permanente";
-                        break;
-                      case "eliminar_interes_cuota":
-                        tipoBadge = "bg-amber-50 text-amber-700 border-amber-250";
-                        tipoTexto = `Eliminar Interés Cuota ${ajuste.cuota_numero}`;
-                        break;
-                      case "reducir_mora":
+                      case "acuerdo_especial":
                         tipoBadge = "bg-indigo-50 text-indigo-700 border-indigo-200";
-                        tipoTexto = `Reducir Mora (${ajuste.monto_afectado}%)`;
-                        break;
-                      case "eliminar_mora":
-                        tipoBadge = "bg-red-50 text-red-700 border-red-200";
-                        tipoTexto = "Eliminar Mora";
-                        break;
-                      case "periodo_gracia":
-                        tipoBadge = "bg-purple-50 text-purple-700 border-purple-200";
-                        tipoTexto = `Período de Gracia (${ajuste.periodo_gracia_dias} días)`;
+                        tipoTexto = "Acuerdo Especial";
                         break;
                       default:
                         tipoBadge = "bg-slate-100 text-slate-600 border border-slate-200";

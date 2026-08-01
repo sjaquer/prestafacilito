@@ -13,7 +13,7 @@ export const amortizacionesRouter = express.Router();
 // Registrar préstamo
 prestamosRouter.post("/", requireAuth, async (req: AuthRequest, res: express.Response) => {
   try {
-    const { cliente_id, monto_capital, tasa_interes_porcentaje, fecha_emision, fecha_vencimiento, tipo_prestamo } = req.body;
+    const { cliente_id, monto_capital, tasa_interes_porcentaje, fecha_emision, fecha_vencimiento, tipo_prestamo, notas } = req.body;
 
     if (!cliente_id || !monto_capital) {
       res.status(400).json({ error: "El cliente y el monto capital son obligatorios." });
@@ -27,7 +27,8 @@ prestamosRouter.post("/", requireAuth, async (req: AuthRequest, res: express.Res
       fecha_emision: fecha_emision || new Date().toISOString().split("T")[0],
       fecha_vencimiento: fecha_vencimiento || null,
       estado: "activo",
-      tipo_prestamo: tipo_prestamo || "Personal"
+      tipo_prestamo: tipo_prestamo || "Personal",
+      notas: notas || ""
     };
 
     const { data, error } = await supabase
@@ -53,7 +54,7 @@ prestamosRouter.post("/", requireAuth, async (req: AuthRequest, res: express.Res
 prestamosRouter.get("/", requireAuth, async (req: express.Request, res: express.Response) => {
   try {
     const [pRes, cRes, ajRes] = await Promise.all([
-      supabase.from("prestamos").select("*"),
+      supabase.from("prestamos").select("*").or("migrado_a_alquiler.is.null,migrado_a_alquiler.eq.false"),
       supabase.from("clientes").select("*"),
       supabase.from("ajustes_prestamo").select("*").eq("activo", true)
     ]);

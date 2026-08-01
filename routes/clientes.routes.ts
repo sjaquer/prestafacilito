@@ -31,7 +31,7 @@ router.get("/", requireAuth, async (req: express.Request, res: express.Response)
 // Crear nuevo cliente
 router.post("/", requireAuth, async (req: AuthRequest, res: express.Response) => {
   try {
-    const { nombre_completo, telefono, observaciones, direccion, numero_cuenta, banco_cuenta, informacion_adicional } = req.body;
+    const { nombre_completo, apodo, telefono, observaciones, direccion, numero_cuenta, banco_cuenta, informacion_adicional } = req.body;
 
     if (!nombre_completo) {
       res.status(400).json({ error: "El nombre completo es requerido" });
@@ -44,6 +44,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: express.Response) =>
       .from("clientes")
       .insert({
         nombre_completo,
+        apodo: apodo || '',
         telefono: telSanitized,
         observaciones: observaciones || '',
         direccion: direccion || '',
@@ -77,7 +78,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: express.Response) =>
 router.put("/:id", requireAuth, async (req: AuthRequest, res: express.Response) => {
   try {
     const clienteId = req.params.id;
-    const { nombre_completo, telefono, observaciones, direccion, numero_cuenta, banco_cuenta, informacion_adicional } = req.body;
+    const { nombre_completo, apodo, telefono, observaciones, direccion, numero_cuenta, banco_cuenta, informacion_adicional } = req.body;
 
     if (!nombre_completo) {
       res.status(400).json({ error: "El nombre completo es requerido" });
@@ -90,6 +91,7 @@ router.put("/:id", requireAuth, async (req: AuthRequest, res: express.Response) 
       .from("clientes")
       .update({
         nombre_completo,
+        apodo: apodo || '',
         telefono: telSanitized,
         observaciones: observaciones || '',
         direccion: direccion || '',

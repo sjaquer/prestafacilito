@@ -338,18 +338,7 @@ export const buildPaymentSchedule = (
       const ajustesAplicados: string[] = [];
       let isCongelada = false;
 
-      // A. Congelar interés permanente
-      const congelarPerm = activeAjustes.find(
-        (a) => a.tipo === "congelar_interes_permanente" && normalizeDate(a.fecha_inicio).getTime() <= duePoint.getTime()
-      );
-      if (congelarPerm) {
-        monthlyInterest = 0;
-        isCongelada = true;
-        ajustesAplicados.push(congelarPerm.id);
-        interesCongelado = true;
-      }
-
-      // B. Congelar interés temporal
+      // Congelar interés temporal
       const congelarTemp = activeAjustes.find(
         (a) => a.tipo === "congelar_interes_temporal" &&
                normalizeDate(a.fecha_inicio).getTime() <= duePoint.getTime() &&
@@ -363,16 +352,6 @@ export const buildPaymentSchedule = (
         if (!fechaCongelamientoHasta || new Date(congelarTemp.fecha_fin || "").getTime() > new Date(fechaCongelamientoHasta).getTime()) {
           fechaCongelamientoHasta = congelarTemp.fecha_fin || "permanente";
         }
-      }
-
-      // C. Eliminar interés cuota específica
-      const eliminarIntCuota = activeAjustes.find(
-        (a) => a.tipo === "eliminar_interes_cuota" && a.cuota_numero === numero
-      );
-      if (eliminarIntCuota && !isCongelada) {
-        monthlyInterest = 0;
-        isCongelada = true;
-        ajustesAplicados.push(eliminarIntCuota.id);
       }
 
       if (isCongelada) {
@@ -459,8 +438,7 @@ export const buildPaymentSchedule = (
       for (const cuota of processedCuotas) {
         if (cuota.estado === "Saldada") continue;
 
-        const gracePeriodAdj = activeAjustes.find((a) => a.tipo === "periodo_gracia");
-        const periodoGraciaDias = gracePeriodAdj ? toNumber(gracePeriodAdj.periodo_gracia_dias) : 7;
+        const periodoGraciaDias = 7;
 
         const totalDiasDesdeVencimiento = Math.max(0, Math.ceil((paymentDate.getTime() - normalizeDate(cuota.fechaVencimiento).getTime()) / DAY_MS));
         
@@ -472,30 +450,8 @@ export const buildPaymentSchedule = (
         }
 
         if (newMora > 0) {
-          let originalMora = newMora;
-          let adjustedMora = originalMora;
-
-          // Aplicar ajustes sobre la mora
-          const eliminarMoraAdj = activeAjustes.find((a) => a.tipo === "eliminar_mora");
-          if (eliminarMoraAdj) {
-            adjustedMora = 0;
-            moraEliminada = true;
-            if (!cuota.ajustesAplicados?.includes(eliminarMoraAdj.id)) {
-              cuota.ajustesAplicados = [...(cuota.ajustesAplicados || []), eliminarMoraAdj.id];
-            }
-          } else {
-            const reducirMoraAdj = activeAjustes.find((a) => a.tipo === "reducir_mora");
-            if (reducirMoraAdj) {
-              const porcentaje = toNumber(reducirMoraAdj.monto_afectado);
-              adjustedMora = round2(originalMora * (1 - porcentaje / 100));
-              if (!cuota.ajustesAplicados?.includes(reducirMoraAdj.id)) {
-                cuota.ajustesAplicados = [...(cuota.ajustesAplicados || []), reducirMoraAdj.id];
-              }
-            }
-          }
-
-          const beneficioMora = round2(originalMora - adjustedMora);
-          totalBeneficioAplicado = round2(totalBeneficioAplicado + beneficioMora);
+          const originalMora = newMora;
+          const adjustedMora = originalMora;
 
           cuota.moraOriginal = round2((cuota.moraOriginal || 0) + originalMora);
           cuota.moraPendiente = round2((cuota.moraPendiente || 0) + adjustedMora);
@@ -581,8 +537,7 @@ export const buildPaymentSchedule = (
       continue;
     }
 
-    const gracePeriodAdj = activeAjustes.find((a) => a.tipo === "periodo_gracia");
-    const periodoGraciaDias = gracePeriodAdj ? toNumber(gracePeriodAdj.periodo_gracia_dias) : 7;
+    const periodoGraciaDias = 7;
 
     const totalDiasDesdeVencimiento = Math.max(0, Math.ceil((now.getTime() - duePoint.getTime()) / DAY_MS));
     
@@ -594,30 +549,8 @@ export const buildPaymentSchedule = (
     }
 
     if (newMora > 0) {
-      let originalMora = newMora;
-      let adjustedMora = originalMora;
-
-      // Aplicar ajustes sobre la mora
-      const eliminarMoraAdj = activeAjustes.find((a) => a.tipo === "eliminar_mora");
-      if (eliminarMoraAdj) {
-        adjustedMora = 0;
-        moraEliminada = true;
-        if (!cuota.ajustesAplicados?.includes(eliminarMoraAdj.id)) {
-          cuota.ajustesAplicados = [...(cuota.ajustesAplicados || []), eliminarMoraAdj.id];
-        }
-      } else {
-        const reducirMoraAdj = activeAjustes.find((a) => a.tipo === "reducir_mora");
-        if (reducirMoraAdj) {
-          const porcentaje = toNumber(reducirMoraAdj.monto_afectado);
-          adjustedMora = round2(originalMora * (1 - porcentaje / 100));
-          if (!cuota.ajustesAplicados?.includes(reducirMoraAdj.id)) {
-            cuota.ajustesAplicados = [...(cuota.ajustesAplicados || []), reducirMoraAdj.id];
-          }
-        }
-      }
-
-      const beneficioMora = round2(originalMora - adjustedMora);
-      totalBeneficioAplicado = round2(totalBeneficioAplicado + beneficioMora);
+      const originalMora = newMora;
+      const adjustedMora = originalMora;
 
       cuota.moraOriginal = round2((cuota.moraOriginal || 0) + originalMora);
       cuota.moraPendiente = round2((cuota.moraPendiente || 0) + adjustedMora);

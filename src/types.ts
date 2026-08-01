@@ -1,10 +1,10 @@
 export interface Cliente {
   id: string;
   nombre_completo: string;
+  apodo?: string;
   telefono: string;
   observaciones: string;
   fecha_registro: string;
-  // Campos ampliados v2
   direccion?: string;
   numero_cuenta?: string;
   banco_cuenta?: string;
@@ -16,6 +16,8 @@ export interface Cliente {
   capital_total_prestado?: number;
   total_exigible?: number;
   total_amortizado?: number;
+  alquileres_activos?: number;
+  score?: 'A' | 'B' | 'C' | null;
 }
 
 export interface Prestamo {
@@ -27,11 +29,8 @@ export interface Prestamo {
   fecha_vencimiento: string;
   estado: 'activo' | 'pagado';
   tipo_prestamo: string;
-  configuracion_ayuda?: {
-    periodo_gracia_dias?: number;
-    [key: string]: any;
-  };
   notas?: string;
+  migrado_a_alquiler?: boolean;
 }
 
 export interface Amortizacion {
@@ -43,6 +42,33 @@ export interface Amortizacion {
   metodo_pago: string;
   comprobante_url?: string | null;
   voucher_drive_file_id?: string | null;
+}
+
+export interface Alquiler {
+  id: string;
+  cliente_id: string;
+  monto_mensual: number;
+  descripcion_inmueble?: string;
+  fecha_inicio: string;
+  fecha_fin?: string | null;
+  estado: 'activo' | 'finalizado';
+  notas?: string;
+  google_calendar_events?: any[];
+  fecha_registro?: string;
+}
+
+export interface PagoAlquiler {
+  id: string;
+  alquiler_id: string;
+  monto: number;
+  fecha_pago: string;
+  periodo_mes: number;
+  periodo_anio: number;
+  metodo_pago?: string;
+  comprobante_url?: string | null;
+  voucher_drive_file_id?: string | null;
+  es_pago_completo?: boolean;
+  fecha_registro?: string;
 }
 
 export interface CuotaPrestamo {
@@ -59,15 +85,15 @@ export interface CuotaPrestamo {
   saldoPendiente: number;
   diasVencidos: number;
   estado: "Saldada" | "Pendiente" | "Vencida" | "Parcial";
-  ajustesAplicados?: string[];     // IDs de ajustes que afectan esta cuota
-  interesOriginal?: number;         // Para mostrar el ahorro de intereses
-  congelada?: boolean;              // Si el interés de la cuota está congelado
-  moraOriginal?: number;            // Mora original antes de reducción/eliminación
-  capitalAmortizado?: number;       // Parte del abono del cliente que va directamente a capital (principal)
-  interesPagado?: number;           // Total de interés pagado en esta cuota
-  moraPagado?: number;              // Total de mora pagada en esta cuota
-  ultimoCalculoMoraDate?: Date;     // Última fecha en la que se calculó la mora
-  expressLiquidacion?: boolean;     // Si la cuota fue anulada/exonerada por Liquidación Express
+  ajustesAplicados?: string[];
+  interesOriginal?: number;
+  congelada?: boolean;
+  moraOriginal?: number;
+  capitalAmortizado?: number;
+  interesPagado?: number;
+  moraPagado?: number;
+  ultimoCalculoMoraDate?: Date;
+  expressLiquidacion?: boolean;
 }
 
 export interface ResumenDeudaPrestamo {
@@ -89,15 +115,10 @@ export interface ResumenDeudaPrestamo {
 export interface AjustePrestamo {
   id: string;
   prestamo_id: string;
-  tipo: 'congelar_interes_temporal' | 'congelar_interes_permanente' | 
-        'eliminar_interes_cuota' | 'reducir_mora' | 'eliminar_mora' | 'periodo_gracia';
-  monto_afectado: number;
-  monto_antes: number;
-  monto_despues: number;
+  tipo: 'congelar_interes_temporal' | 'acuerdo_especial';
   cuota_numero?: number;
   fecha_inicio: string;
   fecha_fin?: string;
-  periodo_gracia_dias: number;
   descripcion?: string;
   usuario: string;
   motivo: string;
@@ -119,7 +140,7 @@ export interface EstadoDeudaPrestamo {
   cuotaSiguiente: CuotaPrestamo | null;
   cuotasVencidasDetalle: CuotaPrestamo[];
   clasificacionPagoSugerida?: string;
-  planAyuda?: PlanAyudaCliente; // Resumen del plan de ayuda aplicado
+  planAyuda?: PlanAyudaCliente;
   pagosDistribuidos?: any[];
 }
 
