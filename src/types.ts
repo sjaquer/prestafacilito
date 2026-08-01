@@ -34,7 +34,6 @@ export interface Prestamo {
   estado: 'activo' | 'pagado';
   tipo_prestamo: string;
   notas?: string;
-  migrado_a_alquiler?: boolean;
 }
 
 export interface Amortizacion {

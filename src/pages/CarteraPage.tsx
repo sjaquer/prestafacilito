@@ -319,7 +319,7 @@ export const CarteraPage: React.FC = () => {
 
       if (p.estado === "activo") {
         if (remaining < 0) {
-          statusStr = "En Mora";
+          statusStr = "Por cobrar";
           daysStr = `Vencido hace ${Math.abs(remaining)} dias`;
         } else if (remaining === 0) {
           daysStr = "Vence hoy";
@@ -460,8 +460,8 @@ export const CarteraPage: React.FC = () => {
         
         if (isMora) {
           return (
-            <Badge variant="danger" className="text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5">
-              Mora -{Math.abs(mora.diasAtraso)}d
+            <Badge variant="warning" className="text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5">
+              Por cobrar
             </Badge>
           );
         }
@@ -690,20 +690,19 @@ export const CarteraPage: React.FC = () => {
           </div>
         </Card>
 
-        {/* KPI 3 */}
         <Card variant="bento" className="relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-1 h-full bg-rose-600" />
+          <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">En Mora</span>
-            <div className="p-1 bg-rose-50 rounded-lg text-rose-600">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Pendiente de Cobro</span>
+            <div className="p-1 bg-amber-50 rounded-lg text-amber-600">
               <AlertTriangle size={14} />
             </div>
           </div>
           <div className="mt-2.5">
-            <span className="text-lg sm:text-xl font-black text-rose-600 font-mono block leading-none">
-              {portfolioKPIs.enMoraCount} ({portfolioKPIs.enMoraPct.toFixed(0)}%)
+            <span className="text-lg sm:text-xl font-black text-amber-600 font-mono block leading-none">
+              {portfolioKPIs.enMoraCount} créditos
             </span>
-            <span className="text-[8px] text-rose-600 font-bold uppercase mt-1 block">Retraso acumulado</span>
+            <span className="text-[8px] text-slate-500 font-bold uppercase mt-1 block">Cuotas pendientes de cobro</span>
           </div>
         </Card>
 
@@ -772,8 +771,8 @@ export const CarteraPage: React.FC = () => {
                 { value: "todos", label: "Todos" },
                 { value: "al_dia", label: "Al día" },
                 { value: "pendiente_mes", label: "Por vencer" },
-                { value: "mora_mes", label: "Mora" },
-                { value: "mora_acumulada", label: "Mora Acum." },
+                { value: "mora_mes", label: "Por cobrar" },
+                { value: "mora_acumulada", label: "Cuentas pend." },
                 { value: "pagado", label: "Pagados" }
               ] as const).map((est) => (
                 <button

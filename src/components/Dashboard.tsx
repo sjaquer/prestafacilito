@@ -87,16 +87,13 @@ export const Dashboard: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 p-6 rounded-3xl text-white shadow-xl">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full text-xs font-semibold">
-              Fase 4 — Centro de Control
-            </span>
             <span className="text-xs text-slate-400 flex items-center gap-1">
               <CalendarDays className="w-3.5 h-3.5 text-slate-400" /> {mesCapitalizado}
             </span>
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight">Centro de Control Operativo</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight">Centro de Control</h1>
           <p className="text-xs text-slate-300">
-            Formularios de registro directo, previsualización reactiva de cuotas y seguimiento integral de deudores.
+            Registro de préstamos, pagos y seguimiento de deudores del mes.
           </p>
         </div>
 
@@ -144,11 +141,11 @@ export const Dashboard: React.FC = () => {
 
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-500 font-medium">Préstamos Atrasados</p>
-            <p className="text-xl font-bold text-red-600">{resumenCartera.prestamosAtrasadosCount}</p>
+            <p className="text-xs text-slate-500 font-medium">Préstamos Pagados</p>
+            <p className="text-xl font-bold text-indigo-600">{prestamosActivos.filter(p => p.estado === 'pagado').length}</p>
           </div>
-          <div className="p-3 bg-red-50 text-red-600 rounded-xl">
-            <AlertCircle className="w-6 h-6" />
+          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+            <Wallet className="w-6 h-6" />
           </div>
         </div>
       </div>

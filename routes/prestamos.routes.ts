@@ -54,7 +54,7 @@ prestamosRouter.post("/", requireAuth, async (req: AuthRequest, res: express.Res
 prestamosRouter.get("/", requireAuth, async (req: express.Request, res: express.Response) => {
   try {
     const [pRes, cRes, ajRes] = await Promise.all([
-      supabase.from("prestamos").select("*").or("migrado_a_alquiler.is.null,migrado_a_alquiler.eq.false"),
+      supabase.from("prestamos").select("*"),
       supabase.from("clientes").select("*"),
       supabase.from("ajustes_prestamo").select("*").eq("activo", true)
     ]);

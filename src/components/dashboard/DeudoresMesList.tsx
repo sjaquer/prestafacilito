@@ -54,7 +54,7 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
 
     let mensaje = "";
     if (deudor.estado_pago_mes === "atrasado") {
-      mensaje = `Hola ${deudor.cliente_nombre}, le saludamos de PrestaFacilito. Le recordamos que tiene una cuota vencida de S/ ${deudor.cuota_actual.toFixed(2)} correspondiente a su préstamo. Por favor coordinar su pago a la brevedad. Gracias.`;
+      mensaje = `Hola ${deudor.cliente_nombre}, te saludamos de PrestaFacilito. Te recordamos que tienes una cuota pendiente de S/ ${deudor.cuota_actual.toFixed(2)} de tu préstamo. Por favor coordinar el pago a la brevedad. Gracias.`;
     } else {
       mensaje = `Hola ${deudor.cliente_nombre}, le saludamos de PrestaFacilito. Le recordamos que su próxima cuota de S/ ${deudor.cuota_actual.toFixed(2)} vence el ${deudor.dia_vencimiento_mes}. ¡Gracias por su preferencia!`;
     }
@@ -95,7 +95,7 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
               {deudores.length}
             </span>
           </h2>
-          <p className="text-xs text-slate-500">Sección C — Lista completa de vencimientos del mes</p>
+          <p className="text-xs text-slate-500">Todos los deudores con cuotas en el mes actual</p>
         </div>
 
         {/* Filtros rápidos de estado */}
@@ -198,8 +198,8 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
                   {/* Insignia de Estado */}
                   <div>
                     {isAtrasado && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-100 text-red-800 border border-red-200 rounded-lg text-xs font-bold">
-                        <AlertTriangle className="w-3.5 h-3.5" /> ATRASADO ({deudor.dias_atraso}d)
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-100 text-orange-800 border border-orange-200 rounded-lg text-xs font-bold">
+                        <Clock className="w-3.5 h-3.5" /> POR COBRAR
                       </span>
                     )}
                     {isPagado && (
