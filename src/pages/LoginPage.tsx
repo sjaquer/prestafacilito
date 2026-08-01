@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Lock, User, AlertCircle, Loader2, Coins, ChevronRight, UserCheck, Delete } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { Lock, User, AlertCircle, ChevronRight, UserCheck, Delete } from "lucide-react";
+import { motion } from "motion/react";
 import { Button } from "../components/ui/Button";
 
 interface LoginPageProps {
@@ -14,7 +14,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Sync username state when operator changes
   useEffect(() => {
     if (operator !== "custom") {
       setUsername(operator);
@@ -25,6 +24,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!username || !password) return;
+
     setError("");
     setLoading(true);
 
@@ -41,7 +42,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       } else {
         const errData = await response.json();
         setError(errData.message || "Credenciales incorrectas");
-        // Clear password on error
         setPassword("");
       }
     } catch (err) {
@@ -51,34 +51,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  // Virtual Keypad handlers
   const handleKeypadPress = (val: string) => {
-    if (password.length < 6) {
-      setPassword(prev => prev + val);
-    }
+    setPassword((prev) => prev + val);
   };
 
   const handleKeypadDelete = () => {
-    setPassword(prev => prev.slice(0, -1));
+    setPassword((prev) => prev.slice(0, -1));
   };
 
   const handleKeypadClear = () => {
     setPassword("");
   };
 
-  // Submit automatically if PIN reaches 6 digits and it's standard login
-  useEffect(() => {
-    if (password.length === 6 && username) {
-      handleSubmit();
-    }
-  }, [password, username]);
-
   return (
     <div id="login-container" className="min-h-screen relative flex items-center justify-center p-4 sm:p-6 overflow-hidden font-sans select-none bg-slate-50">
-      {/* Fondo Gradiente Premium & Elementos Decorativos */}
       <div className="absolute inset-0 bg-gradient-to-b from-slate-50 via-slate-100 to-slate-200 z-0" />
-      
-      {/* Círculos Brillantes de Fondo (Glow Effect) */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl z-0" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl z-0" />
       
@@ -89,8 +76,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         className="w-full max-w-md relative z-10"
       >
         <div id="login-card" className="bento-card rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-250 bg-white/95">
-          
-          {/* Logo & Encabezado */}
           <div id="logo-header" className="text-center mb-6">
             <motion.div 
               initial={{ scale: 0.8, rotate: -10 }}
@@ -118,13 +103,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             </div>
           )}
 
-          {/* Selector de Operador (Sebastián o Roberto) */}
+          {/* Selector de Operador */}
           <div className="space-y-3 mb-5">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block text-center select-none">
               Seleccionar Operador
             </label>
             <div className="grid grid-cols-2 gap-3">
-              {/* Sebastián */}
               <button
                 type="button"
                 onClick={() => setOperator("sjaquer")}
@@ -148,7 +132,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 </div>
               </button>
 
-              {/* Roberto */}
               <button
                 type="button"
                 onClick={() => setOperator("rjaque")}
@@ -184,8 +167,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             </div>
           </div>
 
-          <div id="login-form" className="space-y-4">
-            {/* Input Manual de Usuario (Si es custom) */}
+          <form onSubmit={handleSubmit} id="login-form" className="space-y-4">
             {operator === "custom" && (
               <div id="username-field" className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-1">
@@ -208,11 +190,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </div>
             )}
 
-            {/* Input de PIN de Acceso */}
+            {/* Input de PIN de Acceso por Teclado Físico o Teclado en Pantalla */}
             <div id="password-field" className="space-y-2">
               <div className="flex justify-between items-center px-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
-                  PIN de Acceso ({password.length}/6 dígitos)
+                  Contraseña / PIN de Acceso
                 </label>
                 {password.length > 0 && (
                   <button
@@ -232,15 +214,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 <input
                   type="password"
                   value={password}
-                  readOnly
-                  placeholder="••••••"
-                  className="w-full glass-input pl-10 pr-4 py-3 rounded-xl text-sm font-mono font-bold tracking-[0.4em] text-center bg-slate-50 border-slate-200"
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Escribe tu PIN o contraseña"
+                  className="w-full glass-input pl-10 pr-4 py-3 rounded-xl text-sm font-mono font-bold tracking-[0.2em] text-center bg-slate-50 border-slate-200 outline-none focus:border-emerald-500 focus:bg-white transition-all"
                   required
                 />
               </div>
             </div>
 
-            {/* Teclado Virtual Numérico (Premium ATM Style) */}
+            {/* Teclado Virtual Numérico en Pantalla */}
             <div className="pt-2">
               <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-2xl border border-slate-200">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
@@ -248,14 +230,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     key={num}
                     type="button"
                     onClick={() => handleKeypadPress(num)}
-                    disabled={loading || password.length >= 6}
+                    disabled={loading}
                     className="h-10 rounded-xl bg-white border border-slate-200 text-xs font-mono font-black text-slate-800 hover:bg-slate-100 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
                   >
                     {num}
                   </button>
                 ))}
                 
-                {/* Limpiar */}
                 <button
                   type="button"
                   onClick={handleKeypadClear}
@@ -265,17 +246,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   C
                 </button>
 
-                {/* 0 */}
                 <button
                   type="button"
                   onClick={() => handleKeypadPress("0")}
-                  disabled={loading || password.length >= 6}
+                  disabled={loading}
                   className="h-10 rounded-xl bg-white border border-slate-200 text-xs font-mono font-black text-slate-800 hover:bg-slate-100 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
                 >
                   0
                 </button>
 
-                {/* Borrar uno */}
                 <button
                   type="button"
                   onClick={handleKeypadDelete}
@@ -288,16 +267,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </div>
             </div>
 
-            {/* Botón de Submit Manual (Respaldo) */}
             <Button
-              onClick={() => handleSubmit()}
-              variant={password.length === 6 ? "primary" : "secondary"}
+              type="submit"
+              variant={password.length > 0 ? "primary" : "secondary"}
               loading={loading}
-              disabled={password.length < 6}
+              disabled={password.length === 0}
               className="w-full py-3 mt-2 font-bold text-xs min-h-[42px] flex items-center justify-center gap-1.5"
             >
               {loading ? (
-                <span>Validando PIN...</span>
+                <span>Validando Acceso...</span>
               ) : (
                 <>
                   <span>Ingresar al Sistema</span>
@@ -305,12 +283,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 </>
               )}
             </Button>
-          </div>
+          </form>
 
-          {/* Pie de Página del Login */}
           <div id="login-footer" className="text-center mt-6 pt-5 border-t border-slate-200 select-none">
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-              Acceso Restringido a Administradores
+              Acceso Restringido PrestaFacilito 🇵🇪
             </p>
           </div>
         </div>

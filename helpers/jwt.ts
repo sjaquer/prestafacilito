@@ -20,6 +20,3 @@ export const getJwtSecret = () => {
   }
   return secret;
 };
-
-export const getAdminUser = () => getEnv("ADMIN_USER");
-export const getAdminPass = () => getEnv("ADMIN_PASS");
