@@ -1,7 +1,7 @@
 import express from "express";
 import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { supabase } from "../src/lib/supabase.js";
-import { buildPaymentSchedule, classifyPayment, toNumber } from "../src/lib/loanLogic.js";
+import { buildPaymentSchedule, classifyPayment, toNumber, round2, normalizeDate } from "../src/lib/loanLogic.js";
 import { syncLoanScheduleToGoogleCalendar, logPaymentToGoogleCalendar } from "../services/google-calendar.js";
 import { isDriveConfigured, uploadVoucherToDrive } from "../services/google-drive.js";
 
@@ -178,6 +178,46 @@ prestamosRouter.get("/:id", requireAuth, async (req: express.Request, res: expre
     const tasaInteres = toNumber(prestamo.tasa_interes_porcentaje);
     const totalBaseExigible = debtState.cuotas.reduce((sum, c) => sum + c.montoCuotaBase, 0);
 
+    // Mapear el cronograma al formato TimelineMes de la Fase 5
+    const timeline = debtState.cuotas.map((c) => {
+      const pagosDelMes = (pagosRealizados || []).filter((p) => {
+        const dPago = normalizeDate(p.fecha_pago);
+        const dVenc = normalizeDate(c.fechaVencimiento);
+        // Coincidencia por período de cuota
+        return Math.abs(dPago.getTime() - dVenc.getTime()) <= 45 * 24 * 60 * 60 * 1000;
+      });
+
+      const interesPagado = c.interesPagado || ((c.interesOriginal || 0) - c.interesPendiente);
+      const capitalPagado = c.capitalAmortizadoPagado || 0;
+
+      return {
+        numero: c.numero,
+        fechaVencimiento: c.fechaVencimiento,
+        capitalInicioMes: c.capitalPendiente,
+        interesMes: c.interesOriginal || 0,
+        cuotaEsperada: c.montoCuotaBase,
+        amortizacionCapital: c.capitalAmortizado || 0,
+        pagosRecibidos: (pagosRealizados || []).map((p) => ({
+          id: p.id,
+          fecha: p.fecha_pago,
+          monto: toNumber(p.monto),
+          aplicadoInteres: round2(Math.min(c.interesOriginal || 0, toNumber(p.monto))),
+          aplicadoCapital: round2(Math.max(0, toNumber(p.monto) - (c.interesOriginal || 0))),
+          metodo_pago: p.metodo_pago,
+          comprobante_url: p.comprobante_url
+        })),
+        totalPagado: c.pagado,
+        capitalRestante: round2(Math.max(0, c.capitalPendiente - (c.capitalAmortizado || 0))),
+        saldoPendienteCuota: c.saldoPendiente,
+        estado: c.estado,
+        diasVencidos: c.diasVencidos,
+        congelada: c.congelada
+      };
+    });
+
+    const cuotasPagadas = debtState.cuotas.filter((c) => c.estado === "Saldada").length;
+    const totalInteresesGenerados = round2(debtState.cuotas.reduce((sum, c) => sum + (c.interesOriginal || 0), 0));
+
     res.json({
       prestamo: {
         ...prestamo,
@@ -195,8 +235,23 @@ prestamosRouter.get("/:id", requireAuth, async (req: express.Request, res: expre
         cuotas_pendientes: debtState.resumen.cuotasPendientes,
         cuotas_vencidas: debtState.resumen.cuotasVencidas,
         cliente_nombre: cliente ? cliente.nombre_completo : "Cliente desconocido",
+        cliente_apodo: cliente ? cliente.apodo : "",
         cliente_telefono: cliente ? cliente.telefono : ""
       },
+      cliente: cliente || null,
+      resumen: {
+        capitalInicial: capital,
+        capitalRestante: debtState.resumen.capitalPendiente,
+        totalPagado: debtState.resumen.totalPagado,
+        totalInteresesGenerados,
+        totalInteresesPagados: round2(Math.max(0, debtState.resumen.totalPagado - (capital - debtState.resumen.capitalPendiente))),
+        saldoPendiente: debtState.resumen.saldoPendiente,
+        totalCuotas: debtState.resumen.totalCuotas,
+        cuotasPagadas,
+        cuotasVencidas: debtState.resumen.cuotasVencidas,
+        estado: prestamo.estado
+      },
+      timeline,
       pagosRealizados,
       ajustes,
       planAyuda: debtState.planAyuda,
