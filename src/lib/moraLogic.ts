@@ -19,26 +19,26 @@ export interface EstadoMoraCliente {
 
 export function calcularEstadoMora(
   prestamo: any,
-  amortizaciones: any[], // tabla completa de amortizaciones (pagos)
+  amortizaciones: any[],
   hoy: Date = new Date()
 ): EstadoMoraCliente {
-  // Filtrar amortizaciones de este préstamo
   const pagosDelPrestamo = amortizaciones.filter(a => a.prestamo_id === prestamo.id);
   const ajustes = prestamo.ajustes || [];
   
-  // Calcular el cronograma de cuotas usando la lógica de negocio oficial del sistema
   const schedule = buildPaymentSchedule(prestamo, pagosDelPrestamo, { ajustes, referenceDate: hoy });
   const cuotas = schedule.cuotas;
 
-  // Buscar último pago registrado
   const pagosSorted = [...pagosDelPrestamo].sort((a, b) => new Date(a.fecha_pago).getTime() - new Date(b.fecha_pago).getTime());
   const ultimoPago = pagosSorted[pagosSorted.length - 1] || null;
 
-  if (cuotas.length === 0) {
+  const todayStart = new Date(hoy);
+  todayStart.setHours(0, 0, 0, 0);
+
+  if (prestamo.estado === "pagado" || schedule.resumen.saldoPendiente <= 0.01) {
     return {
       prestamoId: prestamo.id,
       clienteNombre: prestamo.cliente_nombre || "",
-      estadoCuotaMes: "sin_cuotas",
+      estadoCuotaMes: "al_dia",
       cuotasAtrasadas: 0,
       montoCuotaActual: 0,
       fechaCuotaActual: "",
@@ -51,44 +51,62 @@ export function calcularEstadoMora(
     };
   }
 
-  const todayStart = new Date(hoy);
-  todayStart.setHours(0, 0, 0, 0);
+  // Extraer el día de vencimiento habitual (e.g. 5)
+  const baseDateStr = prestamo.fecha_vencimiento || prestamo.fecha_emision;
+  const dayOfLoan = baseDateStr ? parseInt(baseDateStr.split("-")[2] || "5", 10) : 5;
 
-  // Cuotas vencidas y no pagadas (mora real)
-  const cuotasEnMora = cuotas.filter(c => {
-    const fechaCuota = new Date(c.fechaVencimiento + "T00:00:00");
-    return fechaCuota < todayStart && c.estado !== "Saldada";
-  });
+  let refYear = todayStart.getFullYear();
+  let refMonth = todayStart.getMonth();
 
-  // Cuota del mes actual (próxima cuota pendiente no vencida)
-  const cuotaActual = cuotas.find(c => {
-    const fechaCuota = new Date(c.fechaVencimiento + "T00:00:00");
-    return fechaCuota >= todayStart && c.estado !== "Saldada";
-  });
+  // Si hubo un pago en el mes anterior o más reciente, el periodo actual vence en refYear/refMonth en el día dayOfLoan
+  if (ultimoPago) {
+    const dUltimo = new Date(ultimoPago.fecha_pago + "T00:00:00");
+    // Si el último pago fue en el mes actual o mes anterior, la cuota vigente es la de este mes
+    const ultYear = dUltimo.getFullYear();
+    const ultMonth = dUltimo.getMonth();
 
-  const diasAtraso = cuotasEnMora.length > 0
-    ? Math.floor((todayStart.getTime() - new Date(cuotasEnMora[0].fechaVencimiento + "T00:00:00").getTime()) / (24 * 60 * 60 * 1000))
-    : 0;
+    if (ultYear === refYear && ultMonth === refMonth) {
+      // Ya pagó el mes actual -> la siguiente cuota vence el próximo mes
+      refMonth = refMonth + 1;
+      if (refMonth > 11) {
+        refMonth = 0;
+        refYear = refYear + 1;
+      }
+    }
+  }
 
-  const montoTotalAtrasado = cuotasEnMora.reduce((sum, c) => sum + (c.saldoPendiente || 0), 0);
+  const lastDayOfMonth = new Date(refYear, refMonth + 1, 0).getDate();
+  const targetDay = Math.min(Math.max(1, dayOfLoan), lastDayOfMonth);
+  const fechaCuotaVenc = new Date(refYear, refMonth, targetDay);
+  const fechaCuotaStr = fechaCuotaVenc.toISOString().split("T")[0];
 
-  let estadoCuotaMes: EstadoCuotaMes;
-  if (cuotasEnMora.length > 1) estadoCuotaMes = "mora_acumulada";
-  else if (cuotasEnMora.length === 1) estadoCuotaMes = "mora_mes";
-  else if (!cuotaActual) estadoCuotaMes = "al_dia"; // todas pagadas
-  else estadoCuotaMes = "pendiente_mes"; // cuota futura aún no vence
+  const cuotaMesMonto = cuotas[0] ? cuotas[0].montoCuotaBase : ((Number(prestamo.monto_capital) || 0) * ((Number(prestamo.tasa_interes_porcentaje) || 0) / 100));
+
+  let estadoCuotaMes: EstadoCuotaMes = "pendiente_mes";
+  let diasAtraso = 0;
+  let cuotasAtrasadas = 0;
+
+  if (todayStart > fechaCuotaVenc) {
+    diasAtraso = Math.floor((todayStart.getTime() - fechaCuotaVenc.getTime()) / (24 * 60 * 60 * 1000));
+    cuotasAtrasadas = Math.max(1, Math.ceil(diasAtraso / 30));
+    estadoCuotaMes = cuotasAtrasadas > 1 ? "mora_acumulada" : "mora_mes";
+  } else {
+    estadoCuotaMes = "pendiente_mes";
+    diasAtraso = 0;
+    cuotasAtrasadas = 0;
+  }
 
   return {
     prestamoId: prestamo.id,
     clienteNombre: prestamo.cliente_nombre || "",
     estadoCuotaMes,
-    cuotasAtrasadas: cuotasEnMora.length,
-    montoCuotaActual: cuotaActual ? cuotaActual.montoExigible || 0 : 0,
-    fechaCuotaActual: cuotaActual?.fechaVencimiento || "",
+    cuotasAtrasadas,
+    montoCuotaActual: cuotaMesMonto,
+    fechaCuotaActual: fechaCuotaStr,
     diasAtraso,
-    montoTotalAtrasado,
+    montoTotalAtrasado: cuotasAtrasadas > 0 ? schedule.resumen.saldoPendiente : 0,
     saldoPendiente: schedule.resumen.saldoPendiente || 0,
-    moraAcumulada: schedule.resumen.moraAcumulada || 0,
+    moraAcumulada: 0,
     ultimoPagoFecha: ultimoPago?.fecha_pago,
     ultimoPagoMonto: ultimoPago ? Number(ultimoPago.monto) : undefined
   };
