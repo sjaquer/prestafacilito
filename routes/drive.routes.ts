@@ -85,11 +85,21 @@ router.get("/vouchers/proxy/:fileId", requireAuth, async (req: express.Request, 
 
     // Validar en BD que el fileId esté registrado en amortizaciones o pagos_alquiler
     const [amortRes, alqRes] = await Promise.all([
-      supabase.from("amortizaciones").select("id").eq("voucher_drive_file_id", fileId).limit(1),
-      supabase.from("pagos_alquiler").select("id").eq("voucher_drive_file_id", fileId).limit(1)
+      supabase.from("amortizaciones").select("id").ilike("voucher_drive_file_id", `%${fileId}%`).limit(1),
+      supabase.from("pagos_alquiler").select("id").ilike("voucher_drive_file_id", `%${fileId}%`).limit(1)
     ]);
 
-    const registrado = (amortRes.data && amortRes.data.length > 0) || (alqRes.data && alqRes.data.length > 0);
+    let registrado = (amortRes.data && amortRes.data.length > 0) || (alqRes.data && alqRes.data.length > 0);
+
+    if (!registrado) {
+      // Intentar también buscar en comprobante_url por si el id está dentro de la url
+      const [amortUrlRes, alqUrlRes] = await Promise.all([
+        supabase.from("amortizaciones").select("id").ilike("comprobante_url", `%${fileId}%`).limit(1),
+        supabase.from("pagos_alquiler").select("id").ilike("comprobante_url", `%${fileId}%`).limit(1)
+      ]);
+      registrado = (amortUrlRes.data && amortUrlRes.data.length > 0) || (alqUrlRes.data && alqUrlRes.data.length > 0);
+    }
+
     if (!registrado) {
       res.status(403).json({ error: "Acceso denegado: el comprobante no se encuentra registrado en el sistema." });
       return;

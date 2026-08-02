@@ -12,6 +12,7 @@ import driveRoutes from "./routes/drive.routes.js";
 import calendarRoutes from "./routes/calendar.routes.js";
 import alquileresRoutes from "./routes/alquileres.routes.js";
 import biRoutes from "./routes/bi.routes.js";
+import backupRoutes from "./routes/backup.routes.js";
 
 // Validar JWT_SECRET al arrancar
 getJwtSecret();
@@ -56,6 +57,7 @@ app.use("/api", driveRoutes);
 app.use("/api/auth", calendarRoutes);
 app.use("/api", calendarRoutes);
 app.use("/api/bi", biRoutes);
+app.use("/api/backup", backupRoutes);
 
 // Health check
 app.get("/api/health", (_req, res) => {

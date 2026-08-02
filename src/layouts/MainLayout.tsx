@@ -12,7 +12,11 @@ import {
   CloudOff,
   FileText,
   Home,
-  BarChart3
+  BarChart3,
+  Database,
+  FileSpreadsheet,
+  Download,
+  CheckCircle2
 } from "lucide-react";
 import { FontSizeControl } from "../components/common/FontSizeControl";
 
@@ -27,6 +31,56 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
   const navigate = useNavigate();
 
   const [driveConfigured, setDriveConfigured] = useState<boolean | null>(null);
+  const [backupStatus, setBackupStatus] = useState<{
+    requiere_backup: boolean;
+    dias_transcurridos: number;
+    ultima_fecha_backup: string | null;
+  } | null>(null);
+  const [isDownloadingBackup, setIsDownloadingBackup] = useState(false);
+  const [showBackupMenu, setShowBackupMenu] = useState(false);
+
+  const fetchBackupStatus = async () => {
+    try {
+      const res = await fetch("/api/backup/status");
+      if (res.ok) {
+        const data = await res.json();
+        setBackupStatus(data);
+      }
+    } catch (e) {
+      console.error("Error al obtener estado de backup:", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchBackupStatus();
+  }, []);
+
+  const handleDownloadBackup = async () => {
+    setIsDownloadingBackup(true);
+    try {
+      const response = await fetch("/api/backup/excel");
+      if (!response.ok) throw new Error("Error al descargar backup");
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const fecha = new Date().toISOString().split("T")[0];
+      a.download = `Backup_PrestaFacilito_${fecha}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+
+      // Refrescar estado de backup
+      await fetchBackupStatus();
+      setShowBackupMenu(false);
+    } catch (err: any) {
+      alert("No se pudo descargar el backup en Excel: " + err.message);
+    } finally {
+      setIsDownloadingBackup(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -214,6 +268,65 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                     {driveConfigured ? "Reconectar" : "Conectar"}
                   </span>
                 </button>
+              </div>
+
+              {/* Indicador & Botón de Backup Semanal Excel */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowBackupMenu(!showBackupMenu)}
+                  title="Copia de Seguridad (Excel)"
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-extrabold border transition-all cursor-pointer select-none ${
+                    backupStatus?.requiere_backup
+                      ? "bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-100 animate-pulse shadow-xs"
+                      : "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  <Database size={14} className={backupStatus?.requiere_backup ? "text-rose-600" : "text-emerald-600"} />
+                  <span className="hidden md:inline">
+                    {backupStatus?.requiere_backup ? "¡Hacer Backup!" : "Backup Excel"}
+                  </span>
+                  {backupStatus?.requiere_backup && (
+                    <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping" />
+                  )}
+                </button>
+
+                {showBackupMenu && (
+                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-50 space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <div className="flex items-center gap-2">
+                        <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                        <span className="text-xs font-black text-slate-800">Copia de Seguridad</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400">Cada 7 días</span>
+                    </div>
+
+                    <div className="text-xs text-slate-600 space-y-1">
+                      <p className="text-[11px]">
+                        {backupStatus?.ultima_fecha_backup
+                          ? `Último backup: ${new Date(backupStatus.ultima_fecha_backup).toLocaleDateString("es-PE")}`
+                          : "Aún no se ha realizado ninguna copia de seguridad."}
+                      </p>
+                      {backupStatus?.requiere_backup ? (
+                        <p className="text-[11px] font-bold text-rose-600 flex items-center gap-1">
+                          ⚠️ Han pasado {backupStatus.dias_transcurridos} días desde el último backup.
+                        </p>
+                      ) : (
+                        <p className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Sistema actualizado.
+                        </p>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={handleDownloadBackup}
+                      disabled={isDownloadingBackup}
+                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <Download size={14} />
+                      <span>{isDownloadingBackup ? "Generando Excel..." : "Descargar Backup (Excel)"}</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="w-px h-5 bg-slate-200 hidden sm:block" />

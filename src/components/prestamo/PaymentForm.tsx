@@ -153,8 +153,35 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
     }
   };
 
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const newVouchers: Array<{ file: File; base64: string }> = [];
+    let processed = 0;
+    const imageItems = Array.from(items).filter((it) => it.type.indexOf("image") !== -1);
+    if (imageItems.length === 0) return;
+
+    imageItems.forEach((item, index) => {
+      const blob = item.getAsFile();
+      if (blob) {
+        const file = new File([blob], `comprobante_pega_${Date.now()}_${index + 1}.png`, { type: blob.type });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = (reader.result as string).split(",")[1];
+          newVouchers.push({ file, base64 });
+          processed++;
+          if (processed === imageItems.length) {
+            setVcrFiles((prev) => [...prev, ...newVouchers]);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  };
+
   return (
-    <Card variant="bento" className="select-none font-sans">
+    <Card variant="bento" className="select-none font-sans outline-none" onPaste={handlePaste} tabIndex={0}>
       <div className="mb-4">
         <h2 className="text-sm md:text-base font-black text-slate-900 tracking-tight leading-none">
           {isAlquiler ? "Registrar Mensualidad" : "Registrar Amortización"}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { DollarSign, CheckCircle, AlertCircle, Upload, Home } from "lucide-react";
+import { DollarSign, CheckCircle, AlertCircle, Upload, Home, X, Image as ImageIcon } from "lucide-react";
 import { Cliente, Alquiler } from "../../types";
 import { ClienteAutocomplete } from "../common/ClienteAutocomplete";
 
@@ -28,7 +28,7 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
   const [monto, setMonto] = useState("");
   const [fechaPago, setFechaPago] = useState(new Date().toISOString().split("T")[0]);
   const [metodoPago, setMetodoPago] = useState("Efectivo");
-  const [comprobanteFile, setComprobanteFile] = useState<File | null>(null);
+  const [comprobanteFiles, setComprobanteFiles] = useState<File[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -58,7 +58,37 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
     }
   }, [clienteId]);
 
-  const alquilerSeleccionado = alquileresActivos.find((a) => a.id === alquilerId) || null;
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const newFiles: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf("image") !== -1) {
+        const blob = item.getAsFile();
+        if (blob) {
+          const file = new File([blob], `comprobante_alquiler_pega_${Date.now()}_${i + 1}.png`, { type: blob.type });
+          newFiles.push(file);
+        }
+      }
+    }
+
+    if (newFiles.length > 0) {
+      setComprobanteFiles((prev) => [...prev, ...newFiles]);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const addedFiles = Array.from(e.target.files);
+      setComprobanteFiles((prev) => [...prev, ...addedFiles]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setComprobanteFiles((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,24 +107,39 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
     setSuccessMsg("");
 
     try {
-      let comprobanteUrl = "";
+      const comprobanteUrls: string[] = [];
 
-      if (comprobanteFile) {
-        const formData = new FormData();
-        formData.append("file", comprobanteFile);
-        formData.append("cliente_id", clienteId);
-        formData.append("alquiler_id", alquilerId);
+      if (comprobanteFiles.length > 0) {
+        const uploads = await Promise.all(
+          comprobanteFiles.map(async (file) => {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("cliente_id", clienteId);
+            formData.append("alquiler_id", alquilerId);
 
-        const uploadRes = await fetch("/api/upload-voucher", {
-          method: "POST",
-          body: formData
+            const uploadRes = await fetch("/api/upload-voucher", {
+              method: "POST",
+              body: formData
+            });
+
+            if (uploadRes.ok) {
+              const uploadData = await uploadRes.json();
+              return uploadData.fileUrl || uploadData.proxyUrl || "";
+            }
+            return null;
+          })
+        );
+
+        uploads.forEach((url) => {
+          if (url) comprobanteUrls.push(url);
         });
-
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
-          comprobanteUrl = uploadData.fileUrl || uploadData.proxyUrl || "";
-        }
       }
+
+      const finalUrl = comprobanteUrls.length === 1 
+        ? comprobanteUrls[0] 
+        : comprobanteUrls.length > 1 
+        ? JSON.stringify(comprobanteUrls) 
+        : null;
 
       const res = await fetch(`/api/alquileres/${alquilerId}/pagos`, {
         method: "POST",
@@ -105,7 +150,7 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
           periodo_anio: periodoAnio,
           fecha_pago: fechaPago,
           metodo_pago: metodoPago,
-          comprobante_url: comprobanteUrl || null
+          comprobante_url: finalUrl
         })
       });
 
@@ -117,7 +162,7 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
       setSuccessMsg("¡Pago de alquiler registrado correctamente!");
       onPagoRegistrado();
       setMonto("");
-      setComprobanteFile(null);
+      setComprobanteFiles([]);
     } catch (err: any) {
       setErrorMsg(err.message || "Error al procesar el pago");
     } finally {
@@ -126,7 +171,11 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
   };
 
   return (
-    <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4">
+    <div
+      onPaste={handlePaste}
+      className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4 tab-focus-none outline-none"
+      tabIndex={0}
+    >
       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
@@ -134,80 +183,78 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
           </div>
           <div>
             <h2 className="text-base font-bold text-slate-800">Registrar Pago de Alquiler</h2>
-            <p className="text-xs text-slate-500">Sección 8.3.3 — Cobro de renta por período</p>
+            <p className="text-xs text-slate-500">Cobro de renta por período de alquiler</p>
           </div>
         </div>
       </div>
 
       {errorMsg && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs text-red-700 font-medium">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+        <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
           <span>{errorMsg}</span>
         </div>
       )}
 
       {successMsg && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs text-emerald-700 font-medium">
-          <CheckCircle className="w-4 h-4 shrink-0" />
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-xl flex items-center gap-2">
+          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{successMsg}</span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-3">
-        {/* Selector de Inquilino */}
-        <ClienteAutocomplete
-          clientes={clientes}
-          selectedClienteId={clienteId}
-          onSelectCliente={setClienteId}
-          placeholder="Buscar inquilino..."
-          required
-        />
-
-        {/* Selector de Contrato Activo */}
+      <form onSubmit={handleSubmit} className="space-y-3.5">
         <div>
           <label className="text-xs font-semibold text-slate-700 block mb-1">
-            Contrato de Alquiler *
+            Inquilino / Cliente *
           </label>
-          <select
-            value={alquilerId}
-            onChange={(e) => {
-              const id = e.target.value;
-              setAlquilerId(id);
-              const selected = alquileresActivos.find((a) => a.id === id);
-              if (selected) setMonto(String(selected.monto_mensual));
+          <ClienteAutocomplete
+            clientes={clientes}
+            selectedClienteId={clienteId}
+            onSelectCliente={(cId) => {
+              setClienteId(cId);
+              setAlquilerId("");
             }}
-            disabled={!clienteId || alquileresDelCliente.length === 0}
-            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all disabled:opacity-50"
-            required
-          >
-            <option value="">
-              {!clienteId
-                ? "-- Primero seleccione un inquilino --"
-                : alquileresDelCliente.length === 0
-                ? "-- Sin contratos activos --"
-                : "-- Seleccione contrato --"}
-            </option>
-            {alquileresDelCliente.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.descripcion_inmueble} (S/ {a.monto_mensual}/mes)
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
-        {/* Período Mes/Año */}
+        {clienteId && (
+          <div>
+            <label className="text-xs font-semibold text-slate-700 block mb-1">
+              Contrato de Alquiler *
+            </label>
+            <select
+              value={alquilerId}
+              onChange={(e) => {
+                const id = e.target.value;
+                setAlquilerId(id);
+                const selected = alquileresActivos.find((a) => a.id === id);
+                if (selected) setMonto(String(selected.monto_mensual));
+              }}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white"
+            >
+              <option value="">-- Seleccionar Contrato --</option>
+              {alquileresDelCliente.map((a) => (
+                <option key={a.id} value={a.id}>
+                  🏠 {a.descripcion_inmueble} (S/ {a.monto_mensual.toFixed(2)}/mes)
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Período Mes y Año */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-semibold text-slate-700 block mb-1">
-              Mes a Cobrar *
+              Período Mes *
             </label>
             <select
               value={periodoMes}
-              onChange={(e) => setPeriodoMes(parseInt(e.target.value, 10))}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
+              onChange={(e) => setPeriodoMes(parseInt(e.target.value))}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white"
             >
               {MESES.map((m, idx) => (
-                <option key={idx + 1} value={idx + 1}>
+                <option key={idx} value={idx + 1}>
                   {m}
                 </option>
               ))}
@@ -216,14 +263,13 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
 
           <div>
             <label className="text-xs font-semibold text-slate-700 block mb-1">
-              Año *
+              Período Año *
             </label>
             <input
               type="number"
               value={periodoAnio}
-              onChange={(e) => setPeriodoAnio(parseInt(e.target.value, 10))}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
-              required
+              onChange={(e) => setPeriodoAnio(parseInt(e.target.value))}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white"
             />
           </div>
         </div>
@@ -231,42 +277,39 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-semibold text-slate-700 block mb-1">
-              Monto Recibido (S/) *
+              Monto Pagado (S/) *
             </label>
             <input
               type="number"
               step="0.01"
-              min="0.1"
-              placeholder="Ej: 800.00"
               value={monto}
               onChange={(e) => setMonto(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
-              required
+              placeholder="0.00"
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white"
             />
           </div>
 
           <div>
             <label className="text-xs font-semibold text-slate-700 block mb-1">
-              Fecha de Pago
+              Fecha de Pago *
             </label>
             <input
               type="date"
               value={fechaPago}
               onChange={(e) => setFechaPago(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
-              required
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white"
             />
           </div>
         </div>
 
         <div>
           <label className="text-xs font-semibold text-slate-700 block mb-1">
-            Método de Pago
+            Cuenta / Método de Pago *
           </label>
           <select
             value={metodoPago}
             onChange={(e) => setMetodoPago(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
+            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white"
           >
             <option value="Efectivo">Efectivo</option>
             <option value="Sebastián — Interbank / Plin">Sebastián — Interbank / Plin</option>
@@ -279,16 +322,59 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
           </select>
         </div>
 
+        {/* Carga y Pegado de Múltiples Comprobantes */}
         <div>
-          <label className="text-xs font-semibold text-slate-700 block mb-1">
-            Comprobante / Voucher (opcional)
-          </label>
-          <input
-            type="file"
-            accept="image/*,application/pdf"
-            onChange={(e) => setComprobanteFile(e.target.files?.[0] || null)}
-            className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
-          />
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs font-semibold text-slate-700">
+              Comprobantes de Alquiler (Opcional - Selecciona o presiona Ctrl+V)
+            </label>
+            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+              💡 Puedes pegar con Ctrl + V
+            </span>
+          </div>
+
+          <div className="relative">
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              multiple
+              onChange={handleFileChange}
+              className="hidden"
+              id="voucher-input-alquiler"
+            />
+            <label
+              htmlFor="voucher-input-alquiler"
+              className="w-full px-3 py-2.5 bg-slate-50/70 border border-dashed border-slate-300 hover:border-emerald-400 rounded-xl text-xs text-slate-600 flex items-center justify-center gap-2 cursor-pointer transition-colors"
+            >
+              <Upload className="w-4 h-4 text-slate-400" />
+              <span>Subir comprobante(s) o presiona Ctrl + V</span>
+            </label>
+          </div>
+
+          {/* Lista de archivos agregados */}
+          {comprobanteFiles.length > 0 && (
+            <div className="mt-2 space-y-1.5">
+              {comprobanteFiles.map((file, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between px-2.5 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-xs"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <ImageIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="truncate font-medium text-slate-800">{file.name}</span>
+                    <span className="text-[10px] text-slate-400">({(file.size / 1024).toFixed(1)} KB)</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(idx)}
+                    className="p-0.5 hover:bg-slate-200 rounded text-slate-400 hover:text-red-600 transition"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <button

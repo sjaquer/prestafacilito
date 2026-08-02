@@ -31,6 +31,7 @@ export interface Prestamo {
   tasa_interes_porcentaje: number;
   fecha_emision: string;
   fecha_vencimiento: string;
+  dia_vencimiento_mes?: string;
   estado: 'activo' | 'pagado';
   tipo_prestamo: string;
   notas?: string;
