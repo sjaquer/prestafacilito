@@ -62,27 +62,31 @@ export function buildAlquilerSchedule(
   
   const diaCobroFijo = fechaInicio.getDate();
 
+  // El primer vencimiento de alquiler ocurre 1 mes después del inicio del contrato (o el mismo mes si el pago es por adelantado)
+  // Generar meses desde fechaInicio hasta now
   const fechaLimite = alquiler.fecha_fin 
     ? new Date(Math.min(now.getTime(), normalizeDate(alquiler.fecha_fin).getTime()))
     : now;
-  
+
+  // Total acumulado pagado por el inquilino
+  const totalPagado = round2(pagos.reduce((sum, p) => sum + toNumber(p.monto), 0));
+  let saldoDisponible = totalPagado;
+
   const meses: MesAlquiler[] = [];
-  let mesActual = new Date(fechaInicio.getFullYear(), fechaInicio.getMonth(), 1);
+  // Primer periodo de renta vence 1 mes después del inicio (o el mes siguiente si día cobro es fijo)
+  let mesActual = new Date(fechaInicio.getFullYear(), fechaInicio.getMonth() + 1, 1);
   let numeroMes = 1;
-  
+
   while (mesActual <= fechaLimite || meses.length < 1) {
     const lastDay = new Date(mesActual.getFullYear(), mesActual.getMonth() + 1, 0).getDate();
     const targetDay = Math.min(diaCobroFijo, lastDay);
     const fechaVencimiento = new Date(mesActual.getFullYear(), mesActual.getMonth(), targetDay);
     
-    const pagosDelMes = pagos.filter(p => 
-      p.periodo_mes === mesActual.getMonth() + 1 && 
-      p.periodo_anio === mesActual.getFullYear()
-    );
-    
-    const montoPagado = round2(pagosDelMes.reduce((sum, p) => sum + toNumber(p.monto), 0));
-    const saldoPendiente = round2(Math.max(0, montoMensual - montoPagado));
-    
+    // Aplicar saldo disponible de pagos acumulados a esta mensualidad
+    const montoPagadoMes = round2(Math.min(montoMensual, saldoDisponible));
+    saldoDisponible = round2(Math.max(0, saldoDisponible - montoPagadoMes));
+    const saldoPendiente = round2(Math.max(0, montoMensual - montoPagadoMes));
+
     const diasVencidos = fechaVencimiento < now 
       ? Math.floor((now.getTime() - fechaVencimiento.getTime()) / (24 * 60 * 60 * 1000))
       : 0;
@@ -93,7 +97,7 @@ export function buildAlquilerSchedule(
     
     let estado: MesAlquiler['estado'];
     if (saldoPendiente <= 0) estado = 'Saldada';
-    else if (montoPagado > 0) estado = 'Parcial';
+    else if (montoPagadoMes > 0) estado = 'Parcial';
     else if (fechaVencimiento < now) estado = 'Vencida';
     else estado = 'Pendiente';
     
@@ -102,13 +106,18 @@ export function buildAlquilerSchedule(
     const dd = String(fechaVencimiento.getDate()).padStart(2, '0');
     const fechaVencStr = `${yyyy}-${mm}-${dd}`;
 
+    const pagosDelMes = pagos.filter(p => 
+      p.periodo_mes === mesActual.getMonth() + 1 && 
+      p.periodo_anio === mesActual.getFullYear()
+    );
+
     meses.push({
       numero: numeroMes,
       anio: mesActual.getFullYear(),
       mes: mesActual.getMonth() + 1,
       fechaVencimiento: fechaVencStr,
       montoEsperado: montoMensual,
-      montoPagado,
+      montoPagado: montoPagadoMes,
       saldoPendiente,
       estado,
       diasVencidos,
@@ -122,7 +131,6 @@ export function buildAlquilerSchedule(
     if (numeroMes > 120) break;
   }
   
-  const totalPagado = round2(pagos.reduce((sum, p) => sum + toNumber(p.monto), 0));
   const totalPendiente = round2(meses.reduce((sum, m) => sum + m.saldoPendiente, 0));
   const mesesAtrasados = meses.filter(m => m.estado === 'Vencida' || 
     (m.estado === 'Parcial' && m.diasVencidos > 0)).length;
