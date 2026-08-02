@@ -67,10 +67,15 @@ export const buildPaymentSchedule = (
   const tasaMensual = toNumber(prestamo.tasa_interes_porcentaje) / 100;
   const emisionDate = normalizeDate(prestamo.fecha_emision);
   const now = normalizeDate(referenceDate);
-  const totalCuotas = getInstallmentCount(prestamo);
+  // Calcular cuántos meses han transcurrido desde la fecha de emisión hasta hoy (mínimo los meses pactados o transcurridos + 1)
+  const monthsElapsed = Math.max(
+    1,
+    (now.getFullYear() - emisionDate.getFullYear()) * 12 + (now.getMonth() - emisionDate.getMonth()) + 1
+  );
+  const totalCuotas = Math.max(getInstallmentCount(prestamo), monthsElapsed);
 
-  // Amortización de capital constante por cuota (método francés adaptativo)
-  const amortizacionCapitalPorCuota = round2(capital / totalCuotas);
+  // Amortización de capital por cuota
+  const amortizacionCapitalPorCuota = round2(capital / Math.max(1, totalCuotas));
 
   // Generar el cronograma teórico de cuotas
   const cuotas: CuotaPrestamo[] = [];
@@ -144,9 +149,12 @@ export const buildPaymentSchedule = (
       if (remaining <= EPSILON) break;
       if (cuota.estado === "Saldada") continue;
 
+      let pagoInteres = 0;
+      let pagoCapital = 0;
+
       // 1. Pagar el interés pendiente de la cuota
       if (cuota.interesPendiente > EPSILON) {
-        const pagoInteres = round2(Math.min(cuota.interesPendiente, remaining));
+        pagoInteres = round2(Math.min(cuota.interesPendiente, remaining));
         cuota.interesPendiente = round2(cuota.interesPendiente - pagoInteres);
         cuota.interesPagado = round2((cuota.interesPagado || 0) + pagoInteres);
         remaining = round2(remaining - pagoInteres);
@@ -156,10 +164,24 @@ export const buildPaymentSchedule = (
       if (remaining > EPSILON && cuota.capitalAmortizado && cuota.capitalAmortizado > 0) {
         const capitalCuotaPendiente = round2((cuota.capitalAmortizado || 0) - (cuota.capitalAmortizadoPagado || 0));
         if (capitalCuotaPendiente > EPSILON) {
-          const pagoCapital = round2(Math.min(capitalCuotaPendiente, remaining));
+          pagoCapital = round2(Math.min(capitalCuotaPendiente, remaining));
           cuota.capitalAmortizadoPagado = round2((cuota.capitalAmortizadoPagado || 0) + pagoCapital);
           remaining = round2(remaining - pagoCapital);
         }
+      }
+
+      const totalAplicadoCuota = round2(pagoInteres + pagoCapital);
+      if (totalAplicadoCuota > EPSILON) {
+        if (!cuota.pagosRecibidos) cuota.pagosRecibidos = [];
+        cuota.pagosRecibidos.push({
+          id: pago.id,
+          fecha: pago.fecha_pago,
+          monto: totalAplicadoCuota,
+          aplicadoInteres: pagoInteres,
+          aplicadoCapital: pagoCapital,
+          metodo_pago: pago.metodo_pago,
+          comprobante_url: pago.comprobante_url
+        });
       }
 
       // Actualizar totales de la cuota

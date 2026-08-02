@@ -180,16 +180,6 @@ prestamosRouter.get("/:id", requireAuth, async (req: express.Request, res: expre
 
     // Mapear el cronograma al formato TimelineMes de la Fase 5
     const timeline = debtState.cuotas.map((c) => {
-      const pagosDelMes = (pagosRealizados || []).filter((p) => {
-        const dPago = normalizeDate(p.fecha_pago);
-        const dVenc = normalizeDate(c.fechaVencimiento);
-        // Coincidencia por período de cuota
-        return Math.abs(dPago.getTime() - dVenc.getTime()) <= 45 * 24 * 60 * 60 * 1000;
-      });
-
-      const interesPagado = c.interesPagado || ((c.interesOriginal || 0) - c.interesPendiente);
-      const capitalPagado = c.capitalAmortizadoPagado || 0;
-
       return {
         numero: c.numero,
         fechaVencimiento: c.fechaVencimiento,
@@ -197,15 +187,7 @@ prestamosRouter.get("/:id", requireAuth, async (req: express.Request, res: expre
         interesMes: c.interesOriginal || 0,
         cuotaEsperada: c.montoCuotaBase,
         amortizacionCapital: c.capitalAmortizado || 0,
-        pagosRecibidos: (pagosRealizados || []).map((p) => ({
-          id: p.id,
-          fecha: p.fecha_pago,
-          monto: toNumber(p.monto),
-          aplicadoInteres: round2(Math.min(c.interesOriginal || 0, toNumber(p.monto))),
-          aplicadoCapital: round2(Math.max(0, toNumber(p.monto) - (c.interesOriginal || 0))),
-          metodo_pago: p.metodo_pago,
-          comprobante_url: p.comprobante_url
-        })),
+        pagosRecibidos: c.pagosRecibidos || [],
         totalPagado: c.pagado,
         capitalRestante: round2(Math.max(0, c.capitalPendiente - (c.capitalAmortizado || 0))),
         saldoPendienteCuota: c.saldoPendiente,

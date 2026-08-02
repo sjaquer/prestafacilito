@@ -98,6 +98,7 @@ export interface CuotaPrestamo {
   moraPagado?: number;
   ultimoCalculoMoraDate?: Date;
   expressLiquidacion?: boolean;
+  pagosRecibidos?: any[];
 }
 
 export interface ResumenDeudaPrestamo {
