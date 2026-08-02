@@ -410,18 +410,18 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
 
       {/* Modal de Previsualización y Confirmación del Reporte en Imagen */}
       {showModalReporte && (
-        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-3xl w-full space-y-4 shadow-2xl relative border border-slate-200 animate-scaleUp">
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white rounded-3xl p-4 sm:p-6 max-w-3xl w-full max-h-[92vh] overflow-y-auto space-y-4 shadow-2xl relative border border-slate-200 animate-scaleUp">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl">
+                <div className="p-2 sm:p-2.5 bg-emerald-100 text-emerald-700 rounded-xl">
                   <Share2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900">
+                  <h3 className="text-sm sm:text-base font-black text-slate-900">
                     Reporte de Cobros Semanal para WhatsApp
                   </h3>
-                  <p className="text-xs font-medium text-slate-500">
+                  <p className="text-[11px] sm:text-xs font-medium text-slate-500">
                     Reporte visual limpio y profesional listo para enviar a tu papá
                   </p>
                 </div>
@@ -436,12 +436,12 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
 
             {/* Banner de Estado de Copiado */}
             {copiedSuccess && (
-              <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-2xl flex items-center gap-3 text-emerald-900">
-                <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
-                <div className="text-xs">
+              <div className="p-3 sm:p-3.5 bg-emerald-50 border border-emerald-300 rounded-2xl flex items-center gap-2.5 text-emerald-900">
+                <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 shrink-0" />
+                <div className="text-[11px] sm:text-xs">
                   <p className="font-extrabold text-emerald-950">¡Imagen copiada al portapapeles con éxito! 🎉</p>
                   <p className="font-semibold text-emerald-800">
-                    Abre WhatsApp y presiona <kbd className="px-1.5 py-0.5 bg-white border border-emerald-300 rounded font-mono font-bold text-slate-800">Ctrl + V</kbd> (o Mantén presionado y selecciona Pegar en celular) para enviárselo directamente.
+                    Abre WhatsApp y presiona <kbd className="px-1 py-0.5 bg-white border border-emerald-300 rounded font-mono font-bold text-slate-800">Ctrl + V</kbd> (o Mantén presionado y selecciona Pegar en celular) para enviárselo directamente.
                   </p>
                 </div>
               </div>
@@ -457,7 +457,7 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
 
             {/* Vista Previa Completa Sin Deformación */}
             {generatedDataUrl && (
-              <div className="max-h-[420px] overflow-y-auto bg-slate-800 p-3 rounded-2xl border border-slate-700 flex justify-center items-center">
+              <div className="max-h-[45vh] sm:max-h-[420px] overflow-auto bg-slate-900 p-2 sm:p-3 rounded-2xl border border-slate-700 flex justify-center items-center">
                 <img
                   src={generatedDataUrl}
                   alt="Reporte de cobros para WhatsApp"
@@ -467,12 +467,12 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
             )}
 
             {/* Botones Principales de Acción en el Modal */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-100">
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-2 border-t border-slate-100">
+              <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
                 <button
                   onClick={handleCopiarPortapapelesManual}
                   disabled={!generatedDataUrl}
-                  className="flex-1 sm:flex-none px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                  className="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
                 >
                   {copiedSuccess ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4" />}
                   <span>{copiedSuccess ? "¡Copiado de Nuevo!" : "Copiar Imagen al Portapapeles"}</span>
@@ -482,7 +482,7 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
                   <a
                     href={generatedDataUrl}
                     download={`Reporte_Cobros_PrestaFacilito_${new Date().toISOString().split("T")[0]}.png`}
-                    className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                    className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
                   >
                     <Download className="w-4 h-4 text-slate-600" /> Descargar PNG
                   </a>

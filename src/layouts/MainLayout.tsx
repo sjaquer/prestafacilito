@@ -191,7 +191,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
             {/* Desktop Nav */}
             <nav
               id="nav-links"
-              className="hidden lg:flex items-center gap-0.5 bg-slate-100 p-1 rounded-2xl border border-slate-200/60 flex-1 max-w-md xl:max-w-lg mx-auto select-none"
+              className="hidden lg:flex items-center gap-0.5 bg-slate-100 p-1 rounded-2xl border border-slate-200/60 flex-1 max-w-sm xl:max-w-lg mx-auto select-none"
             >
               {navItems.map((item) => {
                 const isActive = isPathActive(item);
@@ -199,10 +199,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-bold transition-all duration-150 cursor-pointer flex-1 min-w-0 justify-center whitespace-nowrap decoration-none ${
+                    className={`flex items-center gap-1 px-2.5 xl:px-3.5 py-1.5 xl:py-2 rounded-xl text-[10px] xl:text-[11px] font-bold transition-all duration-150 cursor-pointer flex-1 min-w-0 justify-center whitespace-nowrap decoration-none ${
                       isActive
                         ? "bg-white text-emerald-700 shadow-sm border border-slate-200"
-                        : "text-slate-500 hover:text-slate-800 hover:bg-slate-205/50"
+                        : "text-slate-500 hover:text-slate-800 hover:bg-slate-200/50"
                     }`}
                   >
                     <item.icon size={13} strokeWidth={isActive ? 2.5 : 2} />
@@ -215,24 +215,26 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
             {/* Accesibilidad + User + Logout */}
             <div
               id="user-controls"
-              className="flex items-center gap-3 shrink-0"
+              className="flex items-center gap-1.5 sm:gap-2 shrink-0"
             >
-              {/* Aa Zoom Control */}
-              <FontSizeControl />
+              {/* Aa Zoom Control (oculto en laptops pequeñas para evitar overflow) */}
+              <div className="hidden xl:block">
+                <FontSizeControl />
+              </div>
 
-              <div className="w-px h-5 bg-slate-200 hidden sm:block" />
+              <div className="w-px h-5 bg-slate-200 hidden xl:block" />
 
               {/* Google Drive Status Indicator & Reconnect Link */}
               <div 
                 id="drive-status-indicator"
-                className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-xl select-none"
+                className="flex items-center gap-1 bg-slate-100 border border-slate-200 px-2 py-1 rounded-xl select-none"
               >
                 {driveConfigured === null ? (
-                  <Cloud className="text-slate-450 animate-pulse" size={14} />
+                  <Cloud className="text-slate-450 animate-pulse" size={13} />
                 ) : driveConfigured ? (
-                  <Cloud className="text-emerald-600" size={14} />
+                  <Cloud className="text-emerald-600" size={13} />
                 ) : (
-                  <CloudOff className="text-amber-500 animate-pulse" size={14} />
+                  <CloudOff className="text-amber-500 animate-pulse" size={13} />
                 )}
 
                 <span className={`relative flex h-2 w-2`}>
@@ -251,7 +253,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                   )}
                 </span>
                 
-                <span className="text-[10px] font-bold text-slate-600 hidden md:inline">
+                <span className="text-[10px] font-bold text-slate-600 hidden 2xl:inline">
                   {driveConfigured === null ? "Drive..." : driveConfigured ? "Drive Activo" : "Drive Error"}
                 </span>
 
@@ -262,9 +264,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                     }
                   }}
                   title="Conectar o volver a vincular Google Drive"
-                  className="p-0.5 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-800 transition cursor-pointer border-none bg-transparent flex items-center justify-center ml-0.5"
+                  className="p-0.5 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-800 transition cursor-pointer border-none bg-transparent flex items-center justify-center"
                 >
-                  <span className="text-[9px] font-black text-indigo-600 hover:text-indigo-700 uppercase tracking-wider px-1">
+                  <span className="text-[9px] font-black text-indigo-600 hover:text-indigo-700 uppercase tracking-wider px-0.5">
                     {driveConfigured ? "Reconectar" : "Conectar"}
                   </span>
                 </button>
@@ -275,14 +277,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                 <button
                   onClick={() => setShowBackupMenu(!showBackupMenu)}
                   title="Copia de Seguridad (Excel)"
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-extrabold border transition-all cursor-pointer select-none ${
+                  className={`flex items-center gap-1 px-2 py-1 rounded-xl text-[10px] font-extrabold border transition-all cursor-pointer select-none ${
                     backupStatus?.requiere_backup
                       ? "bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-100 animate-pulse shadow-xs"
                       : "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200"
                   }`}
                 >
-                  <Database size={14} className={backupStatus?.requiere_backup ? "text-rose-600" : "text-emerald-600"} />
-                  <span className="hidden md:inline">
+                  <Database size={13} className={backupStatus?.requiere_backup ? "text-rose-600" : "text-emerald-600"} />
+                  <span className="hidden xl:inline">
                     {backupStatus?.requiere_backup ? "¡Hacer Backup!" : "Backup Excel"}
                   </span>
                   {backupStatus?.requiere_backup && (
@@ -291,7 +293,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                 </button>
 
                 {showBackupMenu && (
-                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-50 space-y-3">
+                  <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-50 space-y-3">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                       <div className="flex items-center gap-2">
                         <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
