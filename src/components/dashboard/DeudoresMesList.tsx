@@ -242,10 +242,10 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
                     <span className="font-extrabold text-slate-900 text-sm">S/ {deudor.cuota_actual.toFixed(2)}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block font-medium">Día de Cobro / Venc.</span>
+                    <span className="text-[10px] text-slate-400 block font-medium">Día de Cobro Mensual</span>
                     <div className="flex flex-col gap-0.5 mt-0.5">
                       <span className="font-bold text-slate-800 flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400" /> {deudor.dia_vencimiento_mes}
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" /> Día {deudor.dia_vencimiento_mes ? parseInt(deudor.dia_vencimiento_mes.split("-")[2] || deudor.dia_vencimiento_mes, 10) : 5}
                       </span>
                       {isAtrasado ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-black text-red-700 bg-red-100 border border-red-300 px-1.5 py-0.5 rounded-md w-fit">
