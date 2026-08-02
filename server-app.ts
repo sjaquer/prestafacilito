@@ -33,9 +33,9 @@ app.use((req, res, next) => {
     "default-src 'self'; " +
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src 'self' https://fonts.gstatic.com; " +
+    "font-src 'self' data: https://fonts.gstatic.com; " +
     "img-src 'self' data: blob: https://*.googleusercontent.com https://*.googleapis.com; " +
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.googleapis.com; " +
+    "connect-src 'self' data: blob: https://*.supabase.co wss://*.supabase.co https://*.googleapis.com https://fonts.gstatic.com; " +
     "frame-src 'self' https://docs.google.com https://drive.google.com;"
   );
   next();

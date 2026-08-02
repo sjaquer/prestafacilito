@@ -64,6 +64,18 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
     (d) => d.estado_pago_mes === "atrasado" || d.estado_pago_mes === "pendiente"
   );
 
+  const dataUrlToBlob = (dataUrl: string): Blob => {
+    const parts = dataUrl.split(",");
+    const mime = parts[0].match(/:(.*?);/)?.[1] || "image/png";
+    const bstr = atob(parts[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  };
+
   const handleGenerarReporteImagen = async () => {
     setIsGeneratingImage(true);
     setCopiedSuccess(false);
@@ -78,13 +90,12 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
         throw new Error("No se pudo encontrar el contenedor del reporte");
       }
 
-      const dataUrl = await toPng(node, { quality: 0.98, pixelRatio: 2.5 });
+      const dataUrl = await toPng(node, { quality: 0.98, pixelRatio: 2.5, skipFonts: true });
       setGeneratedDataUrl(dataUrl);
 
-      // Intentar copiado inicial
+      // Intentar copiado inicial síncrono
       try {
-        const response = await fetch(dataUrl);
-        const blob = await response.blob();
+        const blob = dataUrlToBlob(dataUrl);
         if (navigator.clipboard && window.ClipboardItem) {
           await navigator.clipboard.write([
             new ClipboardItem({ [blob.type]: blob })
@@ -104,8 +115,7 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
   const handleCopiarPortapapelesManual = async () => {
     if (!generatedDataUrl) return;
     try {
-      const response = await fetch(generatedDataUrl);
-      const blob = await response.blob();
+      const blob = dataUrlToBlob(generatedDataUrl);
       if (navigator.clipboard && window.ClipboardItem) {
         await navigator.clipboard.write([
           new ClipboardItem({ [blob.type]: blob })
