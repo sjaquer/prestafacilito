@@ -1,7 +1,7 @@
 // src/lib/alquilerLogic.ts
 // Lógica de negocio exclusiva para contratos de alquiler.
 
-import { round2, toNumber, normalizeDate } from './loanLogic';
+import { round2, toNumber, normalizeDate } from './loanLogic.js';
 
 export interface AlquilerContrato {
   id: string;

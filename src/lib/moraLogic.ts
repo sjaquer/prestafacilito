@@ -1,4 +1,4 @@
-import { normalizeDate, round2, toNumber, addMonthsClamped, formatIsoDate } from "./loanLogic";
+import { normalizeDate, round2, toNumber, addMonthsClamped, formatIsoDate } from "./loanLogic.js";
 
 export type EstadoCuotaMes = "al_dia" | "pendiente_mes" | "mora_mes" | "mora_acumulada" | "sin_cuotas";
 

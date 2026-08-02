@@ -1,5 +1,5 @@
 import { Prestamo, Amortizacion } from "../types";
-import { buildPaymentSchedule, round2, normalizeDate } from "./loanLogic";
+import { buildPaymentSchedule, round2, normalizeDate } from "./loanLogic.js";
 
 export interface ScoreData {
   cuotasTotales: number;
