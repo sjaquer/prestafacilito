@@ -167,7 +167,7 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
           <p className="text-xs text-slate-500">No se encontraron cuentas con los criterios seleccionados.</p>
         </div>
       ) : (
-        <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+        <div className="space-y-3 max-h-[850px] min-h-[650px] overflow-y-auto pr-1">
           {filteredDeudores.map((deudor) => {
             const isAtrasado = deudor.estado_pago_mes === "atrasado";
             const isPagado = deudor.estado_pago_mes === "pagado";
@@ -176,16 +176,16 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
             return (
               <div
                 key={deudor.prestamo_id}
-                className={`p-4 rounded-xl border transition-all space-y-3 ${
+                className={`p-4 rounded-2xl border transition-all space-y-3 shadow-xs ${
                   isAtrasado
-                    ? "bg-red-50/40 border-red-200 shadow-sm"
+                    ? "bg-red-50/50 border-red-200 shadow-sm"
                     : isPagado
                     ? "bg-emerald-50/30 border-emerald-200"
-                    : "bg-amber-50/20 border-amber-200"
+                    : "bg-amber-50/30 border-amber-200"
                 }`}
               >
                 {/* Header de la tarjeta */}
-                <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       {deudor.es_alquiler ? (
@@ -197,7 +197,7 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
                           <Wallet className="w-3 h-3" /> PRÉSTAMO
                         </span>
                       )}
-                      <h3 className="text-sm font-bold text-slate-900">
+                      <h3 className="text-sm font-extrabold text-slate-900">
                         {deudor.cliente_nombre}
                       </h3>
                       {deudor.cliente_apodo && (
@@ -207,7 +207,7 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
                       )}
                       {getScoreBadge(deudor.score)}
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-1">
+                    <p className="text-[11px] text-slate-500 mt-1 font-medium">
                       {deudor.es_alquiler 
                         ? `Inmueble: ${deudor.descripcion_inmueble || "Alquiler"} • Mensualidad: S/ ${deudor.monto_capital.toFixed(2)}`
                         : `${deudor.tipo_prestamo} • Capital prestado: S/ ${deudor.monto_capital.toFixed(2)} (Tasa ${deudor.tasa_interes_porcentaje}%)`
@@ -215,47 +215,64 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
                     </p>
                   </div>
 
-                  {/* Insignia de Estado */}
-                  <div>
+                  {/* Insignia de Estado Destacada */}
+                  <div className="shrink-0">
                     {isAtrasado && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-100 text-red-800 border border-red-200 rounded-lg text-xs font-bold">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-red-600 to-rose-700 text-white rounded-full text-xs font-black shadow-md tracking-wide animate-pulse">
                         <AlertTriangle className="w-3.5 h-3.5" /> POR COBRAR
                       </span>
                     )}
                     {isPagado && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-bold">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-full text-xs font-black shadow-md">
                         <CheckCircle2 className="w-3.5 h-3.5" /> PAGADO
                       </span>
                     )}
                     {!isAtrasado && !isPagado && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-bold">
-                        <Clock className="w-3.5 h-3.5" /> PENDIENTE
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 rounded-full text-xs font-black shadow-md">
+                        <Clock className="w-3.5 h-3.5 text-slate-950" /> PENDIENTE
                       </span>
                     )}
                   </div>
                 </div>
 
                 {/* Detalles de Cuota y Casilla de Meses/Cuotas en Deuda */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2.5 bg-white/90 border border-slate-200/60 rounded-lg text-xs">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 bg-white border border-slate-200/80 rounded-xl text-xs shadow-2xs">
                   <div>
                     <span className="text-[10px] text-slate-400 block font-medium">Cuota del Mes</span>
-                    <span className="font-bold text-slate-800">S/ {deudor.cuota_actual.toFixed(2)}</span>
+                    <span className="font-extrabold text-slate-900 text-sm">S/ {deudor.cuota_actual.toFixed(2)}</span>
                   </div>
                   <div>
                     <span className="text-[10px] text-slate-400 block font-medium">Día de Cobro / Venc.</span>
-                    <span className="font-semibold text-slate-700 flex items-center gap-1">
-                      <Calendar className="w-3 h-3 text-slate-400" /> {deudor.dia_vencimiento_mes} {deudor.dias_restantes && deudor.dias_restantes > 0 ? `(Quedan ${deudor.dias_restantes}d)` : ""}
-                    </span>
+                    <div className="flex flex-col gap-0.5 mt-0.5">
+                      <span className="font-bold text-slate-800 flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" /> {deudor.dia_vencimiento_mes}
+                      </span>
+                      {isAtrasado ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-black text-red-700 bg-red-100 border border-red-300 px-1.5 py-0.5 rounded-md w-fit">
+                          ⚠️ Vencido ({deudor.dias_atraso || 1}d)
+                        </span>
+                      ) : deudor.dias_restantes !== undefined && deudor.dias_restantes > 0 ? (
+                        deudor.dias_restantes <= 7 ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-black text-amber-900 bg-amber-200/90 border border-amber-400 px-1.5 py-0.5 rounded-md w-fit animate-pulse">
+                            ⚡ Quedan {deudor.dias_restantes}d
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-blue-800 bg-blue-100 border border-blue-300 px-1.5 py-0.5 rounded-md w-fit">
+                            📅 Quedan {deudor.dias_restantes}d
+                          </span>
+                        )
+                      ) : null}
+                    </div>
                   </div>
                   <div>
                     <span className="text-[10px] text-slate-400 block font-medium">Cuotas / Meses en Deuda</span>
-                    <span className={`font-black ${cuotasDebiendo > 0 ? "text-red-600" : "text-emerald-600"}`}>
+                    <span className={`font-black block mt-1 text-xs ${cuotasDebiendo > 0 ? "text-red-600 underline decoration-red-300 underline-offset-2" : "text-emerald-600"}`}>
                       {cuotasDebiendo > 0 ? `${cuotasDebiendo} ${deudor.es_alquiler ? 'mes(es)' : 'cuota(s)'} en deuda` : "Al día"}
                     </span>
                   </div>
                   <div>
                     <span className="text-[10px] text-slate-400 block font-medium">Saldo Pendiente Total</span>
-                    <span className="font-bold text-slate-900">S/ {deudor.saldo_pendiente.toFixed(2)}</span>
+                    <span className="font-bold text-slate-900 block mt-1 text-xs">S/ {deudor.saldo_pendiente.toFixed(2)}</span>
                   </div>
                 </div>
 

@@ -269,10 +269,12 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
             className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
           >
             <option value="Efectivo">Efectivo</option>
-            <option value="Yape">Yape</option>
-            <option value="Plin">Plin</option>
-            <option value="Transferencia BCP">Transferencia BCP</option>
-            <option value="Transferencia BBVA">Transferencia BBVA</option>
+            <option value="Sebastián — Interbank / Plin">Sebastián — Interbank / Plin</option>
+            <option value="Sebastián — BCP / Yape">Sebastián — BCP / Yape</option>
+            <option value="Roberto — Interbank / Plin">Roberto — Interbank / Plin</option>
+            <option value="Roberto — BCP / Yape">Roberto — BCP / Yape</option>
+            <option value="Roberto — BBVA">Roberto — BBVA</option>
+            <option value="Transferencia Bancaria">Transferencia Bancaria (Otra)</option>
             <option value="Otro">Otro</option>
           </select>
         </div>
