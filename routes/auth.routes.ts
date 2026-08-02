@@ -7,12 +7,19 @@ import { supabase } from "../src/lib/supabase.js";
 const router = express.Router();
 
 function getEnv(name: string) {
-  return process.env[name]?.trim() || "";
+  return process.env[name]?.trim().replace(/^["']+|["']+$/g, "") || "";
 }
 
 const getPinForUser = (username: string) => {
-  const envKey = `PIN_${username.trim().toUpperCase()}`;
-  return getEnv(envKey);
+  const prefix = `PIN_${username.trim().toUpperCase()}`;
+  const direct = getEnv(prefix);
+  if (direct) return direct;
+  for (const key of Object.keys(process.env)) {
+    if (key.toUpperCase() === prefix) {
+      return String(process.env[key]).trim().replace(/^["']+|["']+$/g, "");
+    }
+  }
+  return "";
 };
 
 router.post("/login", async (req: express.Request, res: express.Response) => {
@@ -25,6 +32,12 @@ router.post("/login", async (req: express.Request, res: express.Response) => {
 
     const cleanUser = String(username).trim().toLowerCase();
     const expectedPin = getPinForUser(cleanUser);
+
+    if (!expectedPin) {
+      console.warn(
+        `[AUTH] Login fallido: usuario "${cleanUser}" intentó acceder pero no se encontró la variable de entorno PIN_${cleanUser.toUpperCase()} configurada.`
+      );
+    }
 
     const isValid = !!(expectedPin && String(password) === expectedPin);
 

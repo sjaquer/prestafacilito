@@ -17,6 +17,12 @@ import backupRoutes from "./routes/backup.routes.js";
 // Validar JWT_SECRET al arrancar
 getJwtSecret();
 
+// Diagnóstico de configuración de accesos (solo nombres, no valores)
+const configuredPins = Object.keys(process.env).filter((k) => /^PIN_/i.test(k));
+console.warn(
+  `[AUTH] PINs configurados en el entorno: ${configuredPins.length > 0 ? configuredPins.join(", ") : "NINGUNO (el login siempre fallará)"}`
+);
+
 const app = express();
 
 // Middlewares de seguridad
