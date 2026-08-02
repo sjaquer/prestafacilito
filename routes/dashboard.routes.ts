@@ -3,6 +3,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { supabase } from "../src/lib/supabase.js";
 import { buildPaymentSchedule, normalizeDate, toNumber, round2 } from "../src/lib/loanLogic.js";
 import { buildAlquilerSchedule } from "../src/lib/alquilerLogic.js";
+import { calcularEstadoMora } from "../src/lib/moraLogic.js";
 
 const router = express.Router();
 
@@ -56,21 +57,8 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
     for (const prestamo of prestamos) {
       const cliente = clientes.find(c => c.id === prestamo.cliente_id);
       const pagosDelPrestamo = amortizaciones.filter(a => a.prestamo_id === prestamo.id);
-      const ajustesDelPrestamo = ajustes.filter(a => a.prestamo_id === prestamo.id);
-
-      const debtState = buildPaymentSchedule(prestamo, pagosDelPrestamo, {
-        ajustes: ajustesDelPrestamo,
-        referenceDate: now
-      });
-
-      const baseDateStr = prestamo.fecha_vencimiento || prestamo.fecha_emision;
-      const dayOfLoan = baseDateStr ? parseInt(baseDateStr.split("-")[2] || "5", 10) : 5;
       
-      const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-      const targetDay = Math.min(Math.max(1, dayOfLoan), lastDayOfMonth);
-      
-      const fechaVencMesObj = new Date(currentYear, currentMonth, targetDay);
-      const fechaVencMesStr = fechaVencMesObj.toISOString().split("T")[0];
+      const estadoMora = calcularEstadoMora(prestamo, pagosDelPrestamo, now);
 
       const pagosMesActual = pagosDelPrestamo.filter(a => {
         const d = normalizeDate(a.fecha_pago);
@@ -79,36 +67,15 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
 
       const totalPagadoMesActual = pagosMesActual.reduce((sum, a) => sum + toNumber(a.monto), 0);
 
-      const cuotaMes = debtState.cuotas.find(c => {
-        const d = normalizeDate(c.fechaVencimiento);
-        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-      }) || debtState.cuotaSiguiente || debtState.cuotas[0];
-
-      const cuotaMontoBase = cuotaMes ? cuotaMes.montoCuotaBase : (toNumber(prestamo.monto_capital) * (toNumber(prestamo.tasa_interes_porcentaje) / 100));
-
       let estadoPagoMes: 'atrasado' | 'pendiente' | 'pagado' = 'pendiente';
-      let diasAtraso = 0;
-      let cuotasDebiendo = debtState.resumen.cuotasVencidas || 0;
-
-      if (debtState.resumen.saldoPendiente <= 0.01 || totalPagadoMesActual >= (cuotaMontoBase - 0.01)) {
+      if (estadoMora.estadoCuotaMes === 'al_dia') {
         estadoPagoMes = 'pagado';
-        cuotasDebiendo = 0;
-      } else if (debtState.resumen.cuotasVencidas > 0) {
+      } else if (estadoMora.cuotasAtrasadas > 0) {
         estadoPagoMes = 'atrasado';
         prestamosAtrasadosCount++;
-        const primeraVencida = debtState.cuotasVencidasDetalle[0];
-        diasAtraso = primeraVencida ? primeraVencida.diasVencidos : Math.floor((now.getTime() - fechaVencMesObj.getTime()) / (24 * 60 * 60 * 1000));
-      } else if (now > fechaVencMesObj) {
-        estadoPagoMes = 'atrasado';
-        cuotasDebiendo = 1;
-        prestamosAtrasadosCount++;
-        diasAtraso = Math.floor((now.getTime() - fechaVencMesObj.getTime()) / (24 * 60 * 60 * 1000));
       } else {
         estadoPagoMes = 'pendiente';
-        diasAtraso = 0;
       }
-
-      const diasRestantes = now <= fechaVencMesObj ? Math.ceil((fechaVencMesObj.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)) : 0;
 
       deudoresDelMes.push({
         prestamo_id: prestamo.id,
@@ -123,17 +90,17 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
         tipo_prestamo: prestamo.tipo_prestamo,
         fecha_emision: prestamo.fecha_emision,
         fecha_vencimiento: prestamo.fecha_vencimiento,
-        dia_vencimiento_mes: fechaVencMesStr,
-        dias_restantes: diasRestantes,
-        cuota_actual: cuotaMontoBase,
-        cuota_exigible: cuotaMes ? cuotaMes.montoExigible : cuotaMontoBase,
+        dia_vencimiento_mes: estadoMora.fechaCuotaActual,
+        dias_restantes: estadoMora.diasRestantes,
+        cuota_actual: estadoMora.montoCuotaActual,
+        cuota_exigible: estadoMora.montoCuotaActual,
         cuota_pagado: totalPagadoMesActual,
-        cuota_numero: cuotaMes ? cuotaMes.numero : 1,
-        total_cuotas: debtState.resumen.totalCuotas,
-        cuotas_debiendo: cuotasDebiendo,
+        cuota_numero: 1,
+        total_cuotas: 1,
+        cuotas_debiendo: estadoMora.cuotasAtrasadas,
         estado_pago_mes: estadoPagoMes,
-        saldo_pendiente: debtState.resumen.saldoPendiente,
-        dias_atraso: diasAtraso
+        saldo_pendiente: estadoMora.saldoPendiente,
+        dias_atraso: estadoMora.diasAtraso
       });
     }
 

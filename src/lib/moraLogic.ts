@@ -1,4 +1,4 @@
-import { buildPaymentSchedule } from "./loanLogic";
+import { normalizeDate, round2, toNumber, addMonthsClamped, formatIsoDate } from "./loanLogic";
 
 export type EstadoCuotaMes = "al_dia" | "pendiente_mes" | "mora_mes" | "mora_acumulada" | "sin_cuotas";
 
@@ -10,6 +10,7 @@ export interface EstadoMoraCliente {
   montoCuotaActual: number;
   fechaCuotaActual: string;
   diasAtraso: number;
+  diasRestantes: number;
   montoTotalAtrasado: number;
   saldoPendiente: number;
   moraAcumulada: number;
@@ -23,18 +24,20 @@ export function calcularEstadoMora(
   hoy: Date = new Date()
 ): EstadoMoraCliente {
   const pagosDelPrestamo = amortizaciones.filter(a => a.prestamo_id === prestamo.id);
-  const ajustes = prestamo.ajustes || [];
-  
-  const schedule = buildPaymentSchedule(prestamo, pagosDelPrestamo, { ajustes, referenceDate: hoy });
-  const cuotas = schedule.cuotas;
-
   const pagosSorted = [...pagosDelPrestamo].sort((a, b) => new Date(a.fecha_pago).getTime() - new Date(b.fecha_pago).getTime());
   const ultimoPago = pagosSorted[pagosSorted.length - 1] || null;
 
-  const todayStart = new Date(hoy);
-  todayStart.setHours(0, 0, 0, 0);
+  const totalPagado = round2(pagosDelPrestamo.reduce((sum, p) => sum + toNumber(p.monto), 0));
+  const montoCapital = toNumber(prestamo.monto_capital);
+  const tasaMensual = toNumber(prestamo.tasa_interes_porcentaje) / 100;
+  const cuotaBase = tasaMensual > 0 ? round2(montoCapital * tasaMensual) : montoCapital;
 
-  if (prestamo.estado === "pagado" || schedule.resumen.saldoPendiente <= 0.01) {
+  const todayStart = normalizeDate(hoy);
+  const emisionDate = normalizeDate(prestamo.fecha_emision);
+
+  // Si el préstamo ya está pagado o saldado
+  const saldoPendienteTotal = round2(Math.max(0, (montoCapital + (tasaMensual > 0 ? (cuotaBase * 12) : 0)) - totalPagado));
+  if (prestamo.estado === "pagado" || saldoPendienteTotal <= 0.01) {
     return {
       prestamoId: prestamo.id,
       clienteNombre: prestamo.cliente_nombre || "",
@@ -43,6 +46,7 @@ export function calcularEstadoMora(
       montoCuotaActual: 0,
       fechaCuotaActual: "",
       diasAtraso: 0,
+      diasRestantes: 0,
       montoTotalAtrasado: 0,
       saldoPendiente: 0,
       moraAcumulada: 0,
@@ -51,48 +55,52 @@ export function calcularEstadoMora(
     };
   }
 
-  // Extraer el día de vencimiento habitual (e.g. 5)
-  const baseDateStr = prestamo.fecha_vencimiento || prestamo.fecha_emision;
-  const dayOfLoan = baseDateStr ? parseInt(baseDateStr.split("-")[2] || "5", 10) : 5;
+  // Generar los períodos mensuales acumulados desde emisión hasta hoy
+  let saldoPagosDisponibles = totalPagado;
+  let periodDate = addMonthsClamped(emisionDate, 1);
+  let cuotasAtrasadas = 0;
+  let primerFechaVencimientoUnpaid: Date | null = null;
+  let primerMontoUnpaid = cuotaBase;
+  let totalMontoAtrasado = 0;
+  let i = 1;
 
-  let refYear = todayStart.getFullYear();
-  let refMonth = todayStart.getMonth();
+  while (periodDate <= todayStart || i === 1) {
+    const cubierto = round2(Math.min(cuotaBase, saldoPagosDisponibles));
+    saldoPagosDisponibles = round2(Math.max(0, saldoPagosDisponibles - cubierto));
 
-  // Si hubo un pago en el mes anterior o más reciente, el periodo actual vence en refYear/refMonth en el día dayOfLoan
-  if (ultimoPago) {
-    const dUltimo = new Date(ultimoPago.fecha_pago + "T00:00:00");
-    // Si el último pago fue en el mes actual o mes anterior, la cuota vigente es la de este mes
-    const ultYear = dUltimo.getFullYear();
-    const ultMonth = dUltimo.getMonth();
+    if (cubierto < (cuotaBase - 0.01)) {
+      // Período no cubierto completamente
+      if (!primerFechaVencimientoUnpaid) {
+        primerFechaVencimientoUnpaid = periodDate;
+        primerMontoUnpaid = round2(cuotaBase - cubierto);
+      }
 
-    if (ultYear === refYear && ultMonth === refMonth) {
-      // Ya pagó el mes actual -> la siguiente cuota vence el próximo mes
-      refMonth = refMonth + 1;
-      if (refMonth > 11) {
-        refMonth = 0;
-        refYear = refYear + 1;
+      if (periodDate < todayStart) {
+        cuotasAtrasadas++;
+        totalMontoAtrasado = round2(totalMontoAtrasado + (cuotaBase - cubierto));
       }
     }
+
+    periodDate = addMonthsClamped(emisionDate, i + 1);
+    i++;
+    if (i > 120) break; // Límite de seguridad
   }
 
-  const lastDayOfMonth = new Date(refYear, refMonth + 1, 0).getDate();
-  const targetDay = Math.min(Math.max(1, dayOfLoan), lastDayOfMonth);
-  const fechaCuotaVenc = new Date(refYear, refMonth, targetDay);
-  const fechaCuotaStr = fechaCuotaVenc.toISOString().split("T")[0];
-
-  const cuotaMesMonto = cuotas[0] ? cuotas[0].montoCuotaBase : ((Number(prestamo.monto_capital) || 0) * ((Number(prestamo.tasa_interes_porcentaje) || 0) / 100));
+  // Si no se encontró ningún período pendiente del pasado, evaluar la siguiente cuota futura
+  const fechaCuotaVenc = primerFechaVencimientoUnpaid || periodDate;
+  const fechaCuotaStr = formatIsoDate(fechaCuotaVenc);
 
   let estadoCuotaMes: EstadoCuotaMes = "pendiente_mes";
   let diasAtraso = 0;
-  let cuotasAtrasadas = 0;
+  let diasRestantes = 0;
 
-  if (todayStart > fechaCuotaVenc) {
+  if (fechaCuotaVenc < todayStart && cuotasAtrasadas > 0) {
     diasAtraso = Math.floor((todayStart.getTime() - fechaCuotaVenc.getTime()) / (24 * 60 * 60 * 1000));
-    cuotasAtrasadas = Math.max(1, Math.ceil(diasAtraso / 30));
     estadoCuotaMes = cuotasAtrasadas > 1 ? "mora_acumulada" : "mora_mes";
   } else {
     estadoCuotaMes = "pendiente_mes";
     diasAtraso = 0;
+    diasRestantes = Math.max(0, Math.ceil((fechaCuotaVenc.getTime() - todayStart.getTime()) / (24 * 60 * 60 * 1000)));
     cuotasAtrasadas = 0;
   }
 
@@ -101,11 +109,12 @@ export function calcularEstadoMora(
     clienteNombre: prestamo.cliente_nombre || "",
     estadoCuotaMes,
     cuotasAtrasadas,
-    montoCuotaActual: cuotaMesMonto,
+    montoCuotaActual: cuotaBase,
     fechaCuotaActual: fechaCuotaStr,
     diasAtraso,
-    montoTotalAtrasado: cuotasAtrasadas > 0 ? schedule.resumen.saldoPendiente : 0,
-    saldoPendiente: schedule.resumen.saldoPendiente || 0,
+    diasRestantes,
+    montoTotalAtrasado: totalMontoAtrasado,
+    saldoPendiente: round2(Math.max(0, montoCapital - totalPagado)),
     moraAcumulada: 0,
     ultimoPagoFecha: ultimoPago?.fecha_pago,
     ultimoPagoMonto: ultimoPago ? Number(ultimoPago.monto) : undefined
