@@ -16,23 +16,28 @@ const getPinForUser = (username: string) => {
 };
 
 router.post("/login", async (req: express.Request, res: express.Response) => {
-  const { username, password } = req.body;
-  if (!username || !password) {
-    res.status(400).json({ success: false, message: "Usuario y contraseña / PIN requeridos" });
-    return;
-  }
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password) {
+      res.status(400).json({ success: false, message: "Usuario y contraseña / PIN requeridos" });
+      return;
+    }
 
-  const cleanUser = username.trim().toLowerCase();
-  const expectedPin = getPinForUser(cleanUser);
+    const cleanUser = String(username).trim().toLowerCase();
+    const expectedPin = getPinForUser(cleanUser);
 
-  const isValid = !!(expectedPin && password === expectedPin);
+    const isValid = !!(expectedPin && String(password) === expectedPin);
 
-  if (isValid) {
-    const token = jwt.sign({ username: cleanUser }, getJwtSecret(), { expiresIn: "24h" });
-    res.cookie("token", token, cookieOptions);
-    res.json({ success: true, username: cleanUser });
-  } else {
-    res.status(401).json({ success: false, message: "Usuario o contraseña / PIN de acceso incorrecto" });
+    if (isValid) {
+      const token = jwt.sign({ username: cleanUser }, getJwtSecret(), { expiresIn: "24h" });
+      res.cookie("token", token, cookieOptions);
+      res.json({ success: true, username: cleanUser });
+    } else {
+      res.status(401).json({ success: false, message: "Usuario o contraseña / PIN de acceso incorrecto" });
+    }
+  } catch (err: any) {
+    console.error("Error en /api/auth/login:", err);
+    res.status(500).json({ success: false, message: "Error interno en la autenticación", detail: err.message });
   }
 });
 

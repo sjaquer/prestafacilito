@@ -4,8 +4,8 @@ import { getJwtSecret } from "../helpers/jwt.js";
 
 export const cookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "strict" as const,
+  secure: process.env.NODE_ENV === "production" && process.env.DISABLE_SECURE_COOKIE !== "true",
+  sameSite: "lax" as const,
   maxAge: 24 * 60 * 60 * 1000,
 };
 
