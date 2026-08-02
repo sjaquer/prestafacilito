@@ -7,6 +7,8 @@ export interface AlquilerItemCalculado extends Alquiler {
   cliente_nombre?: string;
   cliente_apodo?: string;
   cliente_telefono?: string;
+  dia_cobro?: number;
+  dias_restantes?: number;
   mes_actual_estado?: "pagado" | "parcial" | "pendiente";
   mes_actual_pendiente?: number;
   meses_atrasados?: number;
@@ -33,8 +35,12 @@ export const AlquilerCard: React.FC<AlquilerCardProps> = ({
 
   const isPagado = alquiler.mes_actual_estado === "pagado";
   const isParcial = alquiler.mes_actual_estado === "parcial";
-  const isPendiente = alquiler.mes_actual_estado === "pendiente" || !alquiler.mes_actual_estado;
   const tieneAtrasos = (alquiler.meses_atrasados || 0) > 0;
+  const isPendiente = !isPagado && !tieneAtrasos;
+
+  const diaInicio = alquiler.fecha_inicio ? parseInt(alquiler.fecha_inicio.split("-")[2] || "1", 10) : 1;
+  const diaCobro = alquiler.dia_cobro || diaInicio;
+  const diasRestantes = alquiler.dias_restantes !== undefined ? alquiler.dias_restantes : 0;
 
   return (
     <div
@@ -51,7 +57,7 @@ export const AlquilerCard: React.FC<AlquilerCardProps> = ({
         <div>
           <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
             <Home className="w-4 h-4 text-indigo-600 shrink-0" />
-            <span>{alquiler.descripcion_inmueble}</span>
+            <span>{alquiler.descripcion_inmueble || "Alquiler de Inmueble"}</span>
           </h3>
           <p className="text-xs font-semibold text-slate-600 mt-0.5">
             Inquilino: <span className="font-bold text-slate-800">{alquiler.cliente_nombre}</span>
@@ -63,19 +69,24 @@ export const AlquilerCard: React.FC<AlquilerCardProps> = ({
 
         {/* Badge de Estado del Mes */}
         <div>
+          {tieneAtrasos && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-100 text-red-800 border border-red-200 rounded-lg text-xs font-bold">
+              <AlertTriangle className="w-3.5 h-3.5" /> POR COBRAR
+            </span>
+          )}
           {isPagado && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-bold">
               <CheckCircle2 className="w-3.5 h-3.5" /> PAGADO
             </span>
           )}
-          {isParcial && (
+          {isParcial && !tieneAtrasos && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-bold">
               <Clock className="w-3.5 h-3.5" /> PARCIAL
             </span>
           )}
           {isPendiente && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-100 text-red-800 border border-red-200 rounded-lg text-xs font-bold">
-              <AlertTriangle className="w-3.5 h-3.5" /> PENDIENTE
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-bold">
+              <Clock className="w-3.5 h-3.5" /> PENDIENTE
             </span>
           )}
         </div>
@@ -89,16 +100,16 @@ export const AlquilerCard: React.FC<AlquilerCardProps> = ({
         </div>
 
         <div>
-          <span className="text-[10px] text-slate-400 block font-medium">Inicio Contrato</span>
+          <span className="text-[10px] text-slate-400 block font-medium">Día de Cobro Mensual</span>
           <span className="font-semibold text-slate-700 flex items-center gap-1">
-            <Calendar className="w-3 h-3 text-slate-400" /> {alquiler.fecha_inicio}
+            <Calendar className="w-3 h-3 text-slate-400" /> Día {diaCobro} {diasRestantes > 0 ? `(Quedan ${diasRestantes}d)` : ""}
           </span>
         </div>
 
         <div>
           <span className="text-[10px] text-slate-400 block font-medium">Meses Atrasados</span>
-          <span className={`font-bold ${tieneAtrasos ? "text-red-600" : "text-slate-700"}`}>
-            {alquiler.meses_atrasados || 0} mes(es)
+          <span className={`font-bold ${tieneAtrasos ? "text-red-600 font-extrabold" : "text-emerald-600"}`}>
+            {tieneAtrasos ? `${alquiler.meses_atrasados} mes(es) debiendo` : "Al día"}
           </span>
         </div>
       </div>

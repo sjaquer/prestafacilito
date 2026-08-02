@@ -108,6 +108,8 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
         diasAtraso = 0;
       }
 
+      const diasRestantes = now <= fechaVencMesObj ? Math.ceil((fechaVencMesObj.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)) : 0;
+
       deudoresDelMes.push({
         prestamo_id: prestamo.id,
         cliente_id: prestamo.cliente_id,
@@ -122,6 +124,7 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
         fecha_emision: prestamo.fecha_emision,
         fecha_vencimiento: prestamo.fecha_vencimiento,
         dia_vencimiento_mes: fechaVencMesStr,
+        dias_restantes: diasRestantes,
         cuota_actual: cuotaMontoBase,
         cuota_exigible: cuotaMes ? cuotaMes.montoExigible : cuotaMontoBase,
         cuota_pagado: totalPagadoMesActual,
@@ -153,6 +156,7 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
       }
 
       const diaVencStr = mesSig ? mesSig.fechaVencimiento : alquiler.fecha_inicio;
+      const diasRestantesAlq = estadoAlq.diasRestantesProximoCobro;
 
       deudoresDelMes.push({
         prestamo_id: alquiler.id,
@@ -169,6 +173,7 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
         fecha_emision: alquiler.fecha_inicio,
         fecha_vencimiento: alquiler.fecha_fin || "",
         dia_vencimiento_mes: diaVencStr,
+        dias_restantes: diasRestantesAlq,
         cuota_actual: toNumber(alquiler.monto_mensual),
         cuota_exigible: mesSig ? mesSig.saldoPendiente : toNumber(alquiler.monto_mensual),
         cuota_pagado: mesSig ? mesSig.montoPagado : 0,

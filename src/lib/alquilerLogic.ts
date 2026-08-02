@@ -1,9 +1,5 @@
 // src/lib/alquilerLogic.ts
 // Lógica de negocio exclusiva para contratos de alquiler.
-// Los alquileres son completamente distintos a los préstamos:
-// - Monto mensual fijo (no hay interés, no hay amortización de capital)
-// - El cliente debe pagar el monto mensual o ya lo pagó
-// - Se rastrea si pagó o no cada mes calendario
 
 import { round2, toNumber, normalizeDate } from './loanLogic';
 
@@ -32,16 +28,17 @@ export interface PagoAlquiler {
 }
 
 export interface MesAlquiler {
-  numero: number;         // Número de mes relativo al contrato (1, 2, 3...)
+  numero: number;
   anio: number;
-  mes: number;            // Mes calendario (1-12)
+  mes: number;
   fechaVencimiento: string;
   montoEsperado: number;
   montoPagado: number;
   saldoPendiente: number;
   estado: 'Saldada' | 'Parcial' | 'Pendiente' | 'Vencida';
   diasVencidos: number;
-  pagos: PagoAlquiler[];  // Pagos que cubren este mes
+  diasRestantes: number;
+  pagos: PagoAlquiler[];
 }
 
 export interface EstadoAlquiler {
@@ -50,6 +47,8 @@ export interface EstadoAlquiler {
   totalPendiente: number;
   mesesAtrasados: number;
   mesSiguiente: MesAlquiler | null;
+  diaCobroFijo: number;
+  diasRestantesProximoCobro: number;
 }
 
 export function buildAlquilerSchedule(
@@ -61,7 +60,8 @@ export function buildAlquilerSchedule(
   const now = normalizeDate(referenceDate);
   const montoMensual = toNumber(alquiler.monto_mensual);
   
-  // Generar todos los meses desde inicio hasta now (o hasta fecha_fin si existe)
+  const diaCobroFijo = fechaInicio.getDate();
+
   const fechaLimite = alquiler.fecha_fin 
     ? new Date(Math.min(now.getTime(), normalizeDate(alquiler.fecha_fin).getTime()))
     : now;
@@ -71,8 +71,9 @@ export function buildAlquilerSchedule(
   let numeroMes = 1;
   
   while (mesActual <= fechaLimite || meses.length < 1) {
-    const fechaVencimiento = new Date(mesActual.getFullYear(), mesActual.getMonth(), 
-      fechaInicio.getDate());
+    const lastDay = new Date(mesActual.getFullYear(), mesActual.getMonth() + 1, 0).getDate();
+    const targetDay = Math.min(diaCobroFijo, lastDay);
+    const fechaVencimiento = new Date(mesActual.getFullYear(), mesActual.getMonth(), targetDay);
     
     const pagosDelMes = pagos.filter(p => 
       p.periodo_mes === mesActual.getMonth() + 1 && 
@@ -81,8 +82,13 @@ export function buildAlquilerSchedule(
     
     const montoPagado = round2(pagosDelMes.reduce((sum, p) => sum + toNumber(p.monto), 0));
     const saldoPendiente = round2(Math.max(0, montoMensual - montoPagado));
+    
     const diasVencidos = fechaVencimiento < now 
       ? Math.floor((now.getTime() - fechaVencimiento.getTime()) / (24 * 60 * 60 * 1000))
+      : 0;
+
+    const diasRestantes = fechaVencimiento >= now
+      ? Math.ceil((fechaVencimiento.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
       : 0;
     
     let estado: MesAlquiler['estado'];
@@ -91,23 +97,29 @@ export function buildAlquilerSchedule(
     else if (fechaVencimiento < now) estado = 'Vencida';
     else estado = 'Pendiente';
     
+    const yyyy = fechaVencimiento.getFullYear();
+    const mm = String(fechaVencimiento.getMonth() + 1).padStart(2, '0');
+    const dd = String(fechaVencimiento.getDate()).padStart(2, '0');
+    const fechaVencStr = `${yyyy}-${mm}-${dd}`;
+
     meses.push({
       numero: numeroMes,
       anio: mesActual.getFullYear(),
       mes: mesActual.getMonth() + 1,
-      fechaVencimiento: fechaVencimiento.toISOString().split('T')[0],
+      fechaVencimiento: fechaVencStr,
       montoEsperado: montoMensual,
       montoPagado,
       saldoPendiente,
       estado,
       diasVencidos,
+      diasRestantes,
       pagos: pagosDelMes
     });
     
     mesActual = new Date(mesActual.getFullYear(), mesActual.getMonth() + 1, 1);
     numeroMes++;
     
-    if (numeroMes > 120) break; // Límite de seguridad: 10 años
+    if (numeroMes > 120) break;
   }
   
   const totalPagado = round2(pagos.reduce((sum, p) => sum + toNumber(p.monto), 0));
@@ -115,6 +127,15 @@ export function buildAlquilerSchedule(
   const mesesAtrasados = meses.filter(m => m.estado === 'Vencida' || 
     (m.estado === 'Parcial' && m.diasVencidos > 0)).length;
   const mesSiguiente = meses.find(m => m.estado !== 'Saldada') || null;
-  
-  return { mesesGenerados: meses, totalPagado, totalPendiente, mesesAtrasados, mesSiguiente };
+  const diasRestantesProximoCobro = mesSiguiente ? mesSiguiente.diasRestantes : 0;
+
+  return {
+    mesesGenerados: meses,
+    totalPagado,
+    totalPendiente,
+    mesesAtrasados,
+    mesSiguiente,
+    diaCobroFijo,
+    diasRestantesProximoCobro
+  };
 }

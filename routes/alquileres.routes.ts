@@ -32,6 +32,8 @@ router.get("/", requireAuth, async (req: express.Request, res: express.Response)
         cliente_nombre: cliente?.nombre_completo || "Desconocido",
         cliente_apodo: cliente?.apodo || "",
         cliente_telefono: cliente?.telefono || "",
+        dia_cobro: estadoAlquiler.diaCobroFijo,
+        dias_restantes: estadoAlquiler.diasRestantesProximoCobro,
         meses_atrasados: estadoAlquiler.mesesAtrasados,
         mes_actual_estado: estadoAlquiler.mesSiguiente ? (
           estadoAlquiler.mesSiguiente.estado === 'Saldada' ? 'pagado' :

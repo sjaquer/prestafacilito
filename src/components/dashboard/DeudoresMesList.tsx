@@ -23,6 +23,7 @@ export interface DeudorMesItem {
   cuota_numero: number;
   total_cuotas: number;
   cuotas_debiendo?: number;
+  dias_restantes?: number;
   estado_pago_mes: 'atrasado' | 'pendiente' | 'pagado';
   saldo_pendiente: number;
   dias_atraso: number;
@@ -243,7 +244,7 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
                   <div>
                     <span className="text-[10px] text-slate-400 block font-medium">Día de Cobro / Venc.</span>
                     <span className="font-semibold text-slate-700 flex items-center gap-1">
-                      <Calendar className="w-3 h-3 text-slate-400" /> {deudor.dia_vencimiento_mes}
+                      <Calendar className="w-3 h-3 text-slate-400" /> {deudor.dia_vencimiento_mes} {deudor.dias_restantes && deudor.dias_restantes > 0 ? `(Quedan ${deudor.dias_restantes}d)` : ""}
                     </span>
                   </div>
                   <div>
