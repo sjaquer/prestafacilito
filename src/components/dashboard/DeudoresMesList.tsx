@@ -1,6 +1,8 @@
-import React, { useState } from "react";
-import { MessageCircle, FileText, DollarSign, Calendar, AlertTriangle, Clock, CheckCircle2, Search, Home, Wallet } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { MessageCircle, FileText, DollarSign, Calendar, AlertTriangle, Clock, CheckCircle2, Search, Home, Wallet, Copy, Download, Check, Share2, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toPng } from "html-to-image";
+import { ReporteCobrosImagen } from "./ReporteCobrosImagen";
 
 export interface DeudorMesItem {
   prestamo_id: string;
@@ -44,6 +46,11 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
   const [filterTerm, setFilterTerm] = useState("");
   const [filterState, setFilterState] = useState<"todos" | "atrasado" | "pendiente" | "pagado">("todos");
 
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [copiedSuccess, setCopiedSuccess] = useState(false);
+  const [generatedDataUrl, setGeneratedDataUrl] = useState<string | null>(null);
+  const [showModalReporte, setShowModalReporte] = useState(false);
+
   const filteredDeudores = deudores.filter((d) => {
     const term = filterTerm.toLowerCase().trim();
     const nombreMatch = d.cliente_nombre.toLowerCase().includes(term);
@@ -52,6 +59,47 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
     const stateMatch = filterState === "todos" || d.estado_pago_mes === filterState;
     return (nombreMatch || apodoMatch || inmuebleMatch) && stateMatch;
   });
+
+  // Lista para el reporte de WhatsApp (Por Cobrar y Pendientes esta semana/mes)
+  const itemsParaReporte = deudores.filter(
+    (d) => d.estado_pago_mes === "atrasado" || d.estado_pago_mes === "pendiente"
+  );
+
+  const handleCopiarReporteImagen = async () => {
+    setIsGeneratingImage(true);
+    setCopiedSuccess(false);
+    setShowModalReporte(true);
+
+    try {
+      // Esperar brevemente para asegurar que el DOM invisible del reporte está listo
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const node = document.getElementById("reporte-cobros-container");
+
+      if (!node) {
+        throw new Error("No se pudo encontrar el contenedor del reporte");
+      }
+
+      const dataUrl = await toPng(node, { quality: 0.95, pixelRatio: 2 });
+      setGeneratedDataUrl(dataUrl);
+
+      // Convertir dataUrl a Blob para el Clipboard API
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            [blob.type]: blob
+          })
+        ]);
+        setCopiedSuccess(true);
+      }
+    } catch (err: any) {
+      console.error("Error al generar o copiar la imagen del reporte:", err);
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
 
   const getWhatsAppLink = (deudor: DeudorMesItem) => {
     const telSanitized = (deudor.cliente_telefono || "").replace(/\D/g, "");
@@ -94,6 +142,11 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
 
   return (
     <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4">
+      {/* Contenedor Oculto para Generación de la Imagen del Reporte */}
+      <div className="fixed -left-[9999px] -top-[9999px] pointer-events-none">
+        <ReporteCobrosImagen items={itemsParaReporte} />
+      </div>
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
         <div>
           <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
@@ -105,49 +158,68 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
           <p className="text-xs text-slate-500">Préstamos e Inquilinos de Alquiler del mes actual</p>
         </div>
 
-        {/* Filtros rápidos de estado */}
-        <div className="flex items-center gap-1.5 text-xs">
-          <button
-            onClick={() => setFilterState("todos")}
-            className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-              filterState === "todos"
-                ? "bg-slate-800 text-white shadow-sm"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            Todos ({deudores.length})
-          </button>
-          <button
-            onClick={() => setFilterState("atrasado")}
-            className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-              filterState === "atrasado"
-                ? "bg-red-600 text-white shadow-sm"
-                : "bg-red-50 text-red-700 hover:bg-red-100"
-            }`}
-          >
-            Por cobrar ({deudores.filter((d) => d.estado_pago_mes === "atrasado").length})
-          </button>
-          <button
-            onClick={() => setFilterState("pendiente")}
-            className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-              filterState === "pendiente"
-                ? "bg-amber-500 text-white shadow-sm"
-                : "bg-amber-50 text-amber-700 hover:bg-amber-100"
-            }`}
-          >
-            Pendientes ({deudores.filter((d) => d.estado_pago_mes === "pendiente").length})
-          </button>
-          <button
-            onClick={() => setFilterState("pagado")}
-            className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-              filterState === "pagado"
-                ? "bg-emerald-600 text-white shadow-sm"
-                : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-            }`}
-          >
-            Pagados ({deudores.filter((d) => d.estado_pago_mes === "pagado").length})
-          </button>
-        </div>
+        {/* Botón para Generar y Copiar Reporte Imagen para WhatsApp */}
+        <button
+          onClick={handleCopiarReporteImagen}
+          disabled={isGeneratingImage || itemsParaReporte.length === 0}
+          className="inline-flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all disabled:opacity-50 self-start sm:self-auto"
+        >
+          {isGeneratingImage ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Generando Reporte...</span>
+            </>
+          ) : (
+            <>
+              <Share2 className="w-4 h-4" />
+              <span>Copiar Reporte para WhatsApp</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Filtros rápidos de estado */}
+      <div className="flex items-center gap-1.5 text-xs flex-wrap">
+        <button
+          onClick={() => setFilterState("todos")}
+          className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+            filterState === "todos"
+              ? "bg-slate-800 text-white shadow-sm"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          Todos ({deudores.length})
+        </button>
+        <button
+          onClick={() => setFilterState("atrasado")}
+          className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+            filterState === "atrasado"
+              ? "bg-red-600 text-white shadow-sm"
+              : "bg-red-50 text-red-700 hover:bg-red-100"
+          }`}
+        >
+          Por cobrar ({deudores.filter((d) => d.estado_pago_mes === "atrasado").length})
+        </button>
+        <button
+          onClick={() => setFilterState("pendiente")}
+          className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+            filterState === "pendiente"
+              ? "bg-amber-500 text-white shadow-sm"
+              : "bg-amber-50 text-amber-700 hover:bg-amber-100"
+          }`}
+        >
+          Pendientes ({deudores.filter((d) => d.estado_pago_mes === "pendiente").length})
+        </button>
+        <button
+          onClick={() => setFilterState("pagado")}
+          className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+            filterState === "pagado"
+              ? "bg-emerald-600 text-white shadow-sm"
+              : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+          }`}
+        >
+          Pagados ({deudores.filter((d) => d.estado_pago_mes === "pagado").length})
+        </button>
       </div>
 
       {/* Buscador de la lista */}
@@ -304,6 +376,84 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal de Previsualización y Confirmación del Reporte en Imagen */}
+      {showModalReporte && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-2xl w-full space-y-4 shadow-2xl relative border border-slate-200 animate-scaleUp">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+                  <Share2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    Reporte de Cobros Listo para WhatsApp
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Envíale este reporte limpio y claro a tu papá por WhatsApp
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowModalReporte(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Banner de Estado de Copiado */}
+            {copiedSuccess ? (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-2xl flex items-center gap-3 text-emerald-800">
+                <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+                <div className="text-xs">
+                  <p className="font-extrabold text-emerald-900">¡Imagen copiada al portapapeles con éxito! 🎉</p>
+                  <p className="font-medium text-emerald-700">
+                    Abre tu chat de WhatsApp con tu papá y presiona <kbd className="px-1.5 py-0.5 bg-white border border-emerald-300 rounded font-mono font-bold text-slate-800">Ctrl + V</kbd> (o Pegar en celular) para enviárselo directamente.
+                  </p>
+                </div>
+              </div>
+            ) : isGeneratingImage ? (
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center gap-3 text-slate-600 text-xs font-semibold">
+                <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
+                <span>Generando imagen de alta resolución estilo Excel...</span>
+              </div>
+            ) : null}
+
+            {/* Vista Previa de la Imagen */}
+            {generatedDataUrl && (
+              <div className="max-h-[350px] overflow-y-auto bg-slate-100 p-2 rounded-2xl border border-slate-200 flex justify-center">
+                <img
+                  src={generatedDataUrl}
+                  alt="Reporte de cobros para WhatsApp"
+                  className="max-w-full h-auto rounded-xl shadow-md"
+                />
+              </div>
+            )}
+
+            {/* Botones del Modal */}
+            <div className="flex items-center justify-between pt-2">
+              {generatedDataUrl && (
+                <a
+                  href={generatedDataUrl}
+                  download={`Reporte_Cobros_PrestaFacilito_${new Date().toISOString().split("T")[0]}.png`}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5"
+                >
+                  <Download className="w-4 h-4 text-slate-600" /> Descargar Imagen PNG
+                </a>
+              )}
+
+              <button
+                onClick={() => setShowModalReporte(false)}
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-sm ml-auto"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
