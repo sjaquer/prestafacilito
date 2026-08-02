@@ -28,99 +28,178 @@ export const ReporteCobrosImagen: React.FC<ReporteCobrosImagenProps> = ({ items 
   return (
     <div
       id="reporte-cobros-container"
-      className="bg-white text-slate-900 font-sans p-6 rounded-2xl border-2 border-slate-300 w-[800px] space-y-5 shadow-2xl"
-      style={{ backgroundColor: "#ffffff", color: "#0f172a" }}
+      style={{
+        backgroundColor: "#ffffff",
+        color: "#0f172a",
+        fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+        padding: "24px",
+        width: "900px",
+        boxSizing: "border-box"
+      }}
     >
-      {/* Encabezado del Reporte Estilo Ejecutivo */}
-      <div className="flex items-center justify-between border-b-2 border-emerald-600 pb-4">
+      {/* Encabezado Principal Estilo Ejecutivo */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderBottom: "3px solid #059669",
+          paddingBottom: "14px",
+          marginBottom: "16px"
+        }}
+      >
         <div>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-extrabold text-lg">
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div
+              style={{
+                width: "36px",
+                height: "36px",
+                backgroundColor: "#059669",
+                borderRadius: "8px",
+                color: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: "900",
+                fontSize: "20px"
+              }}
+            >
               P
             </div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">PrestaFacilito</h1>
+            <h1 style={{ margin: 0, fontSize: "24px", fontWeight: "900", color: "#0f172a" }}>
+              PrestaFacilito
+            </h1>
           </div>
-          <p className="text-xs font-bold text-slate-500 mt-1 uppercase tracking-wider">
+          <p style={{ margin: "4px 0 0 0", fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
             Reporte Semanal de Cobros y Vencimientos
           </p>
         </div>
 
-        <div className="text-right">
-          <span className="px-3 py-1 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-full text-xs font-black">
+        <div style={{ textAlign: "right" }}>
+          <div
+            style={{
+              backgroundColor: "#d1fae5",
+              color: "#065f46",
+              border: "1px solid #6ee7b7",
+              padding: "4px 12px",
+              borderRadius: "9999px",
+              fontSize: "11px",
+              fontWeight: "900",
+              display: "inline-block"
+            }}
+          >
             📋 LISTA PARA WHATSAPP
-          </span>
-          <p className="text-[11px] font-semibold text-slate-500 mt-1">{fechaHoyCapitalizada}</p>
+          </div>
+          <p style={{ margin: "4px 0 0 0", fontSize: "11px", fontWeight: "600", color: "#64748b" }}>
+            {fechaHoyCapitalizada}
+          </p>
         </div>
       </div>
 
       {/* Tabla Estilo Excel Moderno */}
-      <table className="w-full border-collapse text-left text-xs">
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          fontSize: "12px",
+          textAlign: "left"
+        }}
+      >
         <thead>
-          <tr className="bg-slate-900 text-white font-bold border-b-2 border-slate-900">
-            <th className="py-2.5 px-3 rounded-tl-lg font-black text-[11px] uppercase">#</th>
-            <th className="py-2.5 px-3 font-black text-[11px] uppercase">Cliente / Inquilino</th>
-            <th className="py-2.5 px-3 font-black text-[11px] uppercase">Concepto</th>
-            <th className="py-2.5 px-3 font-black text-[11px] uppercase">Día de Cobro</th>
-            <th className="py-2.5 px-3 font-black text-[11px] uppercase text-right">Cuota (S/)</th>
-            <th className="py-2.5 px-3 rounded-tr-lg font-black text-[11px] uppercase text-center">Estado</th>
+          <tr style={{ backgroundColor: "#0f172a", color: "#ffffff" }}>
+            <th style={{ padding: "10px 12px", fontWeight: "900", fontSize: "11px", textTransform: "uppercase", width: "40px" }}>#</th>
+            <th style={{ padding: "10px 12px", fontWeight: "900", fontSize: "11px", textTransform: "uppercase", width: "230px" }}>Cliente / Inquilino</th>
+            <th style={{ padding: "10px 12px", fontWeight: "900", fontSize: "11px", textTransform: "uppercase", width: "230px" }}>Concepto</th>
+            <th style={{ padding: "10px 12px", fontWeight: "900", fontSize: "11px", textTransform: "uppercase", width: "150px" }}>Día de Cobro</th>
+            <th style={{ padding: "10px 12px", fontWeight: "900", fontSize: "11px", textTransform: "uppercase", width: "110px", textAlign: "right" }}>Cuota (S/)</th>
+            <th style={{ padding: "10px 12px", fontWeight: "900", fontSize: "11px", textTransform: "uppercase", width: "130px", textAlign: "center" }}>Estado</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-200">
+        <tbody>
           {items.map((item, index) => {
             const isAtrasado = item.estado_pago_mes === "atrasado";
             const dayNum = item.dia_vencimiento_mes
               ? parseInt(item.dia_vencimiento_mes.split("-")[2] || item.dia_vencimiento_mes, 10)
               : 5;
 
+            const isEven = index % 2 === 0;
+
             return (
               <tr
                 key={item.prestamo_id}
-                className={index % 2 === 0 ? "bg-slate-50/60" : "bg-white"}
+                style={{
+                  backgroundColor: isEven ? "#f8fafc" : "#ffffff",
+                  borderBottom: "1px solid #e2e8f0"
+                }}
               >
-                <td className="py-2.5 px-3 font-extrabold text-slate-400">{index + 1}</td>
-                <td className="py-2.5 px-3">
-                  <span className="font-extrabold text-slate-900 block text-sm">
+                <td style={{ padding: "10px 12px", fontWeight: "800", color: "#94a3b8" }}>{index + 1}</td>
+                <td style={{ padding: "10px 12px" }}>
+                  <span style={{ fontWeight: "800", color: "#0f172a", fontSize: "13px", display: "block" }}>
                     {item.cliente_nombre}
                   </span>
                   {item.cliente_apodo && (
-                    <span className="text-[11px] font-semibold text-slate-500 italic">
+                    <span style={{ fontSize: "11px", fontWeight: "600", color: "#64748b", fontStyle: "italic" }}>
                       ({item.cliente_apodo})
                     </span>
                   )}
                 </td>
-                <td className="py-2.5 px-3 font-semibold text-slate-700">
+                <td style={{ padding: "10px 12px", fontWeight: "600" }}>
                   {item.es_alquiler ? (
-                    <span className="text-indigo-700 font-bold">
+                    <span style={{ color: "#4338ca", fontWeight: "700" }}>
                       🏠 Alquiler: {item.descripcion_inmueble || "Inmueble"}
                     </span>
                   ) : (
-                    <span className="text-emerald-700 font-bold">
+                    <span style={{ color: "#047857", fontWeight: "700" }}>
                       💰 Préstamo ({item.tipo_prestamo})
                     </span>
                   )}
                 </td>
-                <td className="py-2.5 px-3 font-extrabold text-slate-800">
+                <td style={{ padding: "10px 12px", fontWeight: "800", color: "#1e293b" }}>
                   📅 Día {dayNum}
                   {isAtrasado ? (
-                    <span className="block text-[10px] font-black text-red-600">
+                    <span style={{ display: "block", fontSize: "10px", fontWeight: "900", color: "#dc2626", marginTop: "2px" }}>
                       ⚠️ Atrasado ({item.dias_atraso || 1}d)
                     </span>
                   ) : item.dias_restantes !== undefined && item.dias_restantes > 0 ? (
-                    <span className="block text-[10px] font-extrabold text-amber-700">
+                    <span style={{ display: "block", fontSize: "10px", fontWeight: "800", color: "#b45309", marginTop: "2px" }}>
                       ⚡ Quedan {item.dias_restantes}d
                     </span>
                   ) : null}
                 </td>
-                <td className="py-2.5 px-3 font-black text-slate-900 text-sm text-right">
+                <td style={{ padding: "10px 12px", fontWeight: "900", color: "#0f172a", fontSize: "14px", textAlign: "right" }}>
                   S/ {item.cuota_actual.toFixed(2)}
                 </td>
-                <td className="py-2.5 px-3 text-center">
+                <td style={{ padding: "10px 12px", textAlign: "center" }}>
                   {isAtrasado ? (
-                    <span className="px-2.5 py-1 bg-red-600 text-white rounded-full font-black text-[10px] uppercase shadow-xs">
+                    <span
+                      style={{
+                        backgroundColor: "#dc2626",
+                        color: "#ffffff",
+                        padding: "5px 12px",
+                        borderRadius: "9999px",
+                        fontSize: "10px",
+                        fontWeight: "900",
+                        display: "inline-block",
+                        whiteSpace: "nowrap",
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.15)"
+                      }}
+                    >
                       🔴 POR COBRAR
                     </span>
                   ) : (
-                    <span className="px-2.5 py-1 bg-amber-400 text-slate-950 rounded-full font-black text-[10px] uppercase shadow-xs">
+                    <span
+                      style={{
+                        backgroundColor: "#f59e0b",
+                        color: "#0f172a",
+                        padding: "5px 12px",
+                        borderRadius: "9999px",
+                        fontSize: "10px",
+                        fontWeight: "900",
+                        display: "inline-block",
+                        whiteSpace: "nowrap",
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.15)"
+                      }}
+                    >
                       ⚡ PENDIENTE
                     </span>
                   )}
@@ -132,25 +211,48 @@ export const ReporteCobrosImagen: React.FC<ReporteCobrosImagenProps> = ({ items 
       </table>
 
       {/* Resumen de Totales al Pie */}
-      <div className="grid grid-cols-3 gap-3 p-3.5 bg-slate-900 text-white rounded-xl text-xs">
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: "12px",
+          backgroundColor: "#0f172a",
+          color: "#ffffff",
+          padding: "14px 16px",
+          borderRadius: "12px",
+          marginTop: "16px"
+        }}
+      >
         <div>
-          <span className="text-[10px] font-extrabold text-red-400 uppercase block">Total Por Cobrar (Atrasado)</span>
-          <span className="text-base font-black text-red-300">S/ {totalAtrasado.toFixed(2)}</span>
+          <span style={{ fontSize: "10px", fontWeight: "800", color: "#fca5a5", textTransform: "uppercase", display: "block" }}>
+            Total Por Cobrar (Atrasado)
+          </span>
+          <span style={{ fontSize: "16px", fontWeight: "900", color: "#fca5a5" }}>
+            S/ {totalAtrasado.toFixed(2)}
+          </span>
         </div>
 
         <div>
-          <span className="text-[10px] font-extrabold text-amber-400 uppercase block">Total Pendiente Esta Semana</span>
-          <span className="text-base font-black text-amber-300">S/ {totalPendienteSemana.toFixed(2)}</span>
+          <span style={{ fontSize: "10px", fontWeight: "800", color: "#fcd34d", textTransform: "uppercase", display: "block" }}>
+            Total Pendiente Esta Semana
+          </span>
+          <span style={{ fontSize: "16px", fontWeight: "900", color: "#fcd34d" }}>
+            S/ {totalPendienteSemana.toFixed(2)}
+          </span>
         </div>
 
-        <div className="border-l border-slate-700 pl-3">
-          <span className="text-[10px] font-extrabold text-emerald-400 uppercase block">Gran Total a Recaudar</span>
-          <span className="text-lg font-black text-emerald-400">S/ {totalGeneral.toFixed(2)}</span>
+        <div style={{ borderLeft: "1px solid #334155", paddingLeft: "12px" }}>
+          <span style={{ fontSize: "10px", fontWeight: "800", color: "#6ee7b7", textTransform: "uppercase", display: "block" }}>
+            Gran Total a Recaudar
+          </span>
+          <span style={{ fontSize: "18px", fontWeight: "900", color: "#34d399" }}>
+            S/ {totalGeneral.toFixed(2)}
+          </span>
         </div>
       </div>
 
-      <div className="text-center pt-1 border-t border-slate-200">
-        <p className="text-[10px] font-bold text-slate-400">
+      <div style={{ textAlign: "center", paddingTop: "8px", borderTop: "1px solid #e2e8f0" }}>
+        <p style={{ margin: 0, fontSize: "10px", fontWeight: "700", color: "#94a3b8" }}>
           PrestaFacilito v2.0 • Sistema de Gestión de Préstamos y Alquileres
         </p>
       </div>

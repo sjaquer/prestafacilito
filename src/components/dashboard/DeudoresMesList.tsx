@@ -1,5 +1,5 @@
-import React, { useState, useRef } from "react";
-import { MessageCircle, FileText, DollarSign, Calendar, AlertTriangle, Clock, CheckCircle2, Search, Home, Wallet, Copy, Download, Check, Share2, Loader2 } from "lucide-react";
+import React, { useState } from "react";
+import { MessageCircle, FileText, DollarSign, Calendar, AlertTriangle, Clock, CheckCircle2, Search, Home, Wallet, Download, Share2, Loader2, Copy, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toPng } from "html-to-image";
 import { ReporteCobrosImagen } from "./ReporteCobrosImagen";
@@ -60,44 +60,63 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
     return (nombreMatch || apodoMatch || inmuebleMatch) && stateMatch;
   });
 
-  // Lista para el reporte de WhatsApp (Por Cobrar y Pendientes esta semana/mes)
   const itemsParaReporte = deudores.filter(
     (d) => d.estado_pago_mes === "atrasado" || d.estado_pago_mes === "pendiente"
   );
 
-  const handleCopiarReporteImagen = async () => {
+  const handleGenerarReporteImagen = async () => {
     setIsGeneratingImage(true);
     setCopiedSuccess(false);
+    setGeneratedDataUrl(null);
     setShowModalReporte(true);
 
     try {
-      // Esperar brevemente para asegurar que el DOM invisible del reporte está listo
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 300));
       const node = document.getElementById("reporte-cobros-container");
 
       if (!node) {
         throw new Error("No se pudo encontrar el contenedor del reporte");
       }
 
-      const dataUrl = await toPng(node, { quality: 0.95, pixelRatio: 2 });
+      const dataUrl = await toPng(node, { quality: 0.98, pixelRatio: 2.5 });
       setGeneratedDataUrl(dataUrl);
 
-      // Convertir dataUrl a Blob para el Clipboard API
-      const response = await fetch(dataUrl);
-      const blob = await response.blob();
-
-      if (navigator.clipboard && window.ClipboardItem) {
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            [blob.type]: blob
-          })
-        ]);
-        setCopiedSuccess(true);
+      // Intentar copiado inicial
+      try {
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        if (navigator.clipboard && window.ClipboardItem) {
+          await navigator.clipboard.write([
+            new ClipboardItem({ [blob.type]: blob })
+          ]);
+          setCopiedSuccess(true);
+        }
+      } catch (e) {
+        // Si el navegador requiere interacción directa del usuario, se usa el botón del modal
       }
     } catch (err: any) {
-      console.error("Error al generar o copiar la imagen del reporte:", err);
+      console.error("Error al generar la imagen del reporte:", err);
     } finally {
       setIsGeneratingImage(false);
+    }
+  };
+
+  const handleCopiarPortapapelesManual = async () => {
+    if (!generatedDataUrl) return;
+    try {
+      const response = await fetch(generatedDataUrl);
+      const blob = await response.blob();
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([
+          new ClipboardItem({ [blob.type]: blob })
+        ]);
+        setCopiedSuccess(true);
+      } else {
+        alert("Tu navegador no permite copiar imágenes al portapapeles. Usa el botón 'Descargar Imagen PNG'.");
+      }
+    } catch (err: any) {
+      console.error("Error al copiar imagen:", err);
+      alert("No se pudo copiar automáticamente. Usa el botón 'Descargar Imagen PNG'.");
     }
   };
 
@@ -160,9 +179,9 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
 
         {/* Botón para Generar y Copiar Reporte Imagen para WhatsApp */}
         <button
-          onClick={handleCopiarReporteImagen}
+          onClick={handleGenerarReporteImagen}
           disabled={isGeneratingImage || itemsParaReporte.length === 0}
-          className="inline-flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all disabled:opacity-50 self-start sm:self-auto"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs font-extrabold rounded-xl shadow-md transition-all disabled:opacity-50 self-start sm:self-auto"
         >
           {isGeneratingImage ? (
             <>
@@ -381,74 +400,88 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
 
       {/* Modal de Previsualización y Confirmación del Reporte en Imagen */}
       {showModalReporte && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-2xl w-full space-y-4 shadow-2xl relative border border-slate-200 animate-scaleUp">
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-3xl w-full space-y-4 shadow-2xl relative border border-slate-200 animate-scaleUp">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+                <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl">
                   <Share2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-900">
-                    Reporte de Cobros Listo para WhatsApp
+                  <h3 className="text-base font-black text-slate-900">
+                    Reporte de Cobros Semanal para WhatsApp
                   </h3>
-                  <p className="text-xs text-slate-500">
-                    Envíale este reporte limpio y claro a tu papá por WhatsApp
+                  <p className="text-xs font-medium text-slate-500">
+                    Reporte visual limpio y profesional listo para enviar a tu papá
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowModalReporte(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg text-lg font-bold"
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl text-lg font-bold"
               >
                 ✕
               </button>
             </div>
 
             {/* Banner de Estado de Copiado */}
-            {copiedSuccess ? (
-              <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-2xl flex items-center gap-3 text-emerald-800">
+            {copiedSuccess && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-2xl flex items-center gap-3 text-emerald-900">
                 <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
                 <div className="text-xs">
-                  <p className="font-extrabold text-emerald-900">¡Imagen copiada al portapapeles con éxito! 🎉</p>
-                  <p className="font-medium text-emerald-700">
-                    Abre tu chat de WhatsApp con tu papá y presiona <kbd className="px-1.5 py-0.5 bg-white border border-emerald-300 rounded font-mono font-bold text-slate-800">Ctrl + V</kbd> (o Pegar en celular) para enviárselo directamente.
+                  <p className="font-extrabold text-emerald-950">¡Imagen copiada al portapapeles con éxito! 🎉</p>
+                  <p className="font-semibold text-emerald-800">
+                    Abre WhatsApp y presiona <kbd className="px-1.5 py-0.5 bg-white border border-emerald-300 rounded font-mono font-bold text-slate-800">Ctrl + V</kbd> (o Mantén presionado y selecciona Pegar en celular) para enviárselo directamente.
                   </p>
                 </div>
               </div>
-            ) : isGeneratingImage ? (
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center gap-3 text-slate-600 text-xs font-semibold">
-                <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
+            )}
+
+            {/* Spinner de Generación */}
+            {isGeneratingImage && (
+              <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-2 text-slate-600 text-xs font-semibold">
+                <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
                 <span>Generando imagen de alta resolución estilo Excel...</span>
               </div>
-            ) : null}
+            )}
 
-            {/* Vista Previa de la Imagen */}
+            {/* Vista Previa Completa Sin Deformación */}
             {generatedDataUrl && (
-              <div className="max-h-[350px] overflow-y-auto bg-slate-100 p-2 rounded-2xl border border-slate-200 flex justify-center">
+              <div className="max-h-[420px] overflow-y-auto bg-slate-800 p-3 rounded-2xl border border-slate-700 flex justify-center items-center">
                 <img
                   src={generatedDataUrl}
                   alt="Reporte de cobros para WhatsApp"
-                  className="max-w-full h-auto rounded-xl shadow-md"
+                  className="max-w-full h-auto object-contain rounded-xl shadow-2xl border border-slate-700"
                 />
               </div>
             )}
 
-            {/* Botones del Modal */}
-            <div className="flex items-center justify-between pt-2">
-              {generatedDataUrl && (
-                <a
-                  href={generatedDataUrl}
-                  download={`Reporte_Cobros_PrestaFacilito_${new Date().toISOString().split("T")[0]}.png`}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5"
+            {/* Botones Principales de Acción en el Modal */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-100">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  onClick={handleCopiarPortapapelesManual}
+                  disabled={!generatedDataUrl}
+                  className="flex-1 sm:flex-none px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
                 >
-                  <Download className="w-4 h-4 text-slate-600" /> Descargar Imagen PNG
-                </a>
-              )}
+                  {copiedSuccess ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4" />}
+                  <span>{copiedSuccess ? "¡Copiado de Nuevo!" : "Copiar Imagen al Portapapeles"}</span>
+                </button>
+
+                {generatedDataUrl && (
+                  <a
+                    href={generatedDataUrl}
+                    download={`Reporte_Cobros_PrestaFacilito_${new Date().toISOString().split("T")[0]}.png`}
+                    className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Download className="w-4 h-4 text-slate-600" /> Descargar PNG
+                  </a>
+                )}
+              </div>
 
               <button
                 onClick={() => setShowModalReporte(false)}
-                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-sm ml-auto"
+                className="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-sm"
               >
                 Cerrar
               </button>
