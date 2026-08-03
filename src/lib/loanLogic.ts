@@ -72,7 +72,22 @@ export const buildPaymentSchedule = (
     1,
     (now.getFullYear() - emisionDate.getFullYear()) * 12 + (now.getMonth() - emisionDate.getMonth()) + 1
   );
-  const totalCuotas = Math.max(getInstallmentCount(prestamo), monthsElapsed);
+  // Si el préstamo ya está pagado o cancelado, el cronograma se ancla al último
+  // pago registrado: no deben generarse cuotas nuevas (ni intereses) después de saldarse.
+  const estaSaldado = String(prestamo.estado) === "pagado" || String(prestamo.estado) === "cancelado";
+  let mesesHastaUltimoPago = 0;
+  if (estaSaldado) {
+    for (const pago of pagos) {
+      const fechaPago = normalizeDate(pago.fecha_pago);
+      if (Number.isNaN(fechaPago.getTime())) continue;
+      const diff = (fechaPago.getFullYear() - emisionDate.getFullYear()) * 12 +
+        (fechaPago.getMonth() - emisionDate.getMonth()) + 1;
+      if (diff > mesesHastaUltimoPago) mesesHastaUltimoPago = diff;
+    }
+  }
+  const totalCuotas = estaSaldado && mesesHastaUltimoPago > 0
+    ? Math.max(getInstallmentCount(prestamo), mesesHastaUltimoPago)
+    : Math.max(getInstallmentCount(prestamo), monthsElapsed);
 
   // Amortización de capital por cuota
   const amortizacionCapitalPorCuota = round2(capital / Math.max(1, totalCuotas));

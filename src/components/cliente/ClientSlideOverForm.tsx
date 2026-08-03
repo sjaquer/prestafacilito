@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { X, User, Phone, MapPin, CreditCard, FileText, ChevronDown, ChevronUp, Save, ShieldCheck } from "lucide-react";
-import { Cliente } from "../../types";
+import React, { useState, useEffect, useRef } from "react";
+import { X, User, Phone, MapPin, CreditCard, FileText, ChevronDown, ChevronUp, Save, ShieldCheck, Upload, Trash2 } from "lucide-react";
+import { Cliente, TipoDocumento, TIPOS_DOCUMENTO_CONFIG, ACCEPT_DOCUMENTOS } from "../../types";
 
 interface ClientSlideOverFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (clientData: Partial<Cliente>) => Promise<boolean>;
+  onSubmit: (clientData: Partial<Cliente>, files: { tipo: TipoDocumento; file: File }[]) => Promise<boolean>;
   clienteToEdit?: Cliente | null;
 }
 
@@ -29,6 +29,11 @@ export const ClientSlideOverForm: React.FC<ClientSlideOverFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Documentos a adjuntar al registrar el cliente
+  const [pendingDocs, setPendingDocs] = useState<{ tipo: TipoDocumento; file: File; preview: string }[]>([]);
+  const [selectedDocTipo, setSelectedDocTipo] = useState<TipoDocumento>("dni_frontal");
+  const docInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (clienteToEdit) {
       setNombreCompleto(clienteToEdit.nombre_completo || "");
@@ -51,10 +56,27 @@ export const ClientSlideOverForm: React.FC<ClientSlideOverFormProps> = ({
       setObservaciones("");
       setShowBankDetails(false);
     }
+    setPendingDocs([]);
     setErrorMsg("");
   }, [clienteToEdit, isOpen]);
 
   if (!isOpen) return null;
+
+  const handleAddPendingDoc = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const nuevos: { tipo: TipoDocumento; file: File; preview: string }[] = [];
+    for (const file of Array.from(files)) {
+      const preview = file.type.startsWith("image/") ? URL.createObjectURL(file) : "";
+      nuevos.push({ tipo: selectedDocTipo, file, preview });
+    }
+    setPendingDocs((prev) => [...prev, ...nuevos]);
+    e.target.value = "";
+  };
+
+  const removePendingDoc = (index: number) => {
+    setPendingDocs((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,7 +101,7 @@ export const ClientSlideOverForm: React.FC<ClientSlideOverFormProps> = ({
         banco_cuenta: bancoCuenta.trim(),
         numero_cuenta: numeroCuenta.trim(),
         observaciones: observaciones.trim()
-      });
+      }, pendingDocs.map((d) => ({ tipo: d.tipo, file: d.file })));
 
       if (success) {
         onClose();
@@ -248,6 +270,84 @@ export const ClientSlideOverForm: React.FC<ClientSlideOverFormProps> = ({
               onChange={(e) => setObservaciones(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all resize-none"
             />
+          </div>
+
+          {/* Grupo 4: Documentos / Comprobantes (DNI, recibos, PDF) */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <div className="p-3 bg-slate-50 flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-slate-500" /> Grupo 4 — Documentos (opcional)
+              </span>
+            </div>
+            <div className="p-3 space-y-3 border-t border-slate-200">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Tipo de Documento</label>
+                <select
+                  value={selectedDocTipo}
+                  onChange={(e) => setSelectedDocTipo(e.target.value as TipoDocumento)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-emerald-500 focus:bg-white"
+                >
+                  {(Object.entries(TIPOS_DOCUMENTO_CONFIG) as [TipoDocumento, { label: string; icon: string }][]).map(([k, v]) => (
+                    <option key={k} value={k}>{v.icon} {v.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <input
+                ref={docInputRef}
+                type="file"
+                accept={ACCEPT_DOCUMENTOS}
+                multiple
+                onChange={handleAddPendingDoc}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => docInputRef.current?.click()}
+                className="w-full px-3 py-2.5 bg-slate-50 border border-dashed border-slate-300 hover:border-emerald-400 rounded-xl text-xs text-slate-600 flex items-center justify-center gap-2 cursor-pointer transition-colors"
+              >
+                <Upload className="w-4 h-4 text-slate-400" />
+                <span>Subir uno o varios archivos (imágenes o PDF)</span>
+              </button>
+
+              {pendingDocs.length > 0 && (
+                <ul className="space-y-2">
+                  {pendingDocs.map((doc, index) => (
+                    <li
+                      key={`${doc.tipo}-${index}`}
+                      className="flex items-center justify-between px-2.5 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-xs"
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        {doc.preview ? (
+                          <img
+                            src={doc.preview}
+                            alt={doc.file.name}
+                            className="w-8 h-8 object-cover rounded-md shrink-0"
+                          />
+                        ) : (
+                          <FileText className="w-5 h-5 text-slate-500 shrink-0" />
+                        )}
+                        <span className="flex flex-col leading-tight min-w-0">
+                          <span className="truncate font-medium text-slate-800">
+                            {TIPOS_DOCUMENTO_CONFIG[doc.tipo].label}
+                          </span>
+                          <span className="truncate text-[10px] text-slate-400">
+                            {doc.file.name} ({(doc.file.size / 1024).toFixed(1)} KB)
+                          </span>
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removePendingDoc(index)}
+                        className="p-0.5 hover:bg-slate-200 rounded text-slate-400 hover:text-red-600 transition shrink-0"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </form>
 

@@ -1,12 +1,21 @@
 import React, { useState } from "react";
 import { UserPlus, Users, RefreshCw } from "lucide-react";
 import { useClientes } from "../hooks/useClientes";
-import { Cliente } from "../types";
+import { Cliente, TipoDocumento } from "../types";
 import { ClientList } from "../components/cliente/ClientList";
 import { ClientSlideOverForm } from "../components/cliente/ClientSlideOverForm";
 
+
+const fileToBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
 export const ClientesPage: React.FC = () => {
-  const { clientes, loading, createCliente, updateCliente, refetch } = useClientes();
+  const { clientes, loading, createCliente, updateCliente, uploadClienteDocument, refetch } = useClientes();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [clienteToEdit, setClienteToEdit] = useState<Cliente | null>(null);
 
@@ -20,10 +29,14 @@ export const ClientesPage: React.FC = () => {
     setIsFormOpen(true);
   };
 
-  const handleFormSubmit = async (clientData: Partial<Cliente>) => {
+  const handleFormSubmit = async (
+    clientData: Partial<Cliente>,
+    files: { tipo: TipoDocumento; file: File }[] = []
+  ) => {
     if (clienteToEdit) {
       const res = await updateCliente(clienteToEdit.id, clientData);
       if (res.success) {
+        await uploadDocs(res.cliente?.id, files);
         refetch();
         return true;
       } else {
@@ -33,11 +46,32 @@ export const ClientesPage: React.FC = () => {
     } else {
       const res = await createCliente(clientData as any);
       if (res.success) {
+        await uploadDocs(res.cliente?.id, files);
         refetch();
         return true;
       } else {
         alert(res.error || "No se pudo crear el cliente.");
         return false;
+      }
+    }
+  };
+
+  const uploadDocs = async (
+    clienteId: string | undefined,
+    files: { tipo: TipoDocumento; file: File }[]
+  ) => {
+    if (!clienteId || files.length === 0) return;
+    for (const doc of files) {
+      try {
+        const base64Data = await fileToBase64(doc.file);
+        await uploadClienteDocument(clienteId, {
+          fileName: doc.file.name,
+          mimeType: doc.file.type || "application/octet-stream",
+          base64Data,
+          tipo_documento: doc.tipo
+        });
+      } catch (err) {
+        console.error(`No se pudo subir el documento ${doc.file.name}:`, err);
       }
     }
   };
