@@ -6,6 +6,7 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import { TimelineDetallePrestamo, TimelineMesItem } from "./prestamo/TimelineDetallePrestamo";
 import { AjustesPrestamoPanel } from "./prestamo/AjustesPrestamoPanel";
+import { subirVoucher } from "../lib/imageCompression";
 
 export const PrestamoDetalle: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -94,27 +95,14 @@ export const PrestamoDetalle: React.FC = () => {
       let comprobanteUrl = "";
 
       if (comprobanteFile && prestamo) {
-        const formData = new FormData();
-        formData.append("file", comprobanteFile);
-        formData.append("cliente_id", prestamo.cliente_id);
-        formData.append("prestamo_id", id);
-
-        const uploadRes = await fetch("/api/upload-voucher", {
-          method: "POST",
-          body: formData
-        });
-
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
-          comprobanteUrl = uploadData.fileUrl || uploadData.proxyUrl || "";
-        }
+        const result = await subirVoucher(comprobanteFile);
+        comprobanteUrl = result.url;
       }
 
-      const res = await fetch("/api/amortizaciones", {
+      const res = await fetch(`/api/prestamos/${id}/pagos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prestamo_id: id,
           monto: montoNum,
           fecha_pago: fechaPago,
           metodo_pago: metodoPago,

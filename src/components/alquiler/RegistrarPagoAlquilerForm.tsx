@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { DollarSign, CheckCircle, AlertCircle, Upload, Home, X, Image as ImageIcon } from "lucide-react";
 import { Cliente, Alquiler } from "../../types";
 import { ClienteAutocomplete } from "../common/ClienteAutocomplete";
+import { subirVoucher } from "../../lib/imageCompression";
 
 interface RegistrarPagoAlquilerFormProps {
   clientes: Cliente[];
@@ -112,21 +113,8 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
       if (comprobanteFiles.length > 0) {
         const uploads = await Promise.all(
           comprobanteFiles.map(async (file) => {
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("cliente_id", clienteId);
-            formData.append("alquiler_id", alquilerId);
-
-            const uploadRes = await fetch("/api/upload-voucher", {
-              method: "POST",
-              body: formData
-            });
-
-            if (uploadRes.ok) {
-              const uploadData = await uploadRes.json();
-              return uploadData.fileUrl || uploadData.proxyUrl || "";
-            }
-            return null;
+            const result = await subirVoucher(file);
+            return result.url;
           })
         );
 

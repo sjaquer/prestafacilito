@@ -49,3 +49,34 @@ export async function comprimirImagen(
     img.src = objectUrl;
   });
 }
+
+/**
+ * Prepara y sube un comprobante a /api/upload-voucher como JSON
+ * (fileName, mimeType, base64Data), devolviendo la URL pública y el fileId.
+ * Lanza un Error si el servidor rechaza la subida.
+ */
+export async function subirVoucher(file: File): Promise<{ url: string; driveFileId: string }> {
+  const compressedDataUrl = await comprimirImagen(file, 1024, 0.7);
+  const base64Data = compressedDataUrl.replace(/^data:[^;]+;base64,/, "");
+
+  const res = await fetch("/api/upload-voucher", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      fileName: `Voucher_${Date.now()}_${file.name}`,
+      mimeType: file.type || "image/jpeg",
+      base64Data
+    })
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || (errData.detail as string) || "No se pudo subir el comprobante");
+  }
+
+  const data = await res.json();
+  return {
+    url: data.publicUrl || data.directUrl || data.fileUrl || "",
+    driveFileId: data.driveFileId || ""
+  };
+}

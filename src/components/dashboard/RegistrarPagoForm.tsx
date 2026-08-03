@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { DollarSign, CheckCircle, AlertCircle, Upload, ShieldCheck, X, Image as ImageIcon } from "lucide-react";
 import { Cliente, Prestamo } from "../../types";
 import { ClienteAutocomplete } from "../common/ClienteAutocomplete";
+import { subirVoucher } from "../../lib/imageCompression";
 
 interface RegistrarPagoFormProps {
   clientes: Cliente[];
@@ -105,24 +106,11 @@ export const RegistrarPagoForm: React.FC<RegistrarPagoFormProps> = ({
       if (comprobanteFiles.length > 0) {
         const uploads = await Promise.all(
           comprobanteFiles.map(async (file) => {
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("cliente_id", clienteId);
-            formData.append("prestamo_id", prestamoId);
-
-            const uploadRes = await fetch("/api/upload-voucher", {
-              method: "POST",
-              body: formData
-            });
-
-            if (uploadRes.ok) {
-              const uploadData = await uploadRes.json();
-              return {
-                url: uploadData.fileUrl || uploadData.proxyUrl || "",
-                fileId: uploadData.driveFileId || ""
-              };
-            }
-            return null;
+            const result = await subirVoucher(file);
+            return {
+              url: result.url,
+              fileId: result.driveFileId
+            };
           })
         );
 
@@ -146,11 +134,10 @@ export const RegistrarPagoForm: React.FC<RegistrarPagoFormProps> = ({
         ? JSON.stringify(voucherDriveFileIds) 
         : null;
 
-      const res = await fetch("/api/amortizaciones", {
+      const res = await fetch(`/api/prestamos/${prestamoId}/pagos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prestamo_id: prestamoId,
           monto: montoNum,
           fecha_pago: fechaPago,
           metodo_pago: metodoPago,
