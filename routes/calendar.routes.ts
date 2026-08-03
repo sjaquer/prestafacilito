@@ -87,6 +87,7 @@ router.get("/google/callback", async (req: express.Request, res: express.Respons
     }
 
     let envWriteStatus = "No se pudo escribir en el archivo .env automáticamente.";
+    let envWriteSuccess = false;
     try {
       const envPath = path.join(process.cwd(), ".env");
       if (fs.existsSync(envPath)) {
@@ -98,11 +99,24 @@ router.get("/google/callback", async (req: express.Request, res: express.Respons
         }
         fs.writeFileSync(envPath, envContent, "utf8");
         envWriteStatus = "¡Guardado automáticamente en tu archivo <code>.env</code>!";
+        envWriteSuccess = true;
       }
       process.env.GOOGLE_REFRESH_TOKEN = refreshToken;
     } catch (fsErr: any) {
       console.warn("No se pudo escribir en el archivo .env:", fsErr);
     }
+
+    const escapedToken = String(refreshToken).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+    const manualCopyBlock = envWriteSuccess
+      ? ""
+      : `
+            <div style="margin-top: 18px; background: #0f172a; border: 1px dashed #f59e0b; border-radius: 10px; padding: 16px;">
+              <p style="color: #fbbf24; font-weight: bold; margin: 0 0 8px;">📋 Copia y pega esto manualmente en tu archivo <code>.env</code>:</p>
+              <pre style="white-space: pre-wrap; word-break: break-all; background: #1e293b; padding: 12px; border-radius: 8px; margin: 0; font-size: 12px; color: #93c5fd;">GOOGLE_REFRESH_TOKEN=${escapedToken}</pre>
+              <p style="color: #94a3b8; font-size: 12px; margin: 8px 0 0;">En Vercel agrega <code>GOOGLE_REFRESH_TOKEN</code> en las variables de entorno del entorno <b>Production</b>.</p>
+            </div>
+      `;
 
     res.send(`
       <html>
@@ -111,6 +125,7 @@ router.get("/google/callback", async (req: express.Request, res: express.Respons
             <h2 style="color: #4ade80; margin-top: 0;">🎉 ¡Autenticación de Google Exitosa!</h2>
             <p>Hemos obtenido tu <b>Refresh Token</b> de larga duración de forma segura.</p>
             <p><b>Estado del archivo .env:</b> <span style="color: #4ade80; font-weight: bold;">${envWriteStatus}</span></p>
+            ${manualCopyBlock}
             <a href="/" style="display: inline-block; background: #3b82f6; color: white; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; margin-top: 15px;">
               Volver a PrestaFacilito
             </a>
