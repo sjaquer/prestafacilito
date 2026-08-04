@@ -6,14 +6,12 @@ export interface MetodoPagoOption {
 }
 
 export const METODOS_PAGO_OPCIONES: MetodoPagoOption[] = [
-  { id: "Efectivo", nombre: "Efectivo", tipo: "efectivo", colorBadge: "bg-emerald-100 text-emerald-800" },
-  { id: "Yape", nombre: "Yape", tipo: "billetera", colorBadge: "bg-purple-100 text-purple-800" },
-  { id: "Plin", nombre: "Plin", tipo: "billetera", colorBadge: "bg-cyan-100 text-cyan-800" },
-  { id: "BCP", nombre: "BCP (Banco de Crédito)", tipo: "banco", colorBadge: "bg-blue-100 text-blue-800" },
-  { id: "Interbank", nombre: "Interbank", tipo: "banco", colorBadge: "bg-emerald-100 text-emerald-800" },
-  { id: "BBVA", nombre: "BBVA Continental", tipo: "banco", colorBadge: "bg-indigo-100 text-indigo-800" },
-  { id: "Scotiabank", nombre: "Scotiabank", tipo: "banco", colorBadge: "bg-red-100 text-red-800" },
-  { id: "Banco de la Nación", nombre: "Banco de la Nación", tipo: "banco", colorBadge: "bg-rose-100 text-rose-800" },
-  { id: "Transferencia Bancaria", nombre: "Transferencia Bancaria", tipo: "banco", colorBadge: "bg-slate-100 text-slate-800" },
-  { id: "Otro", nombre: "Otro Método", tipo: "efectivo", colorBadge: "bg-gray-100 text-gray-800" },
+  { id: "BCP / Yape (Sebastián)", nombre: "BCP / Yape (Sebastián)", tipo: "banco", colorBadge: "bg-blue-100 text-blue-800 border-blue-200" },
+  { id: "BCP / Yape (Roberto)", nombre: "BCP / Yape (Roberto)", tipo: "banco", colorBadge: "bg-indigo-100 text-indigo-800 border-indigo-200" },
+  { id: "Interbank / Plin (Sebastián)", nombre: "Interbank / Plin (Sebastián)", tipo: "banco", colorBadge: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+  { id: "Interbank / Plin (Roberto)", nombre: "Interbank / Plin (Roberto)", tipo: "banco", colorBadge: "bg-teal-100 text-teal-800 border-teal-200" },
+  { id: "BBVA (Roberto)", nombre: "BBVA (Roberto)", tipo: "banco", colorBadge: "bg-sky-100 text-sky-800 border-sky-200" },
+  { id: "Scotiabank (Roberto)", nombre: "Scotiabank (Roberto)", tipo: "banco", colorBadge: "bg-rose-100 text-rose-800 border-rose-200" },
+  { id: "Efectivo", nombre: "Efectivo", tipo: "efectivo", colorBadge: "bg-amber-100 text-amber-800 border-amber-200" },
 ];
+
