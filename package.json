@@ -8,7 +8,10 @@
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true});require('fs').rmSync('server.js',{force:true});require('fs').rmSync('server.cjs',{force:true});\"",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "tsx --test src/lib/__tests__/*.test.ts",
+    "test:audit": "tsx scripts/audit-database-consistency.ts",
+    "test:all": "npm run test && npm run test:audit"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

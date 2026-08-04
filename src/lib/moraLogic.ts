@@ -33,30 +33,41 @@ export function calcularEstadoMora(
   const debtState = buildPaymentSchedule(prestamo, pagosDelPrestamo, { referenceDate: hoy });
   const res = debtState.resumen;
 
-  const esLiquidado = res.saldoPendiente <= 0.01 || prestamo.estado === "liquidado" || prestamo.estado === "pagado";
+  const esLiquidado = res.capitalPendiente <= 0.01 && res.moraAcumulada <= 0.01;
+
+  // cuotasVencidas = total de períodos históricos sin pagar o con pago incompleto
+  // (independientemente de si luego se realizó un abono posterior)
+  // Esto captura el caso de: pagar el período 2 saltando el 1 → el 1 sigue contando como vencida
+  const cuotasVencidasTotal = res.cuotasVencidas ?? 0;
   const esEstancado = prestamo.estado === "estancado" || (res.mesesSinPago ?? 0) > 2;
 
   let estadoCuotaMes: EstadoCuotaMes = "pendiente_mes";
   if (esLiquidado) {
     estadoCuotaMes = "al_dia";
-  } else if (esEstancado || (res.mesesSinPago ?? 0) > 1) {
+  } else if (esEstancado || cuotasVencidasTotal > 1) {
     estadoCuotaMes = "mora_acumulada";
-  } else if ((res.mesesSinPago ?? 0) === 1) {
+  } else if (cuotasVencidasTotal === 1) {
     estadoCuotaMes = "mora_mes";
   }
 
   const nextQuota = debtState.cuotaSiguiente;
 
+  // montoTotalAtrasado = mora acumulada + suma de cuotas mínimas no cubiertas en períodos vencidos
+  const cuotasVencidasDetalle = debtState.cuotasVencidasDetalle ?? [];
+  const montoVencidoTotal = round2(
+    cuotasVencidasDetalle.reduce((sum, c) => sum + (c.saldoPendiente ?? 0), 0) + res.moraAcumulada
+  );
+
   return {
     prestamoId: prestamo.id,
     clienteNombre: (prestamo as any).cliente_nombre || "",
     estadoCuotaMes,
-    cuotasAtrasadas: res.mesesSinPago ?? 0,
+    cuotasAtrasadas: cuotasVencidasTotal,
     montoCuotaActual: nextQuota ? nextQuota.montoCuotaBase : 0,
     fechaCuotaActual: nextQuota ? nextQuota.fechaVencimiento : "",
     diasAtraso: nextQuota ? nextQuota.diasVencidos : 0,
     diasRestantes: 0,
-    montoTotalAtrasado: res.moraAcumulada,
+    montoTotalAtrasado: montoVencidoTotal,
     saldoPendiente: res.saldoPendiente,
     moraAcumulada: res.moraAcumulada,
     ultimoPagoFecha: ultimoPago?.fecha_pago,

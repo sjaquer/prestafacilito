@@ -1,0 +1,146 @@
+[
+  {
+    "timestamp": "2026-08-04T21:24:50.761Z",
+    "prestamosAuditados": 32,
+    "alquileresAuditados": 4,
+    "capitalEnCirculacion": 27507.94,
+    "discrepanciasCount": 7,
+    "discrepancias": [
+      {
+        "id": "351b143f-4106-4a05-ad23-2117d658d2f2",
+        "tipo": "prestamo",
+        "cliente": "WALTER ALAYO",
+        "campo": "estado",
+        "valorCalculado": "activo",
+        "valorRegistrado": "pagado",
+        "descripcion": "El préstamo figura como 'pagado' en BD pero su cálculo financiero indica 'activo' (Capital pendiente: S/ 22.00, Mora: S/ 0.00)"
+      },
+      {
+        "id": "50bba04f-b09e-44d7-9324-fd8311ea6f33",
+        "tipo": "prestamo",
+        "cliente": "ISABEL  SANCHEZ",
+        "campo": "estado",
+        "valorCalculado": "estancado",
+        "valorRegistrado": "activo",
+        "descripcion": "El préstamo figura como 'activo' en BD pero su cálculo financiero indica 'estancado' (Capital pendiente: S/ 1500.00, Mora: S/ 1500.00)"
+      },
+      {
+        "id": "dc987142-b2f5-4fcc-a54a-addfb482ad38",
+        "tipo": "prestamo",
+        "cliente": "TUTY PAREDES",
+        "campo": "estado",
+        "valorCalculado": "estancado",
+        "valorRegistrado": "activo",
+        "descripcion": "El préstamo figura como 'activo' en BD pero su cálculo financiero indica 'estancado' (Capital pendiente: S/ 800.00, Mora: S/ 0.00)"
+      },
+      {
+        "id": "96e859e7-229e-4864-855a-e92fe9505832",
+        "tipo": "prestamo",
+        "cliente": "WALTER ALAYO",
+        "campo": "estado",
+        "valorCalculado": "activo",
+        "valorRegistrado": "pagado",
+        "descripcion": "El préstamo figura como 'pagado' en BD pero su cálculo financiero indica 'activo' (Capital pendiente: S/ 280.00, Mora: S/ 0.00)"
+      },
+      {
+        "id": "587fef26-a00a-46f6-bb89-77f748927cc5",
+        "tipo": "prestamo",
+        "cliente": "MARCOS ESPINOSA",
+        "campo": "estado",
+        "valorCalculado": "activo",
+        "valorRegistrado": "pagado",
+        "descripcion": "El préstamo figura como 'pagado' en BD pero su cálculo financiero indica 'activo' (Capital pendiente: S/ 900.00, Mora: S/ 180.00)"
+      },
+      {
+        "id": "e8eeacd1-73bc-4238-a8be-5d18847a78bb",
+        "tipo": "prestamo",
+        "cliente": "LIZBETH FIORELLA GUTIERREZ SAAVEDRA",
+        "campo": "estado",
+        "valorCalculado": "liquidado",
+        "valorRegistrado": "activo",
+        "descripcion": "El préstamo figura como 'activo' en BD pero su cálculo financiero indica 'liquidado' (Capital pendiente: S/ 0.00, Mora: S/ 0.00)"
+      },
+      {
+        "id": "3b9354e3-5c98-429c-8fab-a9bebea3ebd0",
+        "tipo": "alquiler",
+        "cliente": "NATALI DEL PILAR REATEGUI AREVALO - TIA",
+        "campo": "totalPendiente",
+        "valorCalculado": 1650,
+        "valorRegistrado": 330,
+        "descripcion": "El contrato de alquiler (DIJO QUE EL 7 DE JULIO PAGARIA DE OTRO MES) tiene más de 3 meses atrasados sin regularizar (Deuda total: S/ 1650.00)"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-08-04T21:25:10.077Z",
+    "prestamosAuditados": 32,
+    "alquileresAuditados": 4,
+    "capitalEnCirculacion": 27507.94,
+    "discrepanciasCount": 7,
+    "discrepancias": [
+      {
+        "id": "351b143f-4106-4a05-ad23-2117d658d2f2",
+        "tipo": "prestamo",
+        "cliente": "WALTER ALAYO",
+        "campo": "estado",
+        "valorCalculado": "activo",
+        "valorRegistrado": "pagado",
+        "descripcion": "El préstamo figura como 'pagado' en BD pero su cálculo financiero indica 'activo' (Capital pendiente: S/ 22.00, Mora: S/ 0.00)"
+      },
+      {
+        "id": "50bba04f-b09e-44d7-9324-fd8311ea6f33",
+        "tipo": "prestamo",
+        "cliente": "ISABEL  SANCHEZ",
+        "campo": "estado",
+        "valorCalculado": "estancado",
+        "valorRegistrado": "activo",
+        "descripcion": "El préstamo figura como 'activo' en BD pero su cálculo financiero indica 'estancado' (Capital pendiente: S/ 1500.00, Mora: S/ 1500.00)"
+      },
+      {
+        "id": "dc987142-b2f5-4fcc-a54a-addfb482ad38",
+        "tipo": "prestamo",
+        "cliente": "TUTY PAREDES",
+        "campo": "estado",
+        "valorCalculado": "estancado",
+        "valorRegistrado": "activo",
+        "descripcion": "El préstamo figura como 'activo' en BD pero su cálculo financiero indica 'estancado' (Capital pendiente: S/ 800.00, Mora: S/ 0.00)"
+      },
+      {
+        "id": "96e859e7-229e-4864-855a-e92fe9505832",
+        "tipo": "prestamo",
+        "cliente": "WALTER ALAYO",
+        "campo": "estado",
+        "valorCalculado": "activo",
+        "valorRegistrado": "pagado",
+        "descripcion": "El préstamo figura como 'pagado' en BD pero su cálculo financiero indica 'activo' (Capital pendiente: S/ 280.00, Mora: S/ 0.00)"
+      },
+      {
+        "id": "587fef26-a00a-46f6-bb89-77f748927cc5",
+        "tipo": "prestamo",
+        "cliente": "MARCOS ESPINOSA",
+        "campo": "estado",
+        "valorCalculado": "activo",
+        "valorRegistrado": "pagado",
+        "descripcion": "El préstamo figura como 'pagado' en BD pero su cálculo financiero indica 'activo' (Capital pendiente: S/ 900.00, Mora: S/ 180.00)"
+      },
+      {
+        "id": "e8eeacd1-73bc-4238-a8be-5d18847a78bb",
+        "tipo": "prestamo",
+        "cliente": "LIZBETH FIORELLA GUTIERREZ SAAVEDRA",
+        "campo": "estado",
+        "valorCalculado": "liquidado",
+        "valorRegistrado": "activo",
+        "descripcion": "El préstamo figura como 'activo' en BD pero su cálculo financiero indica 'liquidado' (Capital pendiente: S/ 0.00, Mora: S/ 0.00)"
+      },
+      {
+        "id": "3b9354e3-5c98-429c-8fab-a9bebea3ebd0",
+        "tipo": "alquiler",
+        "cliente": "NATALI DEL PILAR REATEGUI AREVALO - TIA",
+        "campo": "totalPendiente",
+        "valorCalculado": 1650,
+        "valorRegistrado": 330,
+        "descripcion": "El contrato de alquiler (DIJO QUE EL 7 DE JULIO PAGARIA DE OTRO MES) tiene más de 3 meses atrasados sin regularizar (Deuda total: S/ 1650.00)"
+      }
+    ]
+  }
+]

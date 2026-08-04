@@ -6,6 +6,8 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import { TimelineDetallePrestamo, TimelineMesItem } from "./prestamo/TimelineDetallePrestamo";
 import { AjustesPrestamoPanel } from "./prestamo/AjustesPrestamoPanel";
+import { ImagePasteDropzone } from "./common/ImagePasteDropzone";
+import { METODOS_PAGO_OPCIONES } from "../constants/bancos";
 import { subirVoucher } from "../lib/imageCompression";
 import { round2 } from "../lib/loanLogic";
 
@@ -27,7 +29,7 @@ export const PrestamoDetalle: React.FC = () => {
   const [montoPago, setMontoPago] = useState("");
   const [fechaPago, setFechaPago] = useState(new Date().toISOString().split("T")[0]);
   const [metodoPago, setMetodoPago] = useState("Efectivo");
-  const [comprobanteFile, setComprobanteFile] = useState<File | null>(null);
+  const [comprobanteFiles, setComprobanteFiles] = useState<File[]>([]);
   const [isSubmittingPago, setIsSubmittingPago] = useState(false);
   const [pagoErrorMsg, setPagoErrorMsg] = useState("");
   const [pagoSuccessMsg, setPagoSuccessMsg] = useState("");
@@ -143,8 +145,8 @@ export const PrestamoDetalle: React.FC = () => {
     try {
       let comprobanteUrl = "";
 
-      if (comprobanteFile && prestamo) {
-        const result = await subirVoucher(comprobanteFile);
+      if (comprobanteFiles.length > 0 && prestamo) {
+        const result = await subirVoucher(comprobanteFiles[0]);
         comprobanteUrl = result.url;
       }
 
@@ -166,7 +168,7 @@ export const PrestamoDetalle: React.FC = () => {
 
       setPagoSuccessMsg("¡Pago registrado correctamente!");
       setMontoPago("");
-      setComprobanteFile(null);
+      setComprobanteFiles([]);
       await fetchDetalle();
     } catch (err: any) {
       setPagoErrorMsg(err.message || "Ocurrió un error al registrar el pago");
@@ -563,34 +565,26 @@ export const PrestamoDetalle: React.FC = () => {
 
                   <div>
                     <label className="text-xs font-semibold text-slate-700 block mb-1">
-                      Método de Pago
+                      Método / Banco de Pago *
                     </label>
                     <select
                       value={metodoPago}
                       onChange={(e) => setMetodoPago(e.target.value)}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
                     >
-                      <option value="Efectivo">Efectivo</option>
-                      <option value="Yape">Yape</option>
-                      <option value="Plin">Plin</option>
-                      <option value="Transferencia BCP">Transferencia BCP</option>
-                      <option value="Transferencia BBVA">Transferencia BBVA</option>
-                      <option value="Otro">Otro</option>
+                      {METODOS_PAGO_OPCIONES.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.nombre}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Comprobante / Voucher (opcional)
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={(e) => setComprobanteFile(e.target.files?.[0] || null)}
-                    className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
-                  />
-                </div>
+                <ImagePasteDropzone
+                  files={comprobanteFiles}
+                  onFilesChange={setComprobanteFiles}
+                />
 
                 <button
                   type="submit"

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import { DollarSign, CheckCircle, AlertCircle, Upload, ShieldCheck, X, Image as ImageIcon } from "lucide-react";
 import { Cliente, Prestamo } from "../../types";
 import { ClienteAutocomplete } from "../common/ClienteAutocomplete";
+import { ImagePasteDropzone } from "../common/ImagePasteDropzone";
+import { METODOS_PAGO_OPCIONES } from "../../constants/bancos";
 import { subirVoucher } from "../../lib/imageCompression";
 import { round2 } from "../../lib/loanLogic";
 
@@ -367,71 +369,20 @@ export const RegistrarPagoForm: React.FC<RegistrarPagoFormProps> = ({
             onChange={(e) => setMetodoPago(e.target.value)}
             className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:bg-white"
           >
-            <option value="Efectivo">Efectivo</option>
-            <option value="Sebastián — Interbank / Plin">Sebastián — Interbank / Plin</option>
-            <option value="Sebastián — BCP / Yape">Sebastián — BCP / Yape</option>
-            <option value="Roberto — Interbank / Plin">Roberto — Interbank / Plin</option>
-            <option value="Roberto — BCP / Yape">Roberto — BCP / Yape</option>
-            <option value="Roberto — BBVA">Roberto — BBVA</option>
-            <option value="Transferencia Bancaria">Transferencia Bancaria (Otra)</option>
-            <option value="Otro">Otro</option>
+            {METODOS_PAGO_OPCIONES.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.nombre}
+              </option>
+            ))}
           </select>
         </div>
 
-        {/* Carga y Pegado de Múltiples Comprobantes */}
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-xs font-semibold text-slate-700">
-              Comprobantes / Vouchers (Opcional - Selecciona o presiona Ctrl+V)
-            </label>
-            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-              💡 Puedes pegar con Ctrl + V
-            </span>
-          </div>
-
-          <div className="relative">
-            <input
-              type="file"
-              accept="image/*,application/pdf"
-              multiple
-              onChange={handleFileChange}
-              className="hidden"
-              id="voucher-input-prestamo"
-            />
-            <label
-              htmlFor="voucher-input-prestamo"
-              className="w-full px-3 py-2.5 bg-slate-50/70 border border-dashed border-slate-300 hover:border-blue-400 rounded-xl text-xs text-slate-600 flex items-center justify-center gap-2 cursor-pointer transition-colors"
-            >
-              <Upload className="w-4 h-4 text-slate-400" />
-              <span>Subir comprobante(s) o presiona Ctrl + V</span>
-            </label>
-          </div>
-
-          {/* Lista de archivos agregados */}
-          {comprobanteFiles.length > 0 && (
-            <div className="mt-2 space-y-1.5">
-              {comprobanteFiles.map((file, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between px-2.5 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-xs"
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <ImageIcon className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                    <span className="truncate font-medium text-slate-800">{file.name}</span>
-                    <span className="text-[10px] text-slate-400">({(file.size / 1024).toFixed(1)} KB)</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeFile(idx)}
-                    className="p-0.5 hover:bg-slate-200 rounded text-slate-400 hover:text-red-600 transition"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Zona Interactiva para Pegar/Arrastrar Vouchers */}
+        <ImagePasteDropzone
+          files={comprobanteFiles}
+          onFilesChange={setComprobanteFiles}
+          label="Comprobantes / Vouchers (Opcional)"
+        />
 
         <button
           type="submit"
