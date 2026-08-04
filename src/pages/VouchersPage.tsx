@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { 
-  Search, Filter, Calendar, FileText, Image as ImageIcon, Eye, Loader2, Download, AlertCircle, RefreshCw, Edit2, Trash2, Info, ArrowRight
+  Search, Filter, Calendar, FileText, Image as ImageIcon, Eye, Loader2, Download, AlertCircle, RefreshCw, Edit2, Trash2, Info, ArrowRight, Upload, Paperclip
 } from "lucide-react";
 import { usePagos } from "../hooks/usePagos";
 import { Card } from "../components/ui/Card";
@@ -9,7 +9,7 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { formatCurrency, formatDateShort } from "../lib/formatters";
-import { VoucherGenerator } from "../components/prestamo/VoucherGenerator";
+import { UploadVoucherModal } from "../components/prestamo/UploadVoucherModal";
 import { METODOS_PAGO } from "../lib/constants";
 
 export const VouchersPage: React.FC = () => {
@@ -18,7 +18,8 @@ export const VouchersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [methodFilter, setMethodFilter] = useState("Todos");
   const [voucherFilter, setVoucherFilter] = useState("Todos"); // Todos, Con Voucher, Sin Voucher
-  const [selectedVoucherPago, setSelectedVoucherPago] = useState<any | null>(null);
+  const [uploadVoucherPagoId, setUploadVoucherPagoId] = useState<string | null>(null);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   // Estados para ver distribución de préstamo
@@ -192,15 +193,25 @@ export const VouchersPage: React.FC = () => {
             Consulta, verifica y descarga los comprobantes de pago subidos por los operadores
           </p>
         </div>
-        <Button 
-          onClick={loadVouchers} 
-          variant="secondary" 
-          size="sm"
-          icon={<RefreshCw size={14} className={loading ? "animate-spin" : ""} />}
-          disabled={loading}
-        >
-          Sincronizar
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button 
+            onClick={() => setIsUploadModalOpen(true)}
+            variant="primary"
+            size="sm"
+            icon={<Upload size={14} />}
+          >
+            + Subir Voucher
+          </Button>
+          <Button 
+            onClick={loadVouchers} 
+            variant="secondary" 
+            size="sm"
+            icon={<RefreshCw size={14} className={loading ? "animate-spin" : ""} />}
+            disabled={loading}
+          >
+            Sincronizar
+          </Button>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -396,14 +407,16 @@ export const VouchersPage: React.FC = () => {
                       </button>
                     )}
                     
-                    <button
-                      type="button"
-                      onClick={() => setSelectedVoucherPago(pago)}
-                      className="px-2.5 py-1.5 bg-indigo-650 hover:bg-indigo-750 text-white rounded-xl text-[10px] font-black transition flex items-center gap-1 border-none cursor-pointer"
-                    >
-                      <FileText size={11} />
-                      <span>Recibo</span>
-                    </button>
+                    {!hasVoucher && (
+                      <button
+                        type="button"
+                        onClick={() => setUploadVoucherPagoId(pago.id)}
+                        className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black transition flex items-center gap-1 border-none cursor-pointer shadow-sm"
+                      >
+                        <Paperclip size={11} />
+                        <span>Adjuntar Voucher</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -428,20 +441,23 @@ export const VouchersPage: React.FC = () => {
         </div>
       )}
 
-      {/* Modal Voucher Generator */}
-      {selectedVoucherPago && (
-        <VoucherGenerator
-          isOpen={!!selectedVoucherPago}
-          onClose={() => setSelectedVoucherPago(null)}
-          pago={selectedVoucherPago}
-          prestamo={{
-            tipo_prestamo: selectedVoucherPago.tipo_prestamo,
-            cliente_nombre: selectedVoucherPago.cliente_nombre,
-            cliente_telefono: selectedVoucherPago.cliente_telefono || "",
-            monto_capital: selectedVoucherPago.monto_capital || 0
-          }}
-        />
-      )}
+      {/* Modal Upload Voucher (botón superior) */}
+      <UploadVoucherModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        pagos={pagos}
+        initialPago={null}
+        onUploaded={loadVouchers}
+      />
+
+      {/* Modal Upload Voucher (por fila) */}
+      <UploadVoucherModal
+        isOpen={!!uploadVoucherPagoId}
+        onClose={() => setUploadVoucherPagoId(null)}
+        pagos={pagos}
+        initialPago={pagos.find((p) => p.id === uploadVoucherPagoId) || null}
+        onUploaded={loadVouchers}
+      />
 
       {/* Modal: Ver Préstamo y Amortización */}
       <Modal

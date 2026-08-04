@@ -117,7 +117,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
     },
     {
       path: "/bi",
-      label: "Dashboard / BI",
+      label: "Dashboard",
       icon: BarChart3,
       activePaths: ["/bi"],
     },

@@ -4,6 +4,7 @@ import { useClientes } from "../hooks/useClientes";
 import { Cliente, TipoDocumento } from "../types";
 import { ClientList } from "../components/cliente/ClientList";
 import { ClientSlideOverForm } from "../components/cliente/ClientSlideOverForm";
+import { UploadDocumentoModal } from "../components/cliente/UploadDocumentoModal";
 
 
 const fileToBase64 = (file: File): Promise<string> =>
@@ -18,6 +19,7 @@ export const ClientesPage: React.FC = () => {
   const { clientes, loading, createCliente, updateCliente, uploadClienteDocument, refetch } = useClientes();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [clienteToEdit, setClienteToEdit] = useState<Cliente | null>(null);
+  const [uploadDocCliente, setUploadDocCliente] = useState<Cliente | null>(null);
 
   const handleOpenCreateForm = () => {
     setClienteToEdit(null);
@@ -120,6 +122,7 @@ export const ClientesPage: React.FC = () => {
         isLoading={loading}
         onEditClient={handleOpenEditForm}
         onOpenNewClientForm={handleOpenCreateForm}
+        onUploadDocumento={(cliente) => setUploadDocCliente(cliente)}
       />
 
       {/* Panel / Formulario Deslizable (Slide-over) (Tarea 7.3.2) */}
@@ -128,6 +131,18 @@ export const ClientesPage: React.FC = () => {
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleFormSubmit}
         clienteToEdit={clienteToEdit}
+      />
+
+      {/* Subida rápida de documentos por cliente */}
+      <UploadDocumentoModal
+        isOpen={!!uploadDocCliente}
+        onClose={() => setUploadDocCliente(null)}
+        cliente={uploadDocCliente}
+        onUpload={async (clienteId, doc) => {
+          const res = await uploadClienteDocument(clienteId, doc);
+          return { success: res.success, error: res.error };
+        }}
+        onUploaded={refetch}
       />
     </div>
   );

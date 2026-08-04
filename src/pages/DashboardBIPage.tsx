@@ -22,6 +22,26 @@ interface BiResumenData {
     mes: string;
     cobrado: number;
   }>;
+  distribucionIngresos: Array<{
+    mes: string;
+    prestamos: number;
+    alquileres: number;
+  }>;
+  estadoCartera: {
+    alDia: number;
+    atrasados: number;
+    estancados: number;
+  };
+  controlInquilinos: {
+    totalInmuebles: number;
+    ocupados: number;
+    desocupados: number;
+    tasaOcupacion: number;
+    rentasMesActual: number;
+    rentasMesAnterior: number;
+    alquileresAlDia: number;
+    alquileresAtrasados: number;
+  };
   top5Clientes: Array<{
     id: string;
     nombre: string;
@@ -83,8 +103,14 @@ export const DashboardBIPage: React.FC = () => {
     );
   }
 
-  const { kpis, historialCobros, top5Clientes } = data;
+  const { kpis, historialCobros, distribucionIngresos, estadoCartera, controlInquilinos, top5Clientes } = data;
   const maxCobrado = Math.max(...historialCobros.map((d) => d.cobrado), 1);
+  const maxIngreso = Math.max(...distribucionIngresos.flatMap((d) => [d.prestamos, d.alquileres]), 1);
+  const totalCartera = estadoCartera.alDia + estadoCartera.atrasados + estadoCartera.estancados;
+  const donutC = 2 * Math.PI * 50;
+  const pctAlDia = totalCartera > 0 ? estadoCartera.alDia / totalCartera : 0;
+  const pctAtrasados = totalCartera > 0 ? estadoCartera.atrasados / totalCartera : 0;
+  const pctEstancados = totalCartera > 0 ? estadoCartera.estancados / totalCartera : 0;
 
   const diffMes = kpis.cobradoMesActual - kpis.cobradoMesAnterior;
   const pctDiff = kpis.cobradoMesAnterior > 0 ? (diffMes / kpis.cobradoMesAnterior) * 100 : 0;
@@ -96,15 +122,15 @@ export const DashboardBIPage: React.FC = () => {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full text-xs font-semibold">
-              Fase 10 — Dashboard BI
+              Dashboard
             </span>
             <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
               <BarChart3 className="w-3.5 h-3.5" /> Métricas Reales en Tiempo Real
             </span>
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight">Estadísticas y Dashboard BI</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight">Dashboard de Control</h1>
           <p className="text-xs text-slate-300">
-            Resumen gerencial de capital en circulación, cobranzas históricas y salud financiera.
+            Resumen gerencial de capital en circulación, distribución de ingresos, estado de cartera, cobranzas y control de inquilinos.
           </p>
         </div>
 
@@ -321,6 +347,141 @@ export const DashboardBIPage: React.FC = () => {
                 </div>
               ))
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Sección 4, 5 y 6 — Distribución de Ingresos, Estado de Cartera y Control de Inquilinos */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Distribución de Ingresos: Préstamos vs Alquileres */}
+        <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+              <h3 className="text-base font-bold text-slate-800">Distribución de Ingresos</h3>
+              <p className="text-xs text-slate-500">Cobranza mensual: Préstamos vs Alquileres</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 pb-1">
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+              <span className="w-3 h-3 rounded-sm bg-indigo-600" /> Préstamos
+            </span>
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+              <span className="w-3 h-3 rounded-sm bg-teal-500" /> Alquileres
+            </span>
+          </div>
+
+          <div className="py-3">
+            <svg viewBox="0 0 420 200" className="w-full h-auto max-h-[240px] overflow-visible">
+              {[50, 100, 150].map((y) => (
+                <line key={y} x1="36" y1={y} x2="400" y2={y} stroke="#f1f5f9" strokeWidth="1" />
+              ))}
+              {distribucionIngresos.map((item, idx) => {
+                const x = idx * 68 + 60;
+                const hP = (item.prestamos / maxIngreso) * 120;
+                const hA = (item.alquileres / maxIngreso) * 120;
+                return (
+                  <g key={item.mes}>
+                    <rect x={x - 14} y={170 - hP} width="20" height={Math.max(hP, 2)} rx="5" className="fill-indigo-600 hover:fill-indigo-700 transition-all cursor-pointer" />
+                    <rect x={x + 9} y={170 - hA} width="20" height={Math.max(hA, 2)} rx="5" className="fill-teal-500 hover:fill-teal-600 transition-all cursor-pointer" />
+                    <g className="pointer-events-none">
+                      <title>{`${item.mes}: Préstamos S/ ${item.prestamos.toFixed(2)} · Alquileres S/ ${item.alquileres.toFixed(2)}`}</title>
+                    </g>
+                    <text x={x} y={185} textAnchor="middle" className="text-[9px] font-bold fill-slate-500">{item.mes}</text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        </div>
+
+        {/* Estado de Cartera */}
+        <div className="lg:col-span-3 bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4">
+          <div>
+            <h3 className="text-base font-bold text-slate-800">Estado de Cartera</h3>
+            <p className="text-xs text-slate-500">Clientes con préstamos activos</p>
+          </div>
+
+          <div className="flex items-center justify-center py-2">
+            <div className="relative w-40 h-40">
+              <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+                <circle cx="60" cy="60" r="50" fill="none" stroke="#f1f5f9" strokeWidth="16" />
+                <circle cx="60" cy="60" r="50" fill="none" stroke="#10b981" strokeWidth="16"
+                  strokeDasharray={`${pctAlDia * donutC} ${donutC}`} strokeLinecap="round" />
+                {pctAtrasados > 0 && (
+                  <circle cx="60" cy="60" r="50" fill="none" stroke="#f59e0b" strokeWidth="16"
+                    strokeDashoffset={-(pctAlDia * donutC)} strokeDasharray={`${pctAtrasados * donutC} ${donutC}`} strokeLinecap="round" />
+                )}
+                {pctEstancados > 0 && (
+                  <circle cx="60" cy="60" r="50" fill="none" stroke="#f43f5e" strokeWidth="16"
+                    strokeDashoffset={-((pctAlDia + pctAtrasados) * donutC)} strokeDasharray={`${pctEstancados * donutC} ${donutC}`} strokeLinecap="round" />
+                )}
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-2xl font-black text-slate-900">{totalCartera}</span>
+                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Clientes</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="flex items-center gap-1.5 text-slate-600"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Al Día</span>
+              <span className="font-black text-emerald-700">{estadoCartera.alDia}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="flex items-center gap-1.5 text-slate-600"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Atrasados</span>
+              <span className="font-black text-amber-600">{estadoCartera.atrasados}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="flex items-center gap-1.5 text-slate-600"><span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Estancados</span>
+              <span className="font-black text-rose-600">{estadoCartera.estancados}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Control de Inquilinos */}
+        <div className="lg:col-span-4 bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4">
+          <div>
+            <h3 className="text-base font-bold text-slate-800">Control de Inquilinos</h3>
+            <p className="text-xs text-slate-500">Ocupación de inmuebles y mensualidades de alquiler</p>
+          </div>
+
+          <div className="space-y-2.5">
+            <div className="flex items-end justify-between">
+              <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Tasa de Ocupación</span>
+              <span className="text-2xl font-black text-slate-900">{controlInquilinos.tasaOcupacion}%</span>
+            </div>
+            <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full transition-all duration-700"
+                style={{ width: `${Math.min(controlInquilinos.tasaOcupacion, 100)}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-[11px] font-semibold text-slate-500">
+              <span>{controlInquilinos.ocupados} ocupados</span>
+              <span>{controlInquilinos.desocupados} desocupados</span>
+              <span>{controlInquilinos.totalInmuebles} total</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
+            <div className="bg-slate-50 border border-slate-200/70 rounded-xl p-3">
+              <span className="text-[9px] text-slate-400 font-bold uppercase block">Rentas Mes Actual</span>
+              <span className="text-sm font-black text-teal-700 font-mono">S/ {controlInquilinos.rentasMesActual.toFixed(2)}</span>
+            </div>
+            <div className="bg-slate-50 border border-slate-200/70 rounded-xl p-3">
+              <span className="text-[9px] text-slate-400 font-bold uppercase block">Rentas Mes Anterior</span>
+              <span className="text-sm font-black text-slate-800 font-mono">S/ {controlInquilinos.rentasMesAnterior.toFixed(2)}</span>
+            </div>
+            <div className="bg-emerald-50 border border-emerald-200/70 rounded-xl p-3">
+              <span className="text-[9px] text-emerald-600 font-bold uppercase block">Mensual. al Día</span>
+              <span className="text-sm font-black text-emerald-700">{controlInquilinos.alquileresAlDia}</span>
+            </div>
+            <div className="bg-amber-50 border border-amber-200/70 rounded-xl p-3">
+              <span className="text-[9px] text-amber-600 font-bold uppercase block">Mensual. Pendiente</span>
+              <span className="text-sm font-black text-amber-700">{controlInquilinos.alquileresAtrasados}</span>
+            </div>
           </div>
         </div>
       </div>

@@ -313,5 +313,131 @@
         "descripcion": "El contrato de alquiler (DIJO QUE EL 7 DE JULIO PAGARIA DE OTRO MES) tiene más de 3 meses atrasados sin regularizar (Deuda total: S/ 1650.00)"
       }
     ]
+  },
+  {
+    "timestamp": "2026-08-04T22:47:40.107Z",
+    "prestamosAuditados": 32,
+    "alquileresAuditados": 4,
+    "capitalEnCirculacion": 26959.94,
+    "discrepanciasCount": 6,
+    "discrepancias": [
+      {
+        "id": "98417e57-fef3-41d3-89ed-ef5cd82c6fac",
+        "tipo": "prestamo",
+        "cliente": "GEORGE JHONATAN VILLACORTA FLORES",
+        "campo": "estado",
+        "valorCalculado": "estancado",
+        "valorRegistrado": "activo",
+        "descripcion": "El préstamo figura como 'activo' en BD pero su cálculo financiero indica 'estancado' (Capital pendiente: S/ 1034.00, Mora: S/ 0.00)"
+      },
+      {
+        "id": "6c0e4aa2-8084-4cd6-bdb8-c39443af9c18",
+        "tipo": "prestamo",
+        "cliente": "ISABEL  SANCHEZ",
+        "campo": "estado",
+        "valorCalculado": "estancado",
+        "valorRegistrado": "activo",
+        "descripcion": "El préstamo figura como 'activo' en BD pero su cálculo financiero indica 'estancado' (Capital pendiente: S/ 600.00, Mora: S/ 500.00)"
+      },
+      {
+        "id": "50bba04f-b09e-44d7-9324-fd8311ea6f33",
+        "tipo": "prestamo",
+        "cliente": "ISABEL  SANCHEZ",
+        "campo": "estado",
+        "valorCalculado": "estancado",
+        "valorRegistrado": "activo",
+        "descripcion": "El préstamo figura como 'activo' en BD pero su cálculo financiero indica 'estancado' (Capital pendiente: S/ 1500.00, Mora: S/ 1480.00)"
+      },
+      {
+        "id": "dc987142-b2f5-4fcc-a54a-addfb482ad38",
+        "tipo": "prestamo",
+        "cliente": "TUTY PAREDES",
+        "campo": "estado",
+        "valorCalculado": "estancado",
+        "valorRegistrado": "activo",
+        "descripcion": "El préstamo figura como 'activo' en BD pero su cálculo financiero indica 'estancado' (Capital pendiente: S/ 800.00, Mora: S/ 0.00)"
+      },
+      {
+        "id": "587fef26-a00a-46f6-bb89-77f748927cc5",
+        "tipo": "prestamo",
+        "cliente": "MARCOS ESPINOSA",
+        "campo": "estado",
+        "valorCalculado": "activo",
+        "valorRegistrado": "pagado",
+        "descripcion": "El préstamo figura como 'pagado' en BD pero su cálculo financiero indica 'activo' (Capital pendiente: S/ 900.00, Mora: S/ 180.00)"
+      },
+      {
+        "id": "3b9354e3-5c98-429c-8fab-a9bebea3ebd0",
+        "tipo": "alquiler",
+        "cliente": "NATALI DEL PILAR REATEGUI AREVALO - TIA",
+        "campo": "totalPendiente",
+        "valorCalculado": 1650,
+        "valorRegistrado": 330,
+        "descripcion": "El contrato de alquiler (DIJO QUE EL 7 DE JULIO PAGARIA DE OTRO MES) tiene más de 3 meses atrasados sin regularizar (Deuda total: S/ 1650.00)"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-08-04T23:21:37.793Z",
+    "prestamosAuditados": 32,
+    "alquileresAuditados": 4,
+    "capitalEnCirculacion": 26844.05,
+    "discrepanciasCount": 6,
+    "discrepancias": [
+      {
+        "id": "98417e57-fef3-41d3-89ed-ef5cd82c6fac",
+        "tipo": "prestamo",
+        "cliente": "GEORGE JHONATAN VILLACORTA FLORES",
+        "campo": "estado",
+        "valorCalculado": "estancado",
+        "valorRegistrado": "activo",
+        "descripcion": "El préstamo figura como 'activo' en BD pero su cálculo financiero indica 'estancado' (Capital pendiente: S/ 1034.00, Mora: S/ 0.00)"
+      },
+      {
+        "id": "6c0e4aa2-8084-4cd6-bdb8-c39443af9c18",
+        "tipo": "prestamo",
+        "cliente": "ISABEL  SANCHEZ",
+        "campo": "estado",
+        "valorCalculado": "estancado",
+        "valorRegistrado": "activo",
+        "descripcion": "El préstamo figura como 'activo' en BD pero su cálculo financiero indica 'estancado' (Capital pendiente: S/ 600.00, Mora: S/ 500.00)"
+      },
+      {
+        "id": "50bba04f-b09e-44d7-9324-fd8311ea6f33",
+        "tipo": "prestamo",
+        "cliente": "ISABEL  SANCHEZ",
+        "campo": "estado",
+        "valorCalculado": "estancado",
+        "valorRegistrado": "activo",
+        "descripcion": "El préstamo figura como 'activo' en BD pero su cálculo financiero indica 'estancado' (Capital pendiente: S/ 1500.00, Mora: S/ 1480.00)"
+      },
+      {
+        "id": "dc987142-b2f5-4fcc-a54a-addfb482ad38",
+        "tipo": "prestamo",
+        "cliente": "TUTY PAREDES",
+        "campo": "estado",
+        "valorCalculado": "estancado",
+        "valorRegistrado": "activo",
+        "descripcion": "El préstamo figura como 'activo' en BD pero su cálculo financiero indica 'estancado' (Capital pendiente: S/ 800.00, Mora: S/ 0.00)"
+      },
+      {
+        "id": "587fef26-a00a-46f6-bb89-77f748927cc5",
+        "tipo": "prestamo",
+        "cliente": "MARCOS ESPINOSA",
+        "campo": "estado",
+        "valorCalculado": "activo",
+        "valorRegistrado": "pagado",
+        "descripcion": "El préstamo figura como 'pagado' en BD pero su cálculo financiero indica 'activo' (Capital pendiente: S/ 900.00, Mora: S/ 180.00)"
+      },
+      {
+        "id": "3b9354e3-5c98-429c-8fab-a9bebea3ebd0",
+        "tipo": "alquiler",
+        "cliente": "NATALI DEL PILAR REATEGUI AREVALO - TIA",
+        "campo": "totalPendiente",
+        "valorCalculado": 1650,
+        "valorRegistrado": 330,
+        "descripcion": "El contrato de alquiler (DIJO QUE EL 7 DE JULIO PAGARIA DE OTRO MES) tiene más de 3 meses atrasados sin regularizar (Deuda total: S/ 1650.00)"
+      }
+    ]
   }
 ]

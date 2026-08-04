@@ -8,13 +8,15 @@ interface ClientListProps {
   isLoading?: boolean;
   onEditClient?: (cliente: Cliente) => void;
   onOpenNewClientForm?: () => void;
+  onUploadDocumento?: (cliente: Cliente) => void;
 }
 
 export const ClientList: React.FC<ClientListProps> = ({
   clientes,
   isLoading = false,
   onEditClient,
-  onOpenNewClientForm
+  onOpenNewClientForm,
+  onUploadDocumento
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -84,6 +86,7 @@ export const ClientList: React.FC<ClientListProps> = ({
               key={cliente.id}
               cliente={cliente}
               onEditClient={onEditClient}
+              onUploadDocumento={onUploadDocumento}
             />
           ))}
         </div>

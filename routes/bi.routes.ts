@@ -78,6 +78,8 @@ router.get("/resumen", requireAuth, async (_req: express.Request, res: express.R
 
     // Histórico de cobros mensual de los últimos 6 meses (para la gráfica SVG)
     const historialCobros = [];
+    // Distribución mensual de ingresos: Préstamos vs Alquileres
+    const distribucionIngresos = [];
     const NOMBRES_MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
     for (let i = 5; i >= 0; i--) {
@@ -85,25 +87,83 @@ router.get("/resumen", requireAuth, async (_req: express.Request, res: express.R
       const inicioMes = new Date(fechaBase.getFullYear(), fechaBase.getMonth(), 1);
       const finMes = new Date(fechaBase.getFullYear(), fechaBase.getMonth() + 1, 0, 23, 59, 59);
 
-      const cobrado = [
-        ...amortizaciones.filter((a) => {
-          if (!a.fecha_pago) return false;
-          const f = new Date(a.fecha_pago);
-          return f >= inicioMes && f <= finMes;
-        }),
-        ...pagosAlquiler.filter((p) => {
-          if (!p.fecha_pago) return false;
-          const f = new Date(p.fecha_pago);
-          return f >= inicioMes && f <= finMes;
-        })
-      ].reduce((sum, p) => sum + toNumber(p.monto), 0);
+      const enMes = (f: string | null) => {
+        if (!f) return false;
+        const d = new Date(f);
+        return d >= inicioMes && d <= finMes;
+      };
+
+      const cobradoPrestamos = amortizaciones.filter((a) => enMes(a.fecha_pago)).reduce((sum, p) => sum + toNumber(p.monto), 0);
+      const cobradoAlquileres = pagosAlquiler.filter((p) => enMes(p.fecha_pago)).reduce((sum, p) => sum + toNumber(p.monto), 0);
 
       const mesLabel = `${NOMBRES_MESES[inicioMes.getMonth()]} ${String(inicioMes.getFullYear()).slice(-2)}`;
       historialCobros.push({
         mes: mesLabel,
-        cobrado: round2(cobrado)
+        cobrado: round2(cobradoPrestamos + cobradoAlquileres)
+      });
+      distribucionIngresos.push({
+        mes: mesLabel,
+        prestamos: round2(cobradoPrestamos),
+        alquileres: round2(cobradoAlquileres)
       });
     }
+
+    // Estado de cartera por cliente: Al Día / Atrasados / Estancados
+    // (una vez por cliente: estancado > atrasado > al día)
+    const estadoPorCliente: Record<string, "al_dia" | "atrasado" | "estancado"> = {};
+    for (const p of prestamos) {
+      if (!["activo", "estancado"].includes(p.estado)) continue;
+      if (p.estado === "estancado") {
+        estadoPorCliente[p.cliente_id] = "estancado";
+        continue;
+      }
+      const pagos = amortizaciones.filter((a) => a.prestamo_id === p.id);
+      const schedule = buildPaymentSchedule(p, pagos);
+      const atrasado = schedule.resumen.cuotasVencidas > 0;
+      const actual = estadoPorCliente[p.cliente_id];
+      if (actual === "estancado") continue;
+      if (atrasado) {
+        if (actual !== "atrasado") estadoPorCliente[p.cliente_id] = "atrasado";
+      } else if (!actual) {
+        estadoPorCliente[p.cliente_id] = "al_dia";
+      }
+    }
+    const cuentaCartera = Object.values(estadoPorCliente).reduce(
+      (acc, s) => {
+        acc[s] = (acc[s] || 0) + 1;
+        return acc;
+      },
+      { al_dia: 0, atrasado: 0, estancado: 0 } as Record<string, number>
+    );
+
+    // Control de inquilinos: ocupación y estado de mensualidades de alquiler
+    const alquileresActivos = alquileres.filter((a) => a.estado === "activo");
+    const alquileresFinalizados = alquileres.filter((a) => a.estado !== "activo");
+    const totalInmuebles = alquileres.length;
+    const tasaOcupacion = totalInmuebles > 0 ? (alquileresActivos.length / totalInmuebles) * 100 : 0;
+    const periodoMesActual = now.getMonth() + 1;
+    const periodoAnioActual = now.getFullYear();
+    const conMensualidadAlDia = alquileresActivos.filter((a) =>
+      pagosAlquiler.some(
+        (p) =>
+          p.alquiler_id === a.id &&
+          Number(p.periodo_mes) === periodoMesActual &&
+          Number(p.periodo_anio) === periodoAnioActual
+      )
+    ).length;
+    const alquileresAlDia = conMensualidadAlDia;
+    const alquileresAtrasados = alquileresActivos.length - conMensualidadAlDia;
+
+    const rentasMesActual = pagosAlquiler
+      .filter((p) => p.fecha_pago && new Date(p.fecha_pago) >= inicioMesActual)
+      .reduce((sum, p) => sum + toNumber(p.monto), 0);
+    const rentasMesAnterior = pagosAlquiler
+      .filter((p) => {
+        if (!p.fecha_pago) return false;
+        const f = new Date(p.fecha_pago);
+        return f >= inicioMesAnterior && f < inicioMesActual;
+      })
+      .reduce((sum, p) => sum + toNumber(p.monto), 0);
 
     // Top 5 Clientes por Capital Activo con su Score A/B/C
     const top5Clientes = clientes
@@ -133,6 +193,22 @@ router.get("/resumen", requireAuth, async (_req: express.Request, res: express.R
         alquileresActivos: alquileres.filter((a) => a.estado === "activo").length
       },
       historialCobros,
+      distribucionIngresos,
+      estadoCartera: {
+        alDia: cuentaCartera.al_dia || 0,
+        atrasados: cuentaCartera.atrasado || 0,
+        estancados: cuentaCartera.estancado || 0
+      },
+      controlInquilinos: {
+        totalInmuebles,
+        ocupados: alquileresActivos.length,
+        desocupados: alquileresFinalizados.length,
+        tasaOcupacion: round2(tasaOcupacion),
+        rentasMesActual: round2(rentasMesActual),
+        rentasMesAnterior: round2(rentasMesAnterior),
+        alquileresAlDia,
+        alquileresAtrasados
+      },
       top5Clientes
     });
   } catch (err: any) {

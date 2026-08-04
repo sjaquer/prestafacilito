@@ -1,5 +1,5 @@
 import React from "react";
-import { MessageCircle, ArrowUpRight, Phone, MapPin, Edit3, Coins, Wallet, CheckCircle2 } from "lucide-react";
+import { MessageCircle, ArrowUpRight, Phone, MapPin, Edit3, Coins, Wallet, CheckCircle2, Paperclip, FileUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Cliente } from "../../types";
 import { ScoreBadge } from "../ui/ScoreBadge";
@@ -8,9 +8,10 @@ import { formatCurrency } from "../../lib/formatters";
 interface ClientCardProps {
   cliente: Cliente;
   onEditClient?: (cliente: Cliente) => void;
+  onUploadDocumento?: (cliente: Cliente) => void;
 }
 
-export const ClientCard: React.FC<ClientCardProps> = ({ cliente, onEditClient }) => {
+export const ClientCard: React.FC<ClientCardProps> = ({ cliente, onEditClient, onUploadDocumento }) => {
   const navigate = useNavigate();
 
   const getWhatsAppLink = () => {
@@ -87,6 +88,16 @@ export const ClientCard: React.FC<ClientCardProps> = ({ cliente, onEditClient })
             title="Editar Cliente"
           >
             <Edit3 className="w-4 h-4" />
+          </button>
+        )}
+
+        {onUploadDocumento && (
+          <button
+            onClick={() => onUploadDocumento(cliente)}
+            className="px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-bold rounded-xl transition-all flex items-center gap-1"
+            title="Subir Documento a Google Drive"
+          >
+            <FileUp className="w-3.5 h-3.5" /> Subir Documento
           </button>
         )}
 

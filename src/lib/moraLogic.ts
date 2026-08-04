@@ -17,6 +17,7 @@ export interface EstadoMoraCliente {
   moraAcumulada: number;
   ultimoPagoFecha?: string;
   ultimoPagoMonto?: number;
+  esEstancado?: boolean;
 }
 
 export function calcularEstadoMora(
@@ -35,11 +36,10 @@ export function calcularEstadoMora(
 
   const esLiquidado = res.capitalPendiente <= 0.01 && res.moraAcumulada <= 0.01;
 
-  // cuotasVencidas = total de períodos históricos sin pagar o con pago incompleto
   // (independientemente de si luego se realizó un abono posterior)
   // Esto captura el caso de: pagar el período 2 saltando el 1 → el 1 sigue contando como vencida
   const cuotasVencidasTotal = res.cuotasVencidas ?? 0;
-  const esEstancado = prestamo.estado === "estancado" || (res.mesesSinPago ?? 0) > 2;
+  const esEstancado = prestamo.estado === "estancado" || cuotasVencidasTotal >= 3;
 
   let estadoCuotaMes: EstadoCuotaMes = "pendiente_mes";
   if (esLiquidado) {
@@ -72,5 +72,6 @@ export function calcularEstadoMora(
     moraAcumulada: res.moraAcumulada,
     ultimoPagoFecha: ultimoPago?.fecha_pago,
     ultimoPagoMonto: ultimoPago ? Number(ultimoPago.monto) : undefined,
+    esEstancado
   };
 }

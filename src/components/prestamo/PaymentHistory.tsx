@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { MessageSquare, Eye, FileText, Image, Calendar, Check, X, Trash2 } from "lucide-react";
+import { MessageSquare, Eye, Image, Calendar, Check, X, Trash2 } from "lucide-react";
 import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
@@ -264,13 +264,6 @@ Folio de Comprobante: ${folio}. ¡Muchas gracias por su compromiso!`;
                             <Calendar size={13} />
                           </button>
                         )}
-                        <button
-                          onClick={() => onVoucherClick(pago)}
-                          className="text-slate-550 hover:text-slate-800 p-1.5 hover:bg-slate-50 rounded-lg transition border-none bg-transparent cursor-pointer"
-                          title="Recibo Oficial"
-                        >
-                          <FileText size={13} />
-                        </button>
                         {waShare && (
                           <a
                             href={waShare}
