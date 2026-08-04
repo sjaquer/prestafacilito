@@ -130,10 +130,14 @@ export const buildPaymentSchedule = (
     const moraMesInicio = moraAcumulada;
     const cuotaMinima = round2(interesEfectivo + moraMesInicio);
 
-    // Pagos pertenecientes a este período (entre startDatePeriod y endDatePeriod)
+    // Pagos pertenecientes a este período (entre startDatePeriod y endDatePeriod inclusive)
     const pagosMes = pagosOrdenados.filter((p) => {
       const t = p.dateVal.getTime();
-      return t >= startDatePeriod.getTime() && t < endDatePeriod.getTime();
+      const startBound = startDatePeriod.getTime();
+      const endBound = endDatePeriod.getTime();
+      return i === 0
+        ? (t >= startBound && t <= endBound)
+        : (t > startBound && t <= endBound);
     });
 
     const abonoMes = round2(pagosMes.reduce((sum, p) => sum + p.montoVal, 0));

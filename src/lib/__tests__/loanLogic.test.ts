@@ -104,6 +104,51 @@ describe("buildPaymentSchedule — Modelo de Crédito Abierto (Cuotas Infinitas)
     assert.equal(resultado.resumen.saldoPendiente, 0);
   });
 
+  it("Pago realizado exactamente el día del vencimiento de la cuota pertenece al período 1 y no al período 2", () => {
+    const prestamoCasoScreenshot: Prestamo = {
+      id: "p-screenshot",
+      cliente_id: "c-1",
+      monto_capital: 600,
+      tasa_interes_porcentaje: 10,
+      fecha_emision: "2026-06-04",
+      fecha_vencimiento: "2026-07-04",
+      estado: "activo",
+      tipo_prestamo: "Personal",
+    };
+
+    const pagos: Amortizacion[] = [
+      {
+        id: "pago-1",
+        prestamo_id: "p-screenshot",
+        monto: 60, // Pago el mismo día del vencimiento de la cuota 1
+        fecha_pago: "2026-07-04",
+        tipo_movimiento: "Pago mínimo",
+        metodo_pago: "Yape",
+      },
+      {
+        id: "pago-2",
+        prestamo_id: "p-screenshot",
+        monto: 600, // Pago posterior en período 2
+        fecha_pago: "2026-07-16",
+        tipo_movimiento: "Amortización a capital",
+        metodo_pago: "Efectivo",
+      },
+    ];
+
+    const refDate = new Date("2026-08-04T00:00:00");
+    const resultado = buildPaymentSchedule(prestamoCasoScreenshot, pagos, { referenceDate: refDate });
+
+    // Período 1 (vence 2026-07-04) debe tener el pago de 60 y quedar SALDADA
+    assert.equal(resultado.cuotas[0].estado, "Saldada");
+    assert.equal(resultado.cuotas[0].pagado, 60);
+    assert.equal(resultado.cuotas[0].pagosRecibidos?.length, 1);
+    assert.equal(resultado.cuotas[0].pagosRecibidos?.[0].fecha, "2026-07-04");
+
+    // Período 2 (vence 2026-08-04) debe tener el pago de 600 de fecha 2026-07-16
+    assert.equal(resultado.cuotas[1].pagosRecibidos?.length, 1);
+    assert.equal(resultado.cuotas[1].pagosRecibidos?.[0].fecha, "2026-07-16");
+  });
+
   it("classifyPayment clasifica correctamente montos menores, iguales y mayores a la deuda", () => {
     const refDate = new Date("2026-01-31T00:00:00");
     const debtState = buildPaymentSchedule(basePrestamo, [], { referenceDate: refDate });
