@@ -289,31 +289,35 @@ export const VouchersPage: React.FC = () => {
                   {/* Vista previa del Voucher */}
                   <div className="relative rounded-2xl border border-slate-100 overflow-hidden bg-slate-50 h-40 flex items-center justify-center">
                     {hasVoucher ? (
-                      <div className="w-full h-full relative group">
-                        <img 
-                          src={resolveVoucherUrl(voucherUrls[0])} 
-                          alt="Voucher" 
-                          className="w-full h-full object-cover animate-fadeIn"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                            const fallback = e.currentTarget.parentElement?.querySelector('.fallback-preview');
-                            if (fallback) fallback.classList.remove('hidden');
-                          }}
-                        />
-                        <div className="fallback-preview hidden w-full h-full flex flex-col items-center justify-center text-slate-400 gap-1.5 p-3">
-                          <FileText size={28} className="text-indigo-400" />
-                          <span className="text-[10px] font-bold text-center">Documento Adjunto (Ver PDF)</span>
-                        </div>
-                        <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <div className="w-full h-full relative group p-1.5 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${Math.min(voucherUrls.length, 3)}, 1fr)` }}>
+                        {voucherUrls.slice(0, 3).map((url, idx) => (
                           <button
+                            key={idx}
                             type="button"
-                            onClick={() => setLightboxUrl(resolveVoucherUrl(voucherUrls[0]))}
-                            className="p-2 bg-white text-slate-800 rounded-xl hover:bg-slate-100 transition shadow cursor-pointer border-none"
-                            title="Ver a pantalla completa"
+                            onClick={() => setLightboxUrl(resolveVoucherUrl(url))}
+                            className="relative rounded-xl overflow-hidden border border-slate-200 group/img cursor-pointer focus:outline-none"
+                            title="Ver voucher"
                           >
-                            <Eye size={14} />
+                            <img
+                              src={resolveVoucherUrl(url)}
+                              alt={`Voucher ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                              }}
+                            />
+                            <div className="hidden w-full h-full flex-col items-center justify-center text-slate-400 gap-1 p-2 bg-white">
+                              <FileText size={16} className="text-indigo-400" />
+                              <span className="text-[9px] font-bold text-center">Ver PDF</span>
+                            </div>
+                            {idx === 2 && voucherUrls.length > 3 && (
+                              <div className="absolute inset-0 bg-slate-900/50 flex items-center justify-center text-white font-black text-sm">
+                                +{voucherUrls.length - 3}
+                              </div>
+                            )}
                           </button>
-                        </div>
+                        ))}
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center text-slate-400 gap-1">

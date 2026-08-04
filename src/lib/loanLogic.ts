@@ -156,87 +156,89 @@ export const buildPaymentSchedule = (
 
   let totalPagado = 0;
 
+  const aplicarPagoACuota = (pago: any, cuota: CuotaPrestamo, montoInteres: number, montoCapital: number) => {
+    if (montoInteres > EPSILON || montoCapital > EPSILON) {
+      cuota.interesPendiente = round2(cuota.interesPendiente - montoInteres);
+      cuota.interesPagado = round2((cuota.interesPagado || 0) + montoInteres);
+      cuota.capitalAmortizadoPagado = round2((cuota.capitalAmortizadoPagado || 0) + montoCapital);
+    }
+
+    const totalAplicado = round2(montoInteres + montoCapital);
+    if (totalAplicado > EPSILON) {
+      if (!cuota.pagosRecibidos) cuota.pagosRecibidos = [];
+      cuota.pagosRecibidos.push({
+        id: pago.id,
+        fecha: pago.fecha_pago,
+        monto: totalAplicado,
+        aplicadoInteres: montoInteres,
+        aplicadoCapital: montoCapital,
+        metodo_pago: pago.metodo_pago,
+        comprobante_url: pago.comprobante_url
+      });
+    }
+
+    const interesPagado = (cuota.interesOriginal || 0) - cuota.interesPendiente;
+    const capitalPagado = cuota.capitalAmortizadoPagado || 0;
+    cuota.pagado = round2(interesPagado + capitalPagado);
+    cuota.saldoPendiente = round2(cuota.interesPendiente + Math.max(0, (cuota.capitalAmortizado || 0) - capitalPagado));
+    cuota.montoExigible = cuota.saldoPendiente;
+
+    if (cuota.saldoPendiente <= EPSILON) {
+      cuota.estado = "Saldada";
+    } else if (cuota.pagado > EPSILON) {
+      cuota.estado = "Parcial";
+    }
+  };
+
   for (const pago of pagosOrdenados) {
     let remaining = pago.montoVal;
     totalPagado = round2(totalPagado + remaining);
 
-    for (const cuota of cuotas) {
-      if (remaining <= EPSILON) break;
-      if (cuota.estado === "Saldada") continue;
-
+    // 1) Solamente la PRIMERA cuota pendiente recibe interés + capital de este pago.
+    //    (No se cobra interés de meses futuros con el excedente de un pago.)
+    const cuotaObjetivo = cuotas.find(c => c.estado !== "Saldada");
+    if (cuotaObjetivo) {
       let pagoInteres = 0;
       let pagoCapital = 0;
 
-      // 1. Pagar el interés pendiente de la cuota
-      if (cuota.interesPendiente > EPSILON) {
-        pagoInteres = round2(Math.min(cuota.interesPendiente, remaining));
-        cuota.interesPendiente = round2(cuota.interesPendiente - pagoInteres);
-        cuota.interesPagado = round2((cuota.interesPagado || 0) + pagoInteres);
+      const interesPendCuota = cuotaObjetivo.interesPendiente;
+      if (interesPendCuota > EPSILON) {
+        pagoInteres = round2(Math.min(interesPendCuota, remaining));
         remaining = round2(remaining - pagoInteres);
       }
 
-      // 2. Pagar la amortización de capital de la cuota
-      if (remaining > EPSILON && cuota.capitalAmortizado && cuota.capitalAmortizado > 0) {
-        const capitalCuotaPendiente = round2((cuota.capitalAmortizado || 0) - (cuota.capitalAmortizadoPagado || 0));
+      if (remaining > EPSILON && cuotaObjetivo.capitalAmortizado && cuotaObjetivo.capitalAmortizado > 0) {
+        const capitalCuotaPendiente = round2((cuotaObjetivo.capitalAmortizado || 0) - (cuotaObjetivo.capitalAmortizadoPagado || 0));
         if (capitalCuotaPendiente > EPSILON) {
           pagoCapital = round2(Math.min(capitalCuotaPendiente, remaining));
-          cuota.capitalAmortizadoPagado = round2((cuota.capitalAmortizadoPagado || 0) + pagoCapital);
           remaining = round2(remaining - pagoCapital);
         }
       }
 
-      const totalAplicadoCuota = round2(pagoInteres + pagoCapital);
-      if (totalAplicadoCuota > EPSILON) {
-        if (!cuota.pagosRecibidos) cuota.pagosRecibidos = [];
-        cuota.pagosRecibidos.push({
-          id: pago.id,
-          fecha: pago.fecha_pago,
-          monto: totalAplicadoCuota,
-          aplicadoInteres: pagoInteres,
-          aplicadoCapital: pagoCapital,
-          metodo_pago: pago.metodo_pago,
-          comprobante_url: pago.comprobante_url
-        });
-      }
-
-      // Actualizar totales de la cuota
-      const interesPagado = (cuota.interesOriginal || 0) - cuota.interesPendiente;
-      const capitalPagado = cuota.capitalAmortizadoPagado || 0;
-      cuota.pagado = round2(interesPagado + capitalPagado);
-      cuota.saldoPendiente = round2(cuota.interesPendiente + Math.max(0, (cuota.capitalAmortizado || 0) - capitalPagado));
-      cuota.montoExigible = cuota.saldoPendiente;
-
-      if (cuota.saldoPendiente <= EPSILON) {
-        cuota.estado = "Saldada";
-      } else if (cuota.pagado > EPSILON) {
-        cuota.estado = "Parcial";
-      }
+      aplicarPagoACuota(pago, cuotaObjetivo, pagoInteres, pagoCapital);
     }
 
-    // Excedente se aplica como adelanto a la siguiente cuota no saldada
-    if (remaining > EPSILON) {
-      const siguienteCuota = cuotas.find(c => c.estado !== "Saldada");
-      if (siguienteCuota) {
-        const aplicadoInteres = round2(Math.min(siguienteCuota.interesPendiente, remaining));
-        siguienteCuota.interesPendiente = round2(siguienteCuota.interesPendiente - aplicadoInteres);
-        siguienteCuota.interesPagado = round2((siguienteCuota.interesPagado || 0) + aplicadoInteres);
-        remaining = round2(remaining - aplicadoInteres);
-        siguienteCuota.pagado = round2(siguienteCuota.pagado + aplicadoInteres);
+    // 2) EXCEDENTE: va DIRECTAMENTE a reducir el capital del resto de cuotas
+    //    (solo capital, sin cargar interés de meses futuros).
+    for (const cuota of cuotas) {
+      if (remaining <= EPSILON) break;
+      if (cuota.estado === "Saldada") continue;
+      const capPendiente = round2((cuota.capitalAmortizado || 0) - (cuota.capitalAmortizadoPagado || 0));
+      if (capPendiente <= EPSILON) continue;
+      const abonoCapital = round2(Math.min(capPendiente, remaining));
+      remaining = round2(remaining - abonoCapital);
+      aplicarPagoACuota(pago, cuota, 0, abonoCapital);
+    }
 
-        if (remaining > EPSILON && siguienteCuota.capitalAmortizado) {
-          const capitalCuotaPendiente = round2(siguienteCuota.capitalAmortizado - (siguienteCuota.capitalAmortizadoPagado || 0));
-          const pagoCap = round2(Math.min(capitalCuotaPendiente, remaining));
-          siguienteCuota.capitalAmortizadoPagado = round2((siguienteCuota.capitalAmortizadoPagado || 0) + pagoCap);
-          siguienteCuota.pagado = round2(siguienteCuota.pagado + pagoCap);
-          remaining = round2(remaining - pagoCap);
-        }
-
-        siguienteCuota.saldoPendiente = round2(siguienteCuota.interesPendiente + Math.max(0, (siguienteCuota.capitalAmortizado || 0) - (siguienteCuota.capitalAmortizadoPagado || 0)));
-        siguienteCuota.montoExigible = siguienteCuota.saldoPendiente;
-        if (siguienteCuota.saldoPendiente <= EPSILON) {
-          siguienteCuota.estado = "Saldada";
-        }
-      }
+    // 3) Si aún queda excedente, es porque todo el capital ya está cubierto:
+    //    se aplica entonces a cubrir el interés pendiente (p. ej. liquidación total).
+    for (const cuota of cuotas) {
+      if (remaining <= EPSILON) break;
+      if (cuota.estado === "Saldada") continue;
+      if (cuota.interesPendiente <= EPSILON) continue;
+      const abonoInteres = round2(Math.min(cuota.interesPendiente, remaining));
+      remaining = round2(remaining - abonoInteres);
+      aplicarPagoACuota(pago, cuota, abonoInteres, 0);
     }
   }
 
