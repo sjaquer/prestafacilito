@@ -135,9 +135,11 @@ export const buildPaymentSchedule = (
       const t = p.dateVal.getTime();
       const startBound = startDatePeriod.getTime();
       const endBound = endDatePeriod.getTime();
+      // Para la primera cuota (i === 0), incluimos cualquier pago hecho antes o en la fecha de vencimiento,
+      // para evitar que pagos en el mismo día o por diferencias horarias queden huérfanos.
       return i === 0
-        ? (t >= startBound && t <= endBound)
-        : (t > startBound && t <= endBound);
+        ? t <= endBound
+        : t > startBound && t <= endBound;
     });
 
     const abonoMes = round2(pagosMes.reduce((sum, p) => sum + p.montoVal, 0));
@@ -252,7 +254,8 @@ export const buildPaymentSchedule = (
 
   const cuotasPendientes = cuotas.filter((c) => c.estado !== "Saldada").length;
   const cuotasVencidas = cuotasVencidasDetalle.length;
-  const esEstancado = mesesSinPagoConsec > 2;
+  // Un préstamo se considera estancado si tiene 3 o más cuotas vencidas/incompletas
+  const esEstancado = cuotasVencidas >= 3;
 
   return {
     resumen: {

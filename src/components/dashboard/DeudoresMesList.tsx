@@ -26,7 +26,7 @@ export interface DeudorMesItem {
   total_cuotas: number;
   cuotas_debiendo?: number;
   dias_restantes?: number;
-  estado_pago_mes: 'atrasado' | 'pendiente' | 'pagado';
+  estado_pago_mes: 'atrasado' | 'pendiente' | 'pagado' | 'estancado';
   saldo_pendiente: number;
   dias_atraso: number;
 }
@@ -44,7 +44,7 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
 }) => {
   const navigate = useNavigate();
   const [filterTerm, setFilterTerm] = useState("");
-  const [filterState, setFilterState] = useState<"todos" | "atrasado" | "pendiente" | "pagado">("todos");
+  const [filterState, setFilterState] = useState<"todos" | "atrasado" | "pendiente" | "pagado" | "estancado">("todos");
 
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [copiedSuccess, setCopiedSuccess] = useState(false);
@@ -249,6 +249,16 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
         >
           Pagados ({deudores.filter((d) => d.estado_pago_mes === "pagado").length})
         </button>
+        <button
+          onClick={() => setFilterState("estancado")}
+          className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+            filterState === "estancado"
+              ? "bg-black text-white shadow-sm"
+              : "bg-slate-200 text-slate-800 hover:bg-slate-300"
+          }`}
+        >
+          Estancados ({deudores.filter((d) => d.estado_pago_mes === "estancado").length})
+        </button>
       </div>
 
       {/* Buscador de la lista */}
@@ -272,6 +282,7 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
           {filteredDeudores.map((deudor) => {
             const isAtrasado = deudor.estado_pago_mes === "atrasado";
             const isPagado = deudor.estado_pago_mes === "pagado";
+            const isEstancado = deudor.estado_pago_mes === "estancado";
             const cuotasDebiendo = deudor.cuotas_debiendo || 0;
 
             return (
@@ -280,6 +291,8 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
                 className={`p-4 rounded-2xl border transition-all space-y-3 shadow-xs ${
                   isAtrasado
                     ? "bg-red-50/50 border-red-200 shadow-sm"
+                    : isEstancado
+                    ? "bg-slate-100/50 border-slate-300"
                     : isPagado
                     ? "bg-emerald-50/30 border-emerald-200"
                     : "bg-amber-50/30 border-amber-200"
@@ -318,7 +331,12 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
 
                   {/* Insignia de Estado Destacada */}
                   <div className="shrink-0">
-                    {isAtrasado && (
+                    {isEstancado && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-black text-white rounded-full text-xs font-black shadow-md">
+                        <AlertTriangle className="w-3.5 h-3.5" /> ESTANCADO
+                      </span>
+                    )}
+                    {isAtrasado && !isEstancado && (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-red-600 to-rose-700 text-white rounded-full text-xs font-black shadow-md tracking-wide animate-pulse">
                         <AlertTriangle className="w-3.5 h-3.5" /> POR COBRAR
                       </span>
@@ -328,7 +346,7 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
                         <CheckCircle2 className="w-3.5 h-3.5" /> PAGADO
                       </span>
                     )}
-                    {!isAtrasado && !isPagado && (
+                    {!isAtrasado && !isPagado && !isEstancado && (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 rounded-full text-xs font-black shadow-md">
                         <Clock className="w-3.5 h-3.5 text-slate-950" /> PENDIENTE
                       </span>

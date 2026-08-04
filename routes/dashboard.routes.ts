@@ -67,8 +67,10 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
 
       const totalPagadoMesActual = pagosMesActual.reduce((sum, a) => sum + toNumber(a.monto), 0);
 
-      let estadoPagoMes: 'atrasado' | 'pendiente' | 'pagado' = 'pendiente';
-      if (estadoMora.estadoCuotaMes === 'al_dia') {
+      let estadoPagoMes: 'atrasado' | 'pendiente' | 'pagado' | 'estancado' = 'pendiente';
+      if (estadoMora.esEstancado) {
+        estadoPagoMes = 'estancado';
+      } else if (estadoMora.estadoCuotaMes === 'al_dia') {
         estadoPagoMes = 'pagado';
       } else if (estadoMora.cuotasAtrasadas > 0) {
         estadoPagoMes = 'atrasado';
@@ -113,8 +115,10 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
       const mesSig = estadoAlq.mesSiguiente;
       const mesesAtrasados = estadoAlq.mesesAtrasados;
 
-      let estadoPagoMes: 'atrasado' | 'pendiente' | 'pagado' = 'pendiente';
-      if (mesesAtrasados > 0) {
+      let estadoPagoMes: 'atrasado' | 'pendiente' | 'pagado' | 'estancado' = 'pendiente';
+      if (mesesAtrasados >= 3) {
+        estadoPagoMes = 'estancado';
+      } else if (mesesAtrasados > 0) {
         estadoPagoMes = 'atrasado';
       } else if (!mesSig || mesSig.estado === 'Saldada') {
         estadoPagoMes = 'pagado';
@@ -153,8 +157,8 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
       });
     }
 
-    // Ordenar deudores: 1° atrasado, 2° pendiente, 3° pagado
-    const ordenEstado = { atrasado: 1, pendiente: 2, pagado: 3 };
+    // Ordenar deudores: 1° atrasado, 2° estancado, 3° pendiente, 4° pagado
+    const ordenEstado = { atrasado: 1, estancado: 2, pendiente: 3, pagado: 4 };
     deudoresDelMes.sort((a, b) => {
       const diff = ordenEstado[a.estado_pago_mes as keyof typeof ordenEstado] - ordenEstado[b.estado_pago_mes as keyof typeof ordenEstado];
       if (diff !== 0) return diff;

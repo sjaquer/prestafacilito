@@ -31,16 +31,18 @@ export const RegistrarPagoForm: React.FC<RegistrarPagoFormProps> = ({
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
+  const [resumenPrestamo, setResumenPrestamo] = useState<any>(null);
+  const [deudaPrestamo, setDeudaPrestamo] = useState<any>(null);
+
   const selectedPrestamo = prestamosActivos.find((p) => p.id === prestamoId);
 
   const desgloseMatematico = useMemo(() => {
     const nMonto = round2(parseFloat(monto) || 0);
     if (nMonto <= 0 || !selectedPrestamo) return null;
 
-    const capitalAntes = round2(selectedPrestamo.monto_capital || 0);
-    const tasaFraccion = (selectedPrestamo.tasa_interes_porcentaje || 0) / 100;
-    const interesAntes = round2(capitalAntes * tasaFraccion);
-    const moraAntes = 0;
+    const capitalAntes = round2(resumenPrestamo?.capitalRestante ?? selectedPrestamo.monto_capital ?? 0);
+    const moraAntes = round2(resumenPrestamo?.moraAcumulada ?? deudaPrestamo?.moraAcumulada ?? 0);
+    const interesAntes = round2(resumenPrestamo?.interesPendiente ?? deudaPrestamo?.interesPendiente ?? 0);
 
     let restante = nMonto;
     const cubiertoMora = round2(Math.min(moraAntes, restante));
@@ -62,6 +64,7 @@ export const RegistrarPagoForm: React.FC<RegistrarPagoFormProps> = ({
     return {
       nMonto,
       capitalAntes,
+      moraAntes,
       interesAntes,
       cubiertoMora,
       cubiertoInteres,
@@ -96,6 +99,27 @@ export const RegistrarPagoForm: React.FC<RegistrarPagoFormProps> = ({
       setPrestamoId("");
     }
   }, [clienteId]);
+
+  useEffect(() => {
+    async function fetchPrestamoData() {
+      if (!prestamoId) {
+        setResumenPrestamo(null);
+        setDeudaPrestamo(null);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/prestamos/${prestamoId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setResumenPrestamo(data.resumen || null);
+          setDeudaPrestamo(data.deuda || null);
+        }
+      } catch (err) {
+        console.error("Error al cargar resumen del préstamo:", err);
+      }
+    }
+    fetchPrestamoData();
+  }, [prestamoId]);
 
   const handlePaste = (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
@@ -317,17 +341,37 @@ export const RegistrarPagoForm: React.FC<RegistrarPagoFormProps> = ({
             </div>
 
             <div className="space-y-1.5 text-[11px]">
-              {/* Paso 1: Interés del período */}
+              {/* Paso 1: Mora acumulada */}
+              {desgloseMatematico.moraAntes > 0 && (
+                <div className="flex justify-between items-center text-rose-700 font-semibold">
+                  <span>1. Mora acumulada cubiertas:</span>
+                  <span className="font-mono font-bold">
+                    - S/ {desgloseMatematico.cubiertoMora.toFixed(2)}
+                    {desgloseMatematico.moraAntes > desgloseMatematico.cubiertoMora && (
+                      <span className="text-[9.5px] text-slate-500 font-normal ml-1">
+                        (queda S/ {(desgloseMatematico.moraAntes - desgloseMatematico.cubiertoMora).toFixed(2)})
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
+
+              {/* Paso 2: Interés del período */}
               <div className="flex justify-between items-center text-blue-800 font-semibold">
-                <span>1. Interés del período cubierto:</span>
+                <span>{desgloseMatematico.moraAntes > 0 ? "2" : "1"}. Interés del período cubierto:</span>
                 <span className="font-mono font-bold">
                   - S/ {desgloseMatematico.cubiertoInteres.toFixed(2)}
+                  {desgloseMatematico.interesAntes > desgloseMatematico.cubiertoInteres && (
+                    <span className="text-[9.5px] text-slate-500 font-normal ml-1">
+                      (queda S/ {(desgloseMatematico.interesAntes - desgloseMatematico.cubiertoInteres).toFixed(2)})
+                    </span>
+                  )}
                 </span>
               </div>
 
-              {/* Paso 2: Amortización directa a Capital */}
+              {/* Paso 3: Amortización directa a Capital */}
               <div className="flex justify-between items-center text-emerald-700 font-bold">
-                <span>2. Reducción directa a Capital:</span>
+                <span>{desgloseMatematico.moraAntes > 0 ? "3" : "2"}. Reducción directa a Capital:</span>
                 <span className="font-mono font-black">
                   - S/ {desgloseMatematico.cubiertoCapital.toFixed(2)}
                 </span>
