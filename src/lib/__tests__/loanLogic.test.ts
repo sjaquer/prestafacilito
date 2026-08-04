@@ -81,7 +81,7 @@ describe("buildPaymentSchedule — Modelo de Crédito Abierto (Cuotas Infinitas)
     const resultado = buildPaymentSchedule(basePrestamo, [], { referenceDate: refDate });
 
     assert.equal(resultado.resumen.esEstancado, true);
-    assert.equal(resultado.resumen.mesesSinPago, 4);
+    assert.equal(resultado.resumen.mesesSinPago, 3);
     assert.equal(resultado.resumen.capitalPendiente, 1000);
   });
 
@@ -157,7 +157,7 @@ describe("buildPaymentSchedule — Modelo de Crédito Abierto (Cuotas Infinitas)
     assert.equal(classifyPayment(50, debtState), "Pago incompleto");
     assert.equal(classifyPayment(100, debtState), "Pago mínimo");
     assert.equal(classifyPayment(500, debtState), "Pago con amortización");
-    assert.equal(classifyPayment(1100, debtState), "Liquidación total");
+    assert.equal(classifyPayment(1000, debtState), "Liquidación total");
     assert.equal(classifyPayment(2000, debtState), "Pago con excedente");
   });
 });

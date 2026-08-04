@@ -151,10 +151,16 @@ export const buildPaymentSchedule = (
 
     if (abonoMes <= EPSILON) {
       // Sin abono en este mes
-      moraGenerada = interesEfectivo;
-      moraAcumulada = round2(moraAcumulada + interesEfectivo);
-      mesesSinPagoConsec++;
-      estadoCuota = endDatePeriod.getTime() <= now.getTime() ? "SinPago" : "Pendiente";
+      const isPeriodoVencido = endDatePeriod.getTime() <= now.getTime();
+      if (isPeriodoVencido) {
+        moraGenerada = interesEfectivo;
+        moraAcumulada = round2(moraAcumulada + interesEfectivo);
+        mesesSinPagoConsec++;
+        estadoCuota = "SinPago";
+      } else {
+        moraGenerada = 0;
+        estadoCuota = "Pendiente";
+      }
     } else {
       mesesSinPagoConsec = 0; // Se realizó un abono, rompe la racha sin pago
 
