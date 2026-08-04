@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { DollarSign, CheckCircle, AlertCircle, Upload, ShieldCheck, X, Image as ImageIcon } from "lucide-react";
 import { Cliente, Prestamo } from "../../types";
 import { ClienteAutocomplete } from "../common/ClienteAutocomplete";
 import { subirVoucher } from "../../lib/imageCompression";
+import { round2 } from "../../lib/loanLogic";
 
 interface RegistrarPagoFormProps {
   clientes: Cliente[];
@@ -27,6 +28,49 @@ export const RegistrarPagoForm: React.FC<RegistrarPagoFormProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+
+  const selectedPrestamo = prestamosActivos.find((p) => p.id === prestamoId);
+
+  const desgloseMatematico = useMemo(() => {
+    const nMonto = round2(parseFloat(monto) || 0);
+    if (nMonto <= 0 || !selectedPrestamo) return null;
+
+    const capitalAntes = round2(selectedPrestamo.monto_capital || 0);
+    const tasaFraccion = (selectedPrestamo.tasa_interes_porcentaje || 0) / 100;
+    const interesAntes = round2(capitalAntes * tasaFraccion);
+    const moraAntes = 0;
+
+    let restante = nMonto;
+    const cubiertoMora = round2(Math.min(moraAntes, restante));
+    restante = round2(restante - cubiertoMora);
+
+    const cubiertoInteres = round2(Math.min(interesAntes, restante));
+    restante = round2(restante - cubiertoInteres);
+
+    const cubiertoCapital = round2(Math.min(capitalAntes, restante));
+    restante = round2(restante - cubiertoCapital);
+
+    const excedenteLibre = round2(restante);
+    const nuevoCapital = round2(Math.max(0, capitalAntes - cubiertoCapital));
+
+    const cuotaMinima = round2(moraAntes + interesAntes);
+    const esIncompleto = nMonto > 0 && nMonto < cuotaMinima - 0.01;
+    const moraGeneradaFutura = esIncompleto ? round2(cuotaMinima - nMonto) : 0;
+
+    return {
+      nMonto,
+      capitalAntes,
+      interesAntes,
+      cubiertoMora,
+      cubiertoInteres,
+      cubiertoCapital,
+      excedenteLibre,
+      nuevoCapital,
+      cuotaMinima,
+      esIncompleto,
+      moraGeneradaFutura,
+    };
+  }, [monto, selectedPrestamo]);
 
   // Préstamos filtrados por el cliente seleccionado
   const prestamosDelCliente = prestamosActivos.filter(
@@ -257,6 +301,62 @@ export const RegistrarPagoForm: React.FC<RegistrarPagoFormProps> = ({
             />
           </div>
         </div>
+
+        {/* Panel de Desglose Matemático del Cobro en Tiempo Real */}
+        {desgloseMatematico && (
+          <div className="rounded-2xl border border-blue-150 bg-blue-50/50 p-3.5 space-y-2.5 text-xs select-none">
+            <div className="flex justify-between items-center border-b border-blue-100 pb-2">
+              <span className="text-[10px] font-black text-blue-900 uppercase tracking-widest flex items-center gap-1.5">
+                📐 Desglose Matemático del Abono
+              </span>
+              <span className="font-mono font-black text-blue-700 bg-white px-2 py-0.5 rounded-lg border border-blue-200">
+                S/ {desgloseMatematico.nMonto.toFixed(2)}
+              </span>
+            </div>
+
+            <div className="space-y-1.5 text-[11px]">
+              {/* Paso 1: Interés del período */}
+              <div className="flex justify-between items-center text-blue-800 font-semibold">
+                <span>1. Interés del período cubierto:</span>
+                <span className="font-mono font-bold">
+                  - S/ {desgloseMatematico.cubiertoInteres.toFixed(2)}
+                </span>
+              </div>
+
+              {/* Paso 2: Amortización directa a Capital */}
+              <div className="flex justify-between items-center text-emerald-700 font-bold">
+                <span>2. Reducción directa a Capital:</span>
+                <span className="font-mono font-black">
+                  - S/ {desgloseMatematico.cubiertoCapital.toFixed(2)}
+                </span>
+              </div>
+
+              {/* Excedente si existe */}
+              {desgloseMatematico.excedenteLibre > 0 && (
+                <div className="flex justify-between items-center text-blue-900 font-extrabold bg-blue-100/80 p-1.5 rounded-lg">
+                  <span>⚠️ Excedente sin deuda pendiente:</span>
+                  <span className="font-mono">+ S/ {desgloseMatematico.excedenteLibre.toFixed(2)}</span>
+                </div>
+              )}
+
+              {/* Mora generada si es incompleto */}
+              {desgloseMatematico.esIncompleto && (
+                <div className="p-2 bg-rose-100/90 border border-rose-200 rounded-xl text-rose-900 text-[10.5px] font-bold">
+                  ⚠️ Pago incompleto: faltan S/ {desgloseMatematico.moraGeneradaFutura.toFixed(2)} de la cuota mínima.
+                  Esta diferencia pasará como mora al mes siguiente.
+                </div>
+              )}
+            </div>
+
+            {/* Resultado Final en Capital */}
+            <div className="pt-2 border-t border-blue-200/80 flex justify-between items-center font-black text-slate-900 text-xs">
+              <span>NUEVO CAPITAL RESTANTE:</span>
+              <span className="font-mono text-xs text-emerald-700 bg-white px-2 py-0.5 rounded-lg border border-emerald-300">
+                S/ {desgloseMatematico.nuevoCapital.toFixed(2)}
+              </span>
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="text-xs font-semibold text-slate-700 block mb-1">

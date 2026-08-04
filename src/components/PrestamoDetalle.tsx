@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { 
   ArrowLeft, Calendar, DollarSign, Edit3, RefreshCw, CheckCircle2, 
   AlertTriangle, ShieldCheck, Clock, FileText, Upload, Check, AlertCircle 
@@ -7,6 +7,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { TimelineDetallePrestamo, TimelineMesItem } from "./prestamo/TimelineDetallePrestamo";
 import { AjustesPrestamoPanel } from "./prestamo/AjustesPrestamoPanel";
 import { subirVoucher } from "../lib/imageCompression";
+import { round2 } from "../lib/loanLogic";
 
 export const PrestamoDetalle: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +16,7 @@ export const PrestamoDetalle: React.FC = () => {
   const [prestamo, setPrestamo] = useState<any>(null);
   const [cliente, setCliente] = useState<any>(null);
   const [resumen, setResumen] = useState<any>(null);
+  const [deuda, setDeuda] = useState<any>(null);
   const [timeline, setTimeline] = useState<TimelineMesItem[]>([]);
   const [ajustes, setAjustes] = useState<any[]>([]);
 
@@ -29,6 +31,52 @@ export const PrestamoDetalle: React.FC = () => {
   const [isSubmittingPago, setIsSubmittingPago] = useState(false);
   const [pagoErrorMsg, setPagoErrorMsg] = useState("");
   const [pagoSuccessMsg, setPagoSuccessMsg] = useState("");
+
+  // Desglose Matemático del Cobro en Tiempo Real
+  const desgloseMatematico = useMemo(() => {
+    const nMonto = round2(parseFloat(montoPago) || 0);
+    if (nMonto <= 0 || !prestamo) return null;
+
+    const capitalAntes = round2(resumen?.capitalRestante ?? prestamo.monto_capital ?? 0);
+    const moraAntes = round2(resumen?.moraAcumulada ?? deuda?.moraAcumulada ?? 0);
+    const interesAntes = round2(resumen?.interesPendiente ?? deuda?.interesPendiente ?? 0);
+
+    let restante = nMonto;
+
+    // Paso 1: Mora acumulada impaga
+    const cubiertoMora = round2(Math.min(moraAntes, restante));
+    restante = round2(restante - cubiertoMora);
+
+    // Paso 2: Interés del período
+    const cubiertoInteres = round2(Math.min(interesAntes, restante));
+    restante = round2(restante - cubiertoInteres);
+
+    // Paso 3: Amortización directa a Capital
+    const cubiertoCapital = round2(Math.min(capitalAntes, restante));
+    restante = round2(restante - cubiertoCapital);
+
+    const excedenteLibre = round2(restante);
+    const nuevoCapital = round2(Math.max(0, capitalAntes - cubiertoCapital));
+
+    const cuotaMinima = round2(moraAntes + interesAntes);
+    const esIncompleto = nMonto > 0 && nMonto < cuotaMinima - 0.01;
+    const moraGeneradaFutura = esIncompleto ? round2(cuotaMinima - nMonto) : 0;
+
+    return {
+      nMonto,
+      capitalAntes,
+      moraAntes,
+      interesAntes,
+      cubiertoMora,
+      cubiertoInteres,
+      cubiertoCapital,
+      excedenteLibre,
+      nuevoCapital,
+      cuotaMinima,
+      esIncompleto,
+      moraGeneradaFutura
+    };
+  }, [montoPago, prestamo, resumen, deuda]);
 
   // Edición de Préstamo (Sección 5.3.4)
   const [isEditing, setIsEditing] = useState(false);
@@ -59,6 +107,7 @@ export const PrestamoDetalle: React.FC = () => {
       setPrestamo(data.prestamo || null);
       setCliente(data.cliente || null);
       setResumen(data.resumen || null);
+      setDeuda(data.deuda || null);
       setTimeline(data.timeline || []);
       setAjustes(data.ajustes || []);
 
@@ -423,6 +472,80 @@ export const PrestamoDetalle: React.FC = () => {
                     required
                   />
                 </div>
+
+                {/* Panel de Desglose Matemático en Tiempo Real */}
+                {desgloseMatematico && (
+                  <div className="rounded-2xl border border-indigo-150 bg-indigo-50/50 p-3.5 space-y-2.5 text-xs select-none">
+                    <div className="flex justify-between items-center border-b border-indigo-100 pb-2">
+                      <span className="text-[10px] font-black text-indigo-900 uppercase tracking-widest flex items-center gap-1.5">
+                        📐 Desglose Matemático del Abono
+                      </span>
+                      <span className="font-mono font-black text-indigo-700 bg-white px-2 py-0.5 rounded-lg border border-indigo-200">
+                        S/ {desgloseMatematico.nMonto.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 text-[11px]">
+                      {/* Paso 1: Mora acumulada */}
+                      <div className="flex justify-between items-center text-rose-700 font-semibold">
+                        <span>1. Mora acumulada cubiertas:</span>
+                        <span className="font-mono font-bold">
+                          - S/ {desgloseMatematico.cubiertoMora.toFixed(2)}
+                          {desgloseMatematico.moraAntes > 0 && (
+                            <span className="text-[9.5px] text-slate-500 font-normal ml-1">
+                              (queda S/ {(desgloseMatematico.moraAntes - desgloseMatematico.cubiertoMora).toFixed(2)})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Paso 2: Interés del período */}
+                      <div className="flex justify-between items-center text-indigo-700 font-semibold">
+                        <span>2. Interés del período cubierto:</span>
+                        <span className="font-mono font-bold">
+                          - S/ {desgloseMatematico.cubiertoInteres.toFixed(2)}
+                          {desgloseMatematico.interesAntes > 0 && (
+                            <span className="text-[9.5px] text-slate-500 font-normal ml-1">
+                              (queda S/ {(desgloseMatematico.interesAntes - desgloseMatematico.cubiertoInteres).toFixed(2)})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Paso 3: Amortización a capital */}
+                      <div className="flex justify-between items-center text-emerald-700 font-bold">
+                        <span>3. Reducción directa a Capital:</span>
+                        <span className="font-mono font-black">
+                          - S/ {desgloseMatematico.cubiertoCapital.toFixed(2)}
+                        </span>
+                      </div>
+
+                      {/* Excedente si existe */}
+                      {desgloseMatematico.excedenteLibre > 0 && (
+                        <div className="flex justify-between items-center text-indigo-900 font-extrabold bg-indigo-100/80 p-1.5 rounded-lg">
+                          <span>⚠️ Excedente sin deuda pendiente:</span>
+                          <span className="font-mono">+ S/ {desgloseMatematico.excedenteLibre.toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      {/* Mora generada si es incompleto */}
+                      {desgloseMatematico.esIncompleto && (
+                        <div className="p-2 bg-rose-100/90 border border-rose-200 rounded-xl text-rose-900 text-[10.5px] font-bold">
+                          ⚠️ Pago incompleto: faltan S/ {desgloseMatematico.moraGeneradaFutura.toFixed(2)} de la cuota mínima.
+                          Esta diferencia pasará como mora al mes siguiente.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Resultado Final en Capital */}
+                    <div className="pt-2 border-t border-indigo-200/80 flex justify-between items-center font-black text-slate-900 text-xs">
+                      <span>NUEVO CAPITAL RESTANTE:</span>
+                      <span className="font-mono text-xs text-emerald-700 bg-white px-2 py-0.5 rounded-lg border border-emerald-300">
+                        S/ {desgloseMatematico.nuevoCapital.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
