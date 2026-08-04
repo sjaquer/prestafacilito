@@ -1,0 +1,85 @@
+=== ANÁLISIS DE PRÉSTAMOS ESTANCADOS / ATRASADOS ===
+- Cliente: ELVIS SOLORZANO | Préstamo: 1000
+  Capital Pend: 705.64 | Mora: 0
+  Cuotas Vencidas Totales: 1 | Meses Sin Pago Consecutivos: 0
+  Es Estancado (Lógica actual): false
+  Estado en BD: activo
+
+- Cliente: MANUEL FERNÁNDEZ  | Préstamo: 1000
+  Capital Pend: 700 | Mora: 0
+  Cuotas Vencidas Totales: 1 | Meses Sin Pago Consecutivos: 0
+  Es Estancado (Lógica actual): false
+  Estado en BD: activo
+
+- Cliente: GEORGE JHONATAN VILLACORTA FLORES | Préstamo: 1300
+  Capital Pend: 1280 | Mora: 24
+  Cuotas Vencidas Totales: 11 | Meses Sin Pago Consecutivos: 0
+  Es Estancado (Lógica actual): false
+  Estado en BD: activo
+
+- Cliente: SR. DARLING RIOS LOMAS | Préstamo: 3000
+  Capital Pend: 1800 | Mora: 0
+  Cuotas Vencidas Totales: 1 | Meses Sin Pago Consecutivos: 0
+  Es Estancado (Lógica actual): false
+  Estado en BD: activo
+
+- Cliente: ISABEL  SANCHEZ | Préstamo: 600
+  Capital Pend: 600 | Mora: 500
+  Cuotas Vencidas Totales: 5 | Meses Sin Pago Consecutivos: 1
+  Es Estancado (Lógica actual): false
+  Estado en BD: activo
+
+- Cliente: ISABEL  SANCHEZ | Préstamo: 1500
+  Capital Pend: 1500 | Mora: 1500
+  Cuotas Vencidas Totales: 5 | Meses Sin Pago Consecutivos: 5
+  Es Estancado (Lógica actual): true
+  Estado en BD: activo
+
+- Cliente: MARIO ROJAS | Préstamo: 420
+  Capital Pend: 420 | Mora: 0
+  Cuotas Vencidas Totales: 2 | Meses Sin Pago Consecutivos: 2
+  Es Estancado (Lógica actual): false
+  Estado en BD: activo
+
+- Cliente: TUTY PAREDES | Préstamo: 800
+  Capital Pend: 800 | Mora: 0
+  Cuotas Vencidas Totales: 10 | Meses Sin Pago Consecutivos: 10
+  Es Estancado (Lógica actual): true
+  Estado en BD: activo
+
+- Cliente: WALTER ALAYO | Préstamo: 2800
+  Capital Pend: 280 | Mora: 0
+  Cuotas Vencidas Totales: 1 | Meses Sin Pago Consecutivos: 0
+  Es Estancado (Lógica actual): false
+  Estado en BD: pagado
+
+- Cliente: CARLOS GONZALES LINARES - CAYO | Préstamo: 2000
+  Capital Pend: 1997.8 | Mora: 0
+  Cuotas Vencidas Totales: 2 | Meses Sin Pago Consecutivos: 0
+  Es Estancado (Lógica actual): false
+  Estado en BD: activo
+
+- Cliente: CARLOS GONZALES LINARES - CAYO | Préstamo: 2000
+  Capital Pend: 1400 | Mora: 0
+  Cuotas Vencidas Totales: 1 | Meses Sin Pago Consecutivos: 0
+  Es Estancado (Lógica actual): false
+  Estado en BD: activo
+
+- Cliente: MARCOS ESPINOSA | Préstamo: 14000
+  Capital Pend: 900 | Mora: 180
+  Cuotas Vencidas Totales: 2 | Meses Sin Pago Consecutivos: 2
+  Es Estancado (Lógica actual): false
+  Estado en BD: pagado
+
+- Cliente: ONORIO RIOS | Préstamo: 1000
+  Capital Pend: 900 | Mora: 0
+  Cuotas Vencidas Totales: 1 | Meses Sin Pago Consecutivos: 0
+  Es Estancado (Lógica actual): false
+  Estado en BD: activo
+
+- Cliente: MARCOS ESPINOSA | Préstamo: 7000
+  Capital Pend: 7000 | Mora: 1100
+  Cuotas Vencidas Totales: 2 | Meses Sin Pago Consecutivos: 0
+  Es Estancado (Lógica actual): false
+  Estado en BD: activo
+
