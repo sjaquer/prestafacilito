@@ -40,6 +40,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
   const [vcrFiles, setVcrFiles] = useState<Array<{ file: File; base64: string }>>([]);
   
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -58,11 +59,18 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
     const nMonto = parseFloat(monto) || 0;
     if (nMonto <= 0) {
       setTipoMovimientoAuto("");
+      setWarning("");
       return;
     }
     const autoClass = classifyPayment(nMonto, debtState, fecha);
     setTipoMovimientoAuto(autoClass);
-  }, [monto, fecha, debtState]);
+
+    if (nMonto > saldoPendiente + 0.01) {
+      setWarning(`⚠️ Este pago de ${formatCurrency(nMonto)} supera el saldo pendiente de ${formatCurrency(saldoPendiente)}. El excedente de ${formatCurrency(nMonto - saldoPendiente)} será registrado pero no reduce deuda adicional.`);
+    } else {
+      setWarning("");
+    }
+  }, [monto, fecha, debtState, saldoPendiente]);
 
   const resolvedTipoMovimiento = tipoMovimientoSelected === "Auto" ? tipoMovimientoAuto : tipoMovimientoSelected;
 
@@ -124,11 +132,6 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
     const nMonto = round2(parseFloat(monto));
     if (!nMonto || nMonto <= 0) {
       setError("El monto de la amortización debe ser mayor a 0");
-      return;
-    }
-
-    if (nMonto > saldoPendiente + 0.01) {
-      setError(`El monto excede el saldo deudor pendiente actual (${formatCurrency(saldoPendiente)})`);
       return;
     }
 
@@ -195,6 +198,12 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
         {error && (
           <div className="p-3 bg-rose-50 border border-rose-100 text-rose-700 text-xs font-bold rounded-2xl">
             {error}
+          </div>
+        )}
+
+        {warning && (
+          <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold rounded-2xl">
+            {warning}
           </div>
         )}
         
@@ -330,9 +339,10 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
               <option value="Auto">
                 ✨ Auto-detectar ({tipoMovimientoAuto || "Pago Ordinario"})
               </option>
-              <option value="Amortización parcial">Amortización parcial (Abono a deuda exigible)</option>
-              <option value="Pago adelantado / múltiple">Pago adelantado / múltiple (Abono a cuota futura)</option>
-              <option value="Pago exacto de cuota">Pago exacto de cuota</option>
+              <option value="Pago mínimo">Pago mínimo (cubre interés + mora)</option>
+              <option value="Pago incompleto">Pago incompleto (abono parcial de interés)</option>
+              <option value="Pago con amortización">Pago con amortización (abono a capital)</option>
+              <option value="Amortización a capital">Amortización directa a capital</option>
               <option value="Liquidación total">Liquidación total (Saldar préstamo)</option>
               <option value="Liquidación Express">⚡ Liquidación Express (Primeros 7 días del mes)</option>
             </select>

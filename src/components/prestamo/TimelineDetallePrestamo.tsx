@@ -23,7 +23,7 @@ export interface TimelineMesItem {
   totalPagado: number;
   capitalRestante: number;
   saldoPendienteCuota: number;
-  estado: "Saldada" | "Parcial" | "Pendiente" | "Vencida";
+  estado: "Saldada" | "Parcial" | "Pendiente" | "Vencida" | "SinPago" | "PagoIncompleto";
   diasVencidos: number;
   congelada?: boolean;
 }
@@ -106,6 +106,8 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
           const isParcial = mes.estado === "Parcial";
           const isVencida = mes.estado === "Vencida";
           const isPendiente = mes.estado === "Pendiente";
+          const isPagoIncompleto = mes.estado === "PagoIncompleto";
+          const isSinPago = mes.estado === "SinPago";
 
           return (
             <div
@@ -113,21 +115,21 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
               className={`p-4 rounded-2xl border-l-4 border transition-all space-y-3 ${
                 isSaldada
                   ? "border-l-emerald-500 border-slate-200 bg-emerald-50/20"
-                  : isParcial
+                  : isPagoIncompleto
                   ? "border-l-amber-500 border-amber-200 bg-amber-50/20"
-                  : isVencida
+                  : isSinPago || isVencida
                   ? "border-l-red-500 border-red-200 bg-red-50/30"
                   : "border-l-slate-400 border-slate-200 bg-slate-50/40"
               }`}
             >
-              {/* Encabezado del Mes */}
+              {/* Encabezado del Período */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/60 pb-2.5">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-slate-900">
-                    MES {mes.numero} — Cuota {mes.numero}
+                    PERÍODO {mes.numero}
                   </span>
                   <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" /> Vence: {mes.fechaVencimiento}
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" /> Período: {mes.fechaVencimiento}
                   </span>
                   {mes.congelada && (
                     <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-md flex items-center gap-1">
@@ -143,12 +145,17 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
                       <CheckCircle2 className="w-3.5 h-3.5" /> SALDADA
                     </span>
                   )}
-                  {isParcial && (
+                  {isPagoIncompleto && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-bold">
-                      <Clock className="w-3.5 h-3.5" /> PARCIAL
+                      <AlertTriangle className="w-3.5 h-3.5" /> PAGO INCOMPLETO
                     </span>
                   )}
-                  {isVencida && (
+                  {isSinPago && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-red-100 text-red-800 border border-red-200 rounded-lg text-xs font-bold">
+                      <AlertTriangle className="w-3.5 h-3.5" /> SIN PAGO
+                    </span>
+                  )}
+                  {isVencida && !isSinPago && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-red-100 text-red-800 border border-red-200 rounded-lg text-xs font-bold">
                       <AlertTriangle className="w-3.5 h-3.5" /> VENCIDA ({mes.diasVencidos}d)
                     </span>
@@ -161,25 +168,25 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
                 </div>
               </div>
 
-              {/* Fila de Datos del Mes */}
+              {/* Fila de Datos del Período */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 bg-white border border-slate-200/70 rounded-xl text-xs">
                 <div>
-                  <span className="text-[10px] text-slate-400 block font-medium">Capital Inicio Mes</span>
+                  <span className="text-[10px] text-slate-400 block font-medium">Capital Inicio</span>
                   <span className="font-semibold text-slate-800">S/ {mes.capitalInicioMes.toFixed(2)}</span>
                 </div>
 
                 <div>
-                  <span className="text-[10px] text-slate-400 block font-medium">Interés del Mes</span>
+                  <span className="text-[10px] text-slate-400 block font-medium">Interés del Período</span>
                   <span className="font-semibold text-amber-600">S/ {mes.interesMes.toFixed(2)}</span>
                 </div>
 
                 <div>
-                  <span className="text-[10px] text-slate-400 block font-medium">Amortización Capital</span>
+                  <span className="text-[10px] text-slate-400 block font-medium">Capital Reducido</span>
                   <span className="font-semibold text-emerald-600">S/ {mes.amortizacionCapital.toFixed(2)}</span>
                 </div>
 
                 <div>
-                  <span className="text-[10px] text-slate-400 block font-medium">Cuota Esperada</span>
+                  <span className="text-[10px] text-slate-400 block font-medium">Mínimo Exigible</span>
                   <span className="font-bold text-slate-900">S/ {mes.cuotaEsperada.toFixed(2)}</span>
                 </div>
               </div>

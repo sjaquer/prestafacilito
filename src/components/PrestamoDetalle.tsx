@@ -220,10 +220,10 @@ export const PrestamoDetalle: React.FC = () => {
               )}
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Capital inicial: <span className="font-bold text-slate-800">S/ {prestamo.monto_capital.toFixed(2)}</span> | Tasa: <span className="font-bold text-slate-800">{prestamo.tasa_interes_porcentaje}%/mes</span> | {resumen?.totalCuotas || 1} cuotas
+              Capital inicial: <span className="font-bold text-slate-800">S/ {prestamo.monto_capital.toFixed(2)}</span> | Tasa: <span className="font-bold text-slate-800">{prestamo.tasa_interes_porcentaje}%/mes</span> | {resumen?.mesesTranscurridos || 1} períodos
             </p>
             <p className="text-xs text-slate-400 mt-0.5">
-              Emisión: {prestamo.fecha_emision} | Vencimiento: {prestamo.fecha_vencimiento || "Indefinido"}
+              Emisión: {prestamo.fecha_emision} | Día de pago: día {prestamo.fecha_vencimiento ? parseInt(prestamo.fecha_vencimiento.split("-")[2]) : (prestamo.fecha_emision ? parseInt(prestamo.fecha_emision.split("-")[2]) : "")} de cada mes
             </p>
           </div>
 
@@ -319,6 +319,19 @@ export const PrestamoDetalle: React.FC = () => {
         </div>
       )}
 
+      {/* Banner de Estado "PRÉSTAMO ESTANCADO" */}
+      {!isLiquidado && (resumen?.esEstancado || prestamo.estado === "estancado") && (
+        <div className="p-4 bg-rose-100 border border-rose-300 rounded-2xl flex items-center justify-between text-rose-900 shadow-sm">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-6 h-6 text-rose-600" />
+            <div>
+              <h3 className="text-sm font-extrabold">PRÉSTAMO ESTANCADO 🔴</h3>
+              <p className="text-xs text-rose-700">El préstamo registra más de 2 meses consecutivos sin recibir abonos.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Barra de Estado Actual (Sección 5.2) */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
@@ -351,9 +364,9 @@ export const PrestamoDetalle: React.FC = () => {
               <span className="inline-flex items-center gap-1 text-sm font-bold text-emerald-600">
                 <CheckCircle2 className="w-4 h-4" /> LIQUIDADO
               </span>
-            ) : resumen?.cuotasVencidas > 0 ? (
+            ) : (resumen?.esEstancado || prestamo.estado === "estancado") ? (
               <span className="inline-flex items-center gap-1 text-sm font-bold text-red-600">
-                <AlertTriangle className="w-4 h-4" /> EN MORA
+                <AlertTriangle className="w-4 h-4" /> ESTANCADO
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-sm font-bold text-amber-600">

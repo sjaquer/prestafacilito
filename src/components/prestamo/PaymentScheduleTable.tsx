@@ -8,7 +8,7 @@ import { CuotaPrestamo } from "../../types";
 interface PaymentScheduleTableProps {
   cuotas: CuotaPrestamo[];
   onQuickAjuste: (cuotaNumero: number) => void;
-  loanState: "activo" | "pagado";
+  loanState: "activo" | "liquidado" | "estancado" | "pagado";
   loanType?: string;
 }
 

@@ -1,7 +1,6 @@
 import { Amortizacion, CuotaPrestamo, EstadoDeudaPrestamo, Prestamo, AjustePrestamo } from "../types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DEFAULT_INSTALLMENTS = 3;
 const EPSILON = 0.01;
 
 export const round2 = (n: number): number => {
@@ -37,19 +36,6 @@ export const addMonthsClamped = (dateValue: string | Date, months: number) => {
   return target;
 };
 
-export const getInstallmentCount = (prestamo: Pick<Prestamo, "fecha_emision" | "fecha_vencimiento">) => {
-  const emissionDate = normalizeDate(prestamo.fecha_emision);
-  const dueDate = prestamo.fecha_vencimiento ? normalizeDate(prestamo.fecha_vencimiento) : null;
-
-  if (!dueDate || Number.isNaN(dueDate.getTime())) {
-    return DEFAULT_INSTALLMENTS;
-  }
-
-  const diffDays = Math.max(1, Math.round((dueDate.getTime() - emissionDate.getTime()) / DAY_MS));
-  const monthsApprox = Math.round(diffDays / 30);
-  return Math.max(1, Math.min(120, monthsApprox || DEFAULT_INSTALLMENTS));
-};
-
 export interface BuildScheduleOptions {
   ajustes?: AjustePrestamo[];
   referenceDate?: Date;
@@ -60,55 +46,68 @@ export const buildPaymentSchedule = (
   pagos: Amortizacion[] = [],
   options: BuildScheduleOptions = {}
 ): EstadoDeudaPrestamo => {
-  const ajustes: AjustePrestamo[] = (options.ajustes || []).filter(a => a.activo);
+  const ajustes: AjustePrestamo[] = (options.ajustes || []).filter((a) => a.activo);
   const referenceDate: Date = options.referenceDate || new Date();
 
-  const capital = toNumber(prestamo.monto_capital);
+  const capitalInicial = toNumber(prestamo.monto_capital);
   const tasaMensual = toNumber(prestamo.tasa_interes_porcentaje) / 100;
   const emisionDate = normalizeDate(prestamo.fecha_emision);
   const now = normalizeDate(referenceDate);
-  // Calcular cuántos meses han transcurrido desde la fecha de emisión hasta hoy (mínimo los meses pactados o transcurridos + 1)
-  const monthsElapsed = Math.max(
-    1,
-    (now.getFullYear() - emisionDate.getFullYear()) * 12 + (now.getMonth() - emisionDate.getMonth()) + 1
-  );
-  // Si el préstamo ya está pagado o cancelado, el cronograma se ancla al último
-  // pago registrado: no deben generarse cuotas nuevas (ni intereses) después de saldarse.
-  const estaSaldado = String(prestamo.estado) === "pagado" || String(prestamo.estado) === "cancelado";
-  let mesesHastaUltimoPago = 0;
-  if (estaSaldado) {
-    for (const pago of pagos) {
-      const fechaPago = normalizeDate(pago.fecha_pago);
-      if (Number.isNaN(fechaPago.getTime())) continue;
-      const diff = (fechaPago.getFullYear() - emisionDate.getFullYear()) * 12 +
-        (fechaPago.getMonth() - emisionDate.getMonth()) + 1;
-      if (diff > mesesHastaUltimoPago) mesesHastaUltimoPago = diff;
+
+  // Ordenar pagos por fecha
+  const pagosOrdenados = [...pagos]
+    .map((p) => ({
+      ...p,
+      montoVal: toNumber(p.monto),
+      dateVal: normalizeDate(p.fecha_pago),
+    }))
+    .filter((p) => p.montoVal > EPSILON && !Number.isNaN(p.dateVal.getTime()))
+    .sort((a, b) => a.dateVal.getTime() - b.dateVal.getTime());
+
+  // Determinar hasta qué fecha iterar los meses
+  let maxDate = new Date(now);
+  for (const p of pagosOrdenados) {
+    if (p.dateVal > maxDate) {
+      maxDate = new Date(p.dateVal);
     }
   }
-  const totalCuotas = estaSaldado && mesesHastaUltimoPago > 0
-    ? Math.max(getInstallmentCount(prestamo), mesesHastaUltimoPago)
-    : Math.max(getInstallmentCount(prestamo), monthsElapsed);
 
-  // Amortización de capital por cuota
-  const amortizacionCapitalPorCuota = round2(capital / Math.max(1, totalCuotas));
+  // Calcular meses mínimos transcurridos (al menos 1 mes proyectado)
+  const totalMonthsToCalculate = Math.max(
+    1,
+    (maxDate.getFullYear() - emisionDate.getFullYear()) * 12 +
+      (maxDate.getMonth() - emisionDate.getMonth()) +
+      1
+  );
 
-  // Generar el cronograma teórico de cuotas
   const cuotas: CuotaPrestamo[] = [];
-  let capitalRestante = capital;
+  let capitalRestante = capitalInicial;
+  let moraAcumulada = 0;
+  let totalPagado = 0;
+  let mesesSinPagoConsec = 0;
   let tieneAjustesActivos = false;
   let interesCongelado = false;
   let fechaCongelamientoHasta: string | null = null;
   let totalBeneficioAplicado = 0;
 
-  for (let i = 0; i < totalCuotas; i++) {
-    const fechaVencimiento = addMonthsClamped(emisionDate, i + 1);
-    const interesMes = round2(capitalRestante * tasaMensual);
+  for (let i = 0; i < totalMonthsToCalculate; i++) {
+    if (capitalRestante <= EPSILON && moraAcumulada <= EPSILON && i > 0) {
+      // El préstamo fue saldado en un mes previo
+      break;
+    }
 
-    // Verificar si hay ajuste de congelamiento de interés para esta cuota
+    const startDatePeriod = addMonthsClamped(emisionDate, i);
+    const endDatePeriod = addMonthsClamped(emisionDate, i + 1);
+
+    const capitalInicioMes = capitalRestante;
+    const interesMes = round2(capitalInicioMes * tasaMensual);
+
+    // Ajustes de congelamiento de interés
     const congelarTemp = ajustes.find(
-      (a) => a.tipo === "congelar_interes_temporal" &&
-             normalizeDate(a.fecha_inicio).getTime() <= fechaVencimiento.getTime() &&
-             (!a.fecha_fin || normalizeDate(a.fecha_fin).getTime() >= fechaVencimiento.getTime())
+      (a) =>
+        a.tipo === "congelar_interes_temporal" &&
+        normalizeDate(a.fecha_inicio).getTime() <= endDatePeriod.getTime() &&
+        (!a.fecha_fin || normalizeDate(a.fecha_fin).getTime() >= endDatePeriod.getTime())
     );
 
     const isCongelada = !!congelarTemp;
@@ -118,174 +117,149 @@ export const buildPaymentSchedule = (
       tieneAjustesActivos = true;
       interesCongelado = true;
       totalBeneficioAplicado = round2(totalBeneficioAplicado + interesMes);
-      if (!fechaCongelamientoHasta || (congelarTemp.fecha_fin && new Date(congelarTemp.fecha_fin).getTime() > new Date(fechaCongelamientoHasta).getTime())) {
+      if (
+        !fechaCongelamientoHasta ||
+        (congelarTemp.fecha_fin &&
+          new Date(congelarTemp.fecha_fin).getTime() >
+            new Date(fechaCongelamientoHasta).getTime())
+      ) {
         fechaCongelamientoHasta = congelarTemp.fecha_fin || "indefinido";
       }
     }
 
-    const cuotaMes = round2(amortizacionCapitalPorCuota + interesEfectivo);
+    const moraMesInicio = moraAcumulada;
+    const cuotaMinima = round2(interesEfectivo + moraMesInicio);
+
+    // Pagos pertenecientes a este período (entre startDatePeriod y endDatePeriod)
+    const pagosMes = pagosOrdenados.filter((p) => {
+      const t = p.dateVal.getTime();
+      return t >= startDatePeriod.getTime() && t < endDatePeriod.getTime();
+    });
+
+    const abonoMes = round2(pagosMes.reduce((sum, p) => sum + p.montoVal, 0));
+    totalPagado = round2(totalPagado + abonoMes);
+
+    let aplicadoMora = 0;
+    let aplicadoInteres = 0;
+    let aplicadoCapital = 0;
+    let moraGenerada = 0;
+    let estadoCuota: "Saldada" | "Pendiente" | "Vencida" | "Parcial" | "SinPago" | "PagoIncompleto" = "Pendiente";
+
+    if (abonoMes <= EPSILON) {
+      // Sin abono en este mes
+      moraGenerada = interesEfectivo;
+      moraAcumulada = round2(moraAcumulada + interesEfectivo);
+      mesesSinPagoConsec++;
+      estadoCuota = endDatePeriod.getTime() <= now.getTime() ? "SinPago" : "Pendiente";
+    } else {
+      mesesSinPagoConsec = 0; // Se realizó un abono, rompe la racha sin pago
+
+      let restanteAbono = abonoMes;
+
+      // 1. Cubrir mora acumulada previa
+      if (moraMesInicio > EPSILON) {
+        aplicadoMora = round2(Math.min(moraMesInicio, restanteAbono));
+        restanteAbono = round2(restanteAbono - aplicadoMora);
+      }
+
+      // 2. Cubrir interés del período actual
+      if (restanteAbono > EPSILON && interesEfectivo > EPSILON) {
+        aplicadoInteres = round2(Math.min(interesEfectivo, restanteAbono));
+        restanteAbono = round2(restanteAbono - aplicadoInteres);
+      }
+
+      // 3. Excedente va directamente al capital global
+      if (restanteAbono > EPSILON) {
+        aplicadoCapital = round2(Math.min(capitalRestante, restanteAbono));
+        restanteAbono = round2(restanteAbono - aplicadoCapital);
+        capitalRestante = round2(Math.max(0, capitalRestante - aplicadoCapital));
+      }
+
+      // Calcular nueva mora acumulada para el próximo mes
+      const moraNoCubierta = round2(moraMesInicio - aplicadoMora);
+      const interesNoCubierto = round2(interesEfectivo - aplicadoInteres);
+      moraGenerada = interesNoCubierto;
+      moraAcumulada = round2(moraNoCubierta + interesNoCubierto);
+
+      if (abonoMes < cuotaMinima - EPSILON) {
+        estadoCuota = "PagoIncompleto";
+      } else {
+        estadoCuota = "Saldada";
+      }
+    }
+
+    const pagosRecibidosFormat = pagosMes.map((p) => ({
+      id: p.id,
+      fecha: p.fecha_pago,
+      monto: p.montoVal,
+      aplicadoInteres: round2(Math.min(p.montoVal, interesEfectivo)),
+      aplicadoCapital: round2(Math.max(0, p.montoVal - interesEfectivo)),
+      metodo_pago: p.metodo_pago,
+      comprobante_url: p.comprobante_url,
+    }));
+
+    const diasVencidos = Math.max(
+      0,
+      Math.ceil((now.getTime() - endDatePeriod.getTime()) / DAY_MS)
+    );
 
     cuotas.push({
       numero: i + 1,
-      fechaVencimiento: formatIsoDate(fechaVencimiento),
-      capitalPendiente: capitalRestante,
-      interesPendiente: interesEfectivo,
-      montoCuotaBase: cuotaMes,
-      montoExigible: cuotaMes,
-      capitalAmortizado: amortizacionCapitalPorCuota,
-      pagado: 0,
-      saldoPendiente: cuotaMes,
-      estado: fechaVencimiento.getTime() <= now.getTime() ? "Vencida" : "Pendiente",
-      diasVencidos: Math.max(0, Math.ceil((now.getTime() - fechaVencimiento.getTime()) / DAY_MS)),
-      moraPendiente: 0,
+      fechaVencimiento: formatIsoDate(endDatePeriod),
+      capitalPendiente: capitalInicioMes,
+      interesPendiente: round2(Math.max(0, interesEfectivo - aplicadoInteres)),
+      moraPendiente: moraAcumulada,
       penalidad: 0,
       cargosAdicionales: 0,
+      montoCuotaBase: cuotaMinima,
+      montoExigible: round2(Math.max(0, cuotaMinima - abonoMes)),
+      pagosRecibidos: pagosRecibidosFormat,
+      pagado: abonoMes,
+      saldoPendiente: round2(Math.max(0, cuotaMinima - abonoMes)),
+      diasVencidos,
+      estado: estadoCuota,
+      ajustesAplicados: isCongelada && congelarTemp ? [congelarTemp.id] : [],
       interesOriginal: interesMes,
       congelada: isCongelada,
-      ajustesAplicados: isCongelada && congelarTemp ? [congelarTemp.id] : []
+      moraOriginal: moraMesInicio,
+      capitalAmortizado: aplicadoCapital,
+      capitalAmortizadoPagado: aplicadoCapital,
+      interesPagado: aplicadoInteres,
+      moraPagado: aplicadoMora,
+      esPagoIncompleto: abonoMes > EPSILON && abonoMes < cuotaMinima - EPSILON,
+      moraGenerada,
     });
-
-    capitalRestante = round2(capitalRestante - amortizacionCapitalPorCuota);
   }
 
-  // Aplicar pagos reales en orden cronológico
-  const pagosOrdenados = [...pagos]
-    .map(p => ({ ...p, montoVal: toNumber(p.monto), dateVal: normalizeDate(p.fecha_pago) }))
-    .filter(p => p.montoVal > EPSILON && !Number.isNaN(p.dateVal.getTime()))
-    .sort((a, b) => a.dateVal.getTime() - b.dateVal.getTime());
+  const capitalPendiente = capitalRestante;
+  const interesPendiente = cuotas.length > 0 ? cuotas[cuotas.length - 1].interesPendiente : 0;
+  const totalExigible = round2(capitalPendiente + moraAcumulada);
 
-  let totalPagado = 0;
-
-  const aplicarPagoACuota = (pago: any, cuota: CuotaPrestamo, montoInteres: number, montoCapital: number) => {
-    if (montoInteres > EPSILON || montoCapital > EPSILON) {
-      cuota.interesPendiente = round2(cuota.interesPendiente - montoInteres);
-      cuota.interesPagado = round2((cuota.interesPagado || 0) + montoInteres);
-      cuota.capitalAmortizadoPagado = round2((cuota.capitalAmortizadoPagado || 0) + montoCapital);
-    }
-
-    const totalAplicado = round2(montoInteres + montoCapital);
-    if (totalAplicado > EPSILON) {
-      if (!cuota.pagosRecibidos) cuota.pagosRecibidos = [];
-      cuota.pagosRecibidos.push({
-        id: pago.id,
-        fecha: pago.fecha_pago,
-        monto: totalAplicado,
-        aplicadoInteres: montoInteres,
-        aplicadoCapital: montoCapital,
-        metodo_pago: pago.metodo_pago,
-        comprobante_url: pago.comprobante_url
-      });
-    }
-
-    const interesPagado = (cuota.interesOriginal || 0) - cuota.interesPendiente;
-    const capitalPagado = cuota.capitalAmortizadoPagado || 0;
-    cuota.pagado = round2(interesPagado + capitalPagado);
-    cuota.saldoPendiente = round2(cuota.interesPendiente + Math.max(0, (cuota.capitalAmortizado || 0) - capitalPagado));
-    cuota.montoExigible = cuota.saldoPendiente;
-
-    if (cuota.saldoPendiente <= EPSILON) {
-      cuota.estado = "Saldada";
-    } else if (cuota.pagado > EPSILON) {
-      cuota.estado = "Parcial";
-    }
-  };
-
-  for (const pago of pagosOrdenados) {
-    let remaining = pago.montoVal;
-    totalPagado = round2(totalPagado + remaining);
-
-    // 1) Solamente la PRIMERA cuota pendiente recibe interés + capital de este pago.
-    //    (No se cobra interés de meses futuros con el excedente de un pago.)
-    const cuotaObjetivo = cuotas.find(c => c.estado !== "Saldada");
-    if (cuotaObjetivo) {
-      let pagoInteres = 0;
-      let pagoCapital = 0;
-
-      const interesPendCuota = cuotaObjetivo.interesPendiente;
-      if (interesPendCuota > EPSILON) {
-        pagoInteres = round2(Math.min(interesPendCuota, remaining));
-        remaining = round2(remaining - pagoInteres);
-      }
-
-      if (remaining > EPSILON && cuotaObjetivo.capitalAmortizado && cuotaObjetivo.capitalAmortizado > 0) {
-        const capitalCuotaPendiente = round2((cuotaObjetivo.capitalAmortizado || 0) - (cuotaObjetivo.capitalAmortizadoPagado || 0));
-        if (capitalCuotaPendiente > EPSILON) {
-          pagoCapital = round2(Math.min(capitalCuotaPendiente, remaining));
-          remaining = round2(remaining - pagoCapital);
-        }
-      }
-
-      aplicarPagoACuota(pago, cuotaObjetivo, pagoInteres, pagoCapital);
-    }
-
-    // 2) EXCEDENTE: va DIRECTAMENTE a reducir el capital del resto de cuotas
-    //    (solo capital, sin cargar interés de meses futuros).
-    for (const cuota of cuotas) {
-      if (remaining <= EPSILON) break;
-      if (cuota.estado === "Saldada") continue;
-      const capPendiente = round2((cuota.capitalAmortizado || 0) - (cuota.capitalAmortizadoPagado || 0));
-      if (capPendiente <= EPSILON) continue;
-      const abonoCapital = round2(Math.min(capPendiente, remaining));
-      remaining = round2(remaining - abonoCapital);
-      aplicarPagoACuota(pago, cuota, 0, abonoCapital);
-    }
-
-    // 3) Si aún queda excedente, es porque todo el capital ya está cubierto:
-    //    se aplica entonces a cubrir el interés pendiente (p. ej. liquidación total).
-    for (const cuota of cuotas) {
-      if (remaining <= EPSILON) break;
-      if (cuota.estado === "Saldada") continue;
-      if (cuota.interesPendiente <= EPSILON) continue;
-      const abonoInteres = round2(Math.min(cuota.interesPendiente, remaining));
-      remaining = round2(remaining - abonoInteres);
-      aplicarPagoACuota(pago, cuota, abonoInteres, 0);
-    }
-  }
-
-  // Recalcular estados y días de atraso al momento actual
-  for (const cuota of cuotas) {
-    const duePoint = normalizeDate(cuota.fechaVencimiento);
-    const diasVencidos = Math.max(0, Math.ceil((now.getTime() - duePoint.getTime()) / DAY_MS));
-    cuota.diasVencidos = diasVencidos;
-
-    if (cuota.estado === "Saldada") {
-      cuota.saldoPendiente = 0;
-      cuota.montoExigible = 0;
-      continue;
-    }
-
-    if (cuota.pagado > EPSILON) {
-      cuota.estado = "Parcial";
-    } else {
-      cuota.estado = duePoint.getTime() <= now.getTime() ? "Vencida" : "Pendiente";
-    }
-  }
-
-  const cuotasVencidasDetalle = cuotas.filter(
-    (c) => c.estado === "Vencida" || (c.estado === "Parcial" && c.diasVencidos > 0)
-  );
   const cuotaSiguiente = cuotas.find((c) => c.estado !== "Saldada") || null;
-
-  const capitalPendiente = round2(cuotas.reduce((sum, c) => sum + Math.max(0, (c.capitalAmortizado || 0) - (c.capitalAmortizadoPagado || 0)), 0));
-  const interesPendiente = round2(cuotas.reduce((sum, c) => sum + c.interesPendiente, 0));
-  const saldoPendiente = round2(capitalPendiente + interesPendiente);
+  const cuotasVencidasDetalle = cuotas.filter(
+    (c) => c.estado === "SinPago" || c.estado === "PagoIncompleto" || c.estado === "Vencida"
+  );
 
   const cuotasPendientes = cuotas.filter((c) => c.estado !== "Saldada").length;
-  const cuotasVencidas = cuotas.filter((c) => c.estado === "Vencida").length;
+  const cuotasVencidas = cuotasVencidasDetalle.length;
+  const esEstancado = mesesSinPagoConsec > 2;
 
   return {
     resumen: {
-      totalCuotas,
+      totalCuotas: cuotas.length,
       cuotasPendientes,
       cuotasVencidas,
       capitalPendiente,
       interesPendiente,
-      moraAcumulada: 0,
+      moraAcumulada,
       penalidadesAcumuladas: 0,
       cargosAdicionalesAcumulados: 0,
-      totalExigible: saldoPendiente,
+      totalExigible,
       totalPagado,
-      saldoPendiente
+      saldoPendiente: totalExigible,
+      mesesSinPago: mesesSinPagoConsec,
+      esEstancado,
+      mesesTranscurridos: cuotas.length,
     },
     cuotas,
     cuotaSiguiente,
@@ -295,46 +269,43 @@ export const buildPaymentSchedule = (
       interesCongelado,
       fechaCongelamientoHasta,
       moraEliminada: false,
-      totalBeneficioAplicado
-    }
+      totalBeneficioAplicado,
+    },
   };
 };
 
 export const classifyPayment = (
   paymentAmount: number,
   debtState: EstadoDeudaPrestamo,
-  paymentDateStr?: string
+  _paymentDateStr?: string
 ) => {
-  const nextQuota = debtState.cuotaSiguiente;
-  const totalDebt = debtState.resumen.totalExigible;
   const amount = toNumber(paymentAmount);
+  if (amount <= EPSILON) {
+    return "Pago inválido";
+  }
 
-  if (amount >= totalDebt - EPSILON) {
+  const totalExigible = debtState.resumen.totalExigible;
+  const nextQuota = debtState.cuotaSiguiente;
+  const cuotaMinima = nextQuota ? nextQuota.montoCuotaBase : debtState.resumen.interesPendiente;
+
+  if (amount >= totalExigible - EPSILON && totalExigible > EPSILON) {
+    if (amount > totalExigible + EPSILON) {
+      return "Pago con excedente";
+    }
     return "Liquidación total";
   }
 
-  const hasOverdue = debtState.cuotasVencidasDetalle && debtState.cuotasVencidasDetalle.length > 0;
-
-  if (nextQuota) {
-    const expected = nextQuota.montoExigible;
-    if (Math.abs(amount - expected) <= EPSILON) {
-      return "Pago exacto de cuota";
-    }
-
-    const paymentDate = paymentDateStr ? normalizeDate(paymentDateStr) : new Date();
-    const isFutureQuota = normalizeDate(nextQuota.fechaVencimiento).getTime() > paymentDate.getTime();
-
-    if (!hasOverdue && isFutureQuota) {
-      return "Pago adelantado / múltiple";
-    }
-
-    if (amount < expected) {
-      return "Amortización parcial";
-    }
-    if (amount > expected && amount < totalDebt) {
-      return "Pago adelantado / múltiple";
-    }
+  if (amount < cuotaMinima - EPSILON) {
+    return "Pago incompleto";
   }
 
-  return amount > 0 ? "Amortización parcial" : "Pago inválido";
+  if (Math.abs(amount - cuotaMinima) <= EPSILON) {
+    return "Pago mínimo";
+  }
+
+  if (amount > cuotaMinima) {
+    return "Pago con amortización";
+  }
+
+  return "Amortización a capital";
 };

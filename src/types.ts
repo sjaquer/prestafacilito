@@ -32,7 +32,8 @@ export interface Prestamo {
   fecha_emision: string;
   fecha_vencimiento: string;
   dia_vencimiento_mes?: string;
-  estado: 'activo' | 'pagado';
+  dia_pago?: number;
+  estado: 'activo' | 'liquidado' | 'estancado' | 'pagado';
   tipo_prestamo: string;
   notas?: string;
 }
@@ -88,7 +89,7 @@ export interface CuotaPrestamo {
   pagado: number;
   saldoPendiente: number;
   diasVencidos: number;
-  estado: "Saldada" | "Pendiente" | "Vencida" | "Parcial";
+  estado: "Saldada" | "Pendiente" | "Vencida" | "Parcial" | "SinPago" | "PagoIncompleto";
   ajustesAplicados?: string[];
   interesOriginal?: number;
   congelada?: boolean;
@@ -100,6 +101,8 @@ export interface CuotaPrestamo {
   ultimoCalculoMoraDate?: Date;
   expressLiquidacion?: boolean;
   pagosRecibidos?: any[];
+  esPagoIncompleto?: boolean;
+  moraGenerada?: number;
 }
 
 export interface ResumenDeudaPrestamo {
@@ -116,6 +119,9 @@ export interface ResumenDeudaPrestamo {
   saldoPendiente: number;
   esElegibleLiquidacionExpress?: boolean;
   montoLiquidacionExpress?: number;
+  mesesSinPago?: number;
+  esEstancado?: boolean;
+  mesesTranscurridos?: number;
 }
 
 export interface AjustePrestamo {

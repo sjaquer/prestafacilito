@@ -72,8 +72,8 @@ export const LoanHeader: React.FC<LoanHeaderProps> = ({
               Solicitar Prórroga
             </Button>
           )}
-          <Badge variant={prestamo.estado === "activo" ? "success" : "neutral"}>
-            {isAlquiler ? "Alquiler" : "Crédito"} {prestamo.estado === "activo" ? "Activo" : "Pagado"}
+          <Badge variant={prestamo.estado === "activo" ? "success" : prestamo.estado === "estancado" ? "danger" : "neutral"}>
+            {isAlquiler ? "Alquiler" : "Crédito"} {prestamo.estado === "activo" ? "Activo" : prestamo.estado === "estancado" ? "Estancado" : "Liquidado"}
           </Badge>
           {planAyuda?.tieneAjustesActivos && (
             <Badge variant="primary" icon={<HeartHandshake size={11} />}>
@@ -158,13 +158,11 @@ export const LoanHeader: React.FC<LoanHeaderProps> = ({
                     )}
                   </>
                 ) : (
-                  prestamo.fecha_vencimiento && (
-                    <div className="flex items-center gap-1.5">
-                      <Calendar size={13} className="text-indigo-600 shrink-0" />
-                      <span className="text-slate-500">Vencimiento:</span>
-                      <span className="text-slate-800 font-mono font-extrabold">{formatDate(prestamo.fecha_vencimiento)}</span>
-                    </div>
-                  )
+                  <div className="flex items-center gap-1.5">
+                    <Calendar size={13} className="text-indigo-600 shrink-0" />
+                    <span className="text-slate-500">Día de Pago Pactado:</span>
+                    <span className="text-slate-800 font-mono font-extrabold">Día {prestamo.fecha_vencimiento ? parseInt(prestamo.fecha_vencimiento.split("-")[2]) : (prestamo.fecha_emision ? parseInt(prestamo.fecha_emision.split("-")[2]) : "")} de cada mes</span>
+                  </div>
                 )}
               </div>
             </div>

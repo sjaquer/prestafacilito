@@ -212,7 +212,7 @@ prestamosRouter.get("/:id", requireAuth, async (req: express.Request, res: expre
         saldo_pendiente: debtState.resumen.saldoPendiente,
         capital_pendiente: debtState.resumen.capitalPendiente,
         interes_pendiente: debtState.resumen.interesPendiente,
-        mora_acumulada: 0,
+        mora_acumulada: debtState.resumen.moraAcumulada,
         cuotas_totales: debtState.resumen.totalCuotas,
         cuotas_pendientes: debtState.resumen.cuotasPendientes,
         cuotas_vencidas: debtState.resumen.cuotasVencidas,
@@ -351,20 +351,18 @@ prestamosRouter.post("/:id/pagos", requireAuth, async (req: AuthRequest, res: ex
     const queryDate = fechaPagoDate.getTime() > referenceDate.getTime() ? fechaPagoDate : referenceDate;
     const deudaValidacion = buildPaymentSchedule(prestamo, pagosAnteriores, { ajustes, referenceDate: queryDate });
 
-    if (montoPago > deudaValidacion.resumen.saldoPendiente + 0.01) {
-      res.status(400).json({ error: `El monto del pago excede el saldo pendiente actual (S/. ${deudaValidacion.resumen.saldoPendiente.toFixed(2)})` });
-      return;
-    }
+    const esExcedente = montoPago > deudaValidacion.resumen.saldoPendiente + 0.01;
+    const montoExcedente = esExcedente ? round2(montoPago - deudaValidacion.resumen.saldoPendiente) : 0;
 
     const clasificacionAutomatica = classifyPayment(montoPago, deudaAntes, fecha_pago);
-    const excedenteAplicado = Math.max(0, montoPago - deudaAntes.resumen.totalExigible);
 
     const validTypes = [
       "Liquidación total",
-      "Pago exacto de cuota",
-      "Amortización parcial",
-      "Pago adelantado / múltiple",
-      "Pago adelantado",
+      "Pago mínimo",
+      "Pago incompleto",
+      "Pago con amortización",
+      "Amortización a capital",
+      "Pago con excedente",
       "Amortización de Capital",
       "Amortizacion de Capital",
       "Liquidación Express",
@@ -396,10 +394,22 @@ prestamosRouter.post("/:id/pagos", requireAuth, async (req: AuthRequest, res: ex
     let nuevoEstado = prestamo.estado;
 
     if (deudaDespues.resumen.saldoPendiente <= 0.01) {
-      nuevoEstado = "pagado";
+      nuevoEstado = "liquidado";
       await supabase
         .from("prestamos")
-        .update({ estado: "pagado" })
+        .update({ estado: "liquidado" })
+        .eq("id", prestamoId);
+    } else if ((deudaDespues.resumen.mesesSinPago ?? 0) > 2) {
+      nuevoEstado = "estancado";
+      await supabase
+        .from("prestamos")
+        .update({ estado: "estancado" })
+        .eq("id", prestamoId);
+    } else if (prestamo.estado === "estancado") {
+      nuevoEstado = "activo";
+      await supabase
+        .from("prestamos")
+        .update({ estado: "activo" })
         .eq("id", prestamoId);
     }
 
@@ -426,7 +436,8 @@ prestamosRouter.post("/:id/pagos", requireAuth, async (req: AuthRequest, res: ex
       success: true,
       nuevaAmortizacion: insertedAmort,
       clasificacion_automatica: clasificacionAutomatica,
-      excedente_aplicado: excedenteAplicado,
+      excedente_aplicado: montoExcedente,
+      es_excedente: esExcedente,
       saldo_pendiente: deudaDespues.resumen.saldoPendiente,
       estado_prestamo: nuevoEstado,
       deuda_actualizada: deudaDespues.resumen,
