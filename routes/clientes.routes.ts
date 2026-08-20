@@ -7,7 +7,7 @@ import {
   createDriveSubfolder,
   uploadDocumentToDrive,
   getGoogleDriveAccessToken,
-  GOOGLE_DRIVE_CLIENTES_FOLDER_ID
+  getClientesFolderId
 } from "../services/google-drive.js";
 
 import { calcularScoreCliente } from "../src/lib/scoreLogic.js";
@@ -59,9 +59,10 @@ router.post("/", requireAuth, async (req: AuthRequest, res: express.Response) =>
 
     if (error) throw error;
 
-    if (isDriveConfigured() && GOOGLE_DRIVE_CLIENTES_FOLDER_ID) {
+    const parentFolder = getClientesFolderId();
+    if (isDriveConfigured() && parentFolder) {
       try {
-        const folderId = await createDriveSubfolder(nombre_completo, GOOGLE_DRIVE_CLIENTES_FOLDER_ID);
+        const folderId = await createDriveSubfolder(nombre_completo, parentFolder);
         await supabase.from('clientes').update({ drive_folder_id: folderId }).eq('id', data.id);
         data.drive_folder_id = folderId;
       } catch (driveErr: any) {
@@ -159,18 +160,21 @@ router.post("/:id/documentos", requireAuth, async (req: AuthRequest, res: expres
     }
 
     let folderId = cliente.drive_folder_id;
-    if (!folderId && GOOGLE_DRIVE_CLIENTES_FOLDER_ID) {
+    const rootFolder = getClientesFolderId();
+    if (!folderId && rootFolder) {
       try {
-        folderId = await createDriveSubfolder(cliente.nombre_completo, GOOGLE_DRIVE_CLIENTES_FOLDER_ID);
+        folderId = await createDriveSubfolder(cliente.nombre_completo, rootFolder);
         await supabase.from('clientes').update({ drive_folder_id: folderId }).eq('id', clienteId);
       } catch (folderErr: any) {
-        res.status(502).json({ error: 'No se pudo crear la carpeta del cliente en Drive.', detail: folderErr.message });
-        return;
+        console.warn('No se pudo crear la subcarpeta del cliente, usando carpeta principal de Drive:', folderErr.message);
+        folderId = rootFolder;
       }
+    } else if (!folderId) {
+      folderId = rootFolder;
     }
 
     if (!folderId) {
-      res.status(400).json({ error: 'No se ha configurado la carpeta raíz de clientes en Google Drive.' });
+      res.status(400).json({ error: 'No se ha configurado la carpeta de almacenamiento en Google Drive (GOOGLE_DRIVE_FOLDER_ID o GOOGLE_DRIVE_CLIENTES_FOLDER_ID).' });
       return;
     }
 

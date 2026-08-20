@@ -5,7 +5,7 @@ function getEnv(name: string) {
 }
 
 export const getDriveFolderId = () => getEnv("GOOGLE_DRIVE_FOLDER_ID");
-export const GOOGLE_DRIVE_CLIENTES_FOLDER_ID = getEnv("GOOGLE_DRIVE_CLIENTES_FOLDER_ID");
+export const getClientesFolderId = () => getEnv("GOOGLE_DRIVE_CLIENTES_FOLDER_ID") || getDriveFolderId();
 
 export const getGoogleClientId = () => getEnv("GOOGLE_CLIENT_ID");
 export const getGoogleClientSecret = () => getEnv("GOOGLE_CLIENT_SECRET");
@@ -17,18 +17,25 @@ export async function getGoogleDriveAccessToken() {
   const refreshToken = getGoogleRefreshToken();
 
   if (!clientId || !clientSecret || !refreshToken) {
-    throw new Error("Faltan credenciales de Google Drive OAuth 2.0. Revisa GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y GOOGLE_REFRESH_TOKEN en el archivo .env.");
+    throw new Error("Faltan credenciales de Google Drive OAuth 2.0. Revisa GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y GOOGLE_REFRESH_TOKEN en el archivo .env o en Vercel.");
   }
 
-  const oauth2Client = new OAuth2Client(clientId, clientSecret);
-  oauth2Client.setCredentials({ refresh_token: refreshToken });
+  try {
+    const oauth2Client = new OAuth2Client(clientId, clientSecret);
+    oauth2Client.setCredentials({ refresh_token: refreshToken });
 
-  const response = await oauth2Client.getAccessToken();
-  if (!response.token) {
-    throw new Error("No se pudo obtener un access token para Google Drive. Revisa si tu GOOGLE_REFRESH_TOKEN es válido.");
+    const response = await oauth2Client.getAccessToken();
+    if (!response.token) {
+      throw new Error("No se pudo obtener un access token para Google Drive. Revisa si tu GOOGLE_REFRESH_TOKEN es válido.");
+    }
+
+    return response.token;
+  } catch (err: any) {
+    if (err.message && err.message.includes("invalid_grant")) {
+      throw new Error("El token de actualización de Google Drive ha expirado o fue revocado (invalid_grant). Por favor haz clic en 'Reconectar' en el encabezado de la aplicación o visita /api/auth/google/login para volver a vincular tu cuenta de Google.");
+    }
+    throw err;
   }
-
-  return response.token;
 }
 
 export async function uploadVoucherToDrive(fileName: string, mimeType: string, buffer: Buffer) {
@@ -45,19 +52,15 @@ export async function uploadVoucherToDrive(fileName: string, mimeType: string, b
     metadata.parents = [folderId];
   }
 
-  const multipartPrefix = Buffer.from([
-    `--${boundary}`,
-    "Content-Type: application/json; charset=UTF-8",
-    "",
-    JSON.stringify(metadata),
-    `--${boundary}`,
-    `Content-Type: ${mimeType}`,
-    "",
-    ""
-  ].join("\r\n"), "utf8");
+  const prefix = `--${boundary}\r\n` +
+    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+    `${JSON.stringify(metadata)}\r\n` +
+    `--${boundary}\r\n` +
+    `Content-Type: ${mimeType}\r\n\r\n`;
 
-  const multipartSuffix = Buffer.from(`\r\n--${boundary}--`, "utf8");
-  const multipartBody = Buffer.concat([multipartPrefix, buffer, multipartSuffix]);
+  const prefixBuffer = Buffer.from(prefix, "utf8");
+  const suffixBuffer = Buffer.from(`\r\n--${boundary}--`, "utf8");
+  const multipartBody = Buffer.concat([prefixBuffer, buffer, suffixBuffer]);
 
   const uploadResponse = await fetch(
     "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink,mimeType",
@@ -132,19 +135,15 @@ export async function uploadDocumentToDrive(fileName: string, mimeType: string, 
 
   const metadata = { name: uniqueName, parents: [folderId] };
 
-  const multipartPrefix = Buffer.from([
-    `--${boundary}`,
-    'Content-Type: application/json; charset=UTF-8',
-    '',
-    JSON.stringify(metadata),
-    `--${boundary}`,
-    `Content-Type: ${mimeType}`,
-    '',
-    ''
-  ].join('\r\n'), 'utf8');
+  const prefix = `--${boundary}\r\n` +
+    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+    `${JSON.stringify(metadata)}\r\n` +
+    `--${boundary}\r\n` +
+    `Content-Type: ${mimeType}\r\n\r\n`;
 
-  const multipartSuffix = Buffer.from(`\r\n--${boundary}--`, 'utf8');
-  const body = Buffer.concat([multipartPrefix, buffer, multipartSuffix]);
+  const prefixBuffer = Buffer.from(prefix, "utf8");
+  const suffixBuffer = Buffer.from(`\r\n--${boundary}--`, "utf8");
+  const body = Buffer.concat([prefixBuffer, buffer, suffixBuffer]);
 
   const uploadResponse = await fetch(
     'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
