@@ -237,4 +237,73 @@ router.get("/", requireAuth, async (req: express.Request, res: express.Response)
   }
 });
 
+// Endpoint para Flujo de Llegada de Dinero por Cuenta
+router.get("/llegada-cuentas", requireAuth, async (req: express.Request, res: express.Response) => {
+  try {
+    const [aRes, paRes, pRes, alqRes, cRes] = await Promise.all([
+      supabase.from("amortizaciones").select("*").order("fecha_pago", { ascending: false }),
+      supabase.from("pagos_alquiler").select("*").order("fecha_pago", { ascending: false }),
+      supabase.from("prestamos").select("id, cliente_id, tipo_prestamo"),
+      supabase.from("alquileres").select("id, cliente_id, descripcion_inmueble"),
+      supabase.from("clientes").select("id, nombre_completo, apodo")
+    ]);
+
+    if (aRes.error) throw aRes.error;
+    if (paRes.error) throw paRes.error;
+
+    const amortizaciones = aRes.data || [];
+    const pagosAlquiler = paRes.data || [];
+    const prestamos = pRes.data || [];
+    const alquileres = alqRes.data || [];
+    const clientes = cRes.data || [];
+
+    const allPayments: any[] = [];
+
+    for (const a of amortizaciones) {
+      const pr = prestamos.find(p => p.id === a.prestamo_id);
+      const cl = clientes.find(c => c.id === (pr ? pr.cliente_id : a.cliente_id));
+      allPayments.push({
+        id: a.id,
+        fecha_pago: a.fecha_pago,
+        monto: toNumber(a.monto),
+        metodo_pago: a.metodo_pago || "Efectivo",
+        cliente_nombre: cl?.nombre_completo || "Cliente Desconocido",
+        cliente_apodo: cl?.apodo || "",
+        tipo_operacion: "prestamo",
+        detalle: `Abono Préstamo (${pr?.tipo_prestamo || 'General'})`,
+        comprobante_url: a.comprobante_url
+      });
+    }
+
+    for (const pa of pagosAlquiler) {
+      const alq = alquileres.find(al => al.id === pa.alquiler_id);
+      const cl = clientes.find(c => c.id === (alq ? alq.cliente_id : pa.cliente_id));
+      allPayments.push({
+        id: pa.id,
+        fecha_pago: pa.fecha_pago,
+        monto: toNumber(pa.monto),
+        metodo_pago: pa.metodo_pago || "Efectivo",
+        cliente_nombre: cl?.nombre_completo || "Inquilino Desconocido",
+        cliente_apodo: cl?.apodo || "",
+        tipo_operacion: "alquiler",
+        detalle: `Renta (${alq?.descripcion_inmueble || 'Alquiler'})`,
+        comprobante_url: pa.comprobante_url
+      });
+    }
+
+    allPayments.sort((a, b) => new Date(b.fecha_pago).getTime() - new Date(a.fecha_pago).getTime());
+
+    res.json({
+      allPayments,
+      meta: {
+        totalIngresosHistorial: round2(allPayments.reduce((sum, p) => sum + p.monto, 0)),
+        countTotal: allPayments.length
+      }
+    });
+  } catch (err: any) {
+    console.error("Error al obtener llegada a cuentas:", err);
+    res.status(500).json({ error: "Error en el servidor", detail: err.message });
+  }
+});
+
 export default router;

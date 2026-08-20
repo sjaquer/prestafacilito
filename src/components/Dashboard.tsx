@@ -4,6 +4,7 @@ import { Cliente, Prestamo } from "../types";
 import { CrearPrestamoForm } from "./dashboard/CrearPrestamoForm";
 import { RegistrarPagoForm } from "./dashboard/RegistrarPagoForm";
 import { DeudoresMesList, DeudorMesItem } from "./dashboard/DeudoresMesList";
+import { LlegadaDineroCuentas } from "./dashboard/LlegadaDineroCuentas";
 
 export const Dashboard: React.FC = () => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -182,6 +183,9 @@ export const Dashboard: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* SECCIÓN D: Control y Seguimiento de Llegada de Dinero por Cuenta */}
+      <LlegadaDineroCuentas />
     </div>
   );
 };
