@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { 
   ArrowLeft, Calendar, DollarSign, Edit3, RefreshCw, CheckCircle2, 
-  AlertTriangle, ShieldCheck, Clock, FileText, Upload, Check, AlertCircle 
+  AlertTriangle, ShieldCheck, Clock, FileText, Upload, Check, AlertCircle,
+  ExternalLink, X
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { TimelineDetallePrestamo, TimelineMesItem } from "./prestamo/TimelineDetallePrestamo";
@@ -10,6 +11,7 @@ import { ImagePasteDropzone } from "./common/ImagePasteDropzone";
 import { METODOS_PAGO_OPCIONES } from "../constants/bancos";
 import { subirVoucher } from "../lib/imageCompression";
 import { round2 } from "../lib/loanLogic";
+import { resolveVoucherUrl } from "../lib/formatters";
 
 export const PrestamoDetalle: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -717,24 +719,80 @@ export const PrestamoDetalle: React.FC = () => {
         <div className="lg:col-span-7 bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
           <TimelineDetallePrestamo
             timeline={timeline}
-            onVerVoucher={setLightboxUrl}
+            onVerVoucher={(url) => setLightboxUrl(resolveVoucherUrl(url))}
             onVoucherAdjuntado={fetchDetalle}
             onEditarFechaPago={handleEditarFechaPago}
           />
         </div>
       </div>
 
-      {/* Lightbox para Comprobante */}
+      {/* Modal / Lightbox para Comprobante */}
       {lightboxUrl && (
         <div
           onClick={() => setLightboxUrl(null)}
-          className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
         >
-          <img
-            src={lightboxUrl}
-            alt="Comprobante"
-            className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl"
-          />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl p-5 max-w-xl w-full space-y-3 shadow-2xl relative cursor-default animate-scaleUp"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <h4 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-indigo-600" /> Comprobante de Pago
+              </h4>
+              <button
+                type="button"
+                onClick={() => setLightboxUrl(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="max-h-[65vh] min-h-[220px] overflow-y-auto flex items-center justify-center bg-slate-50 rounded-2xl p-2 border border-slate-200/80">
+              <img
+                src={lightboxUrl}
+                alt="Comprobante de pago"
+                className="max-w-full h-auto rounded-xl object-contain shadow-xs"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = "none";
+                  const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = "flex";
+                }}
+              />
+              <div style={{ display: "none" }} className="flex-col items-center justify-center p-8 text-center space-y-3">
+                <FileText className="w-12 h-12 text-slate-400" />
+                <p className="text-xs text-slate-600 font-medium">El archivo o documento no puede renderizarse directamente como imagen.</p>
+                <a
+                  href={lightboxUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl shadow-xs hover:bg-indigo-700 transition-colors inline-flex items-center gap-1.5"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> Abrir / Descargar Archivo
+                </a>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <a
+                href={lightboxUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold rounded-xl hover:bg-indigo-100 transition-all inline-flex items-center gap-1.5"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Abrir en pestaña nueva
+              </a>
+
+              <button
+                type="button"
+                onClick={() => setLightboxUrl(null)}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

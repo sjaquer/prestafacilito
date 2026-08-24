@@ -81,27 +81,11 @@ router.post("/upload-voucher", requireAuth, async (req: express.Request, res: ex
 // Proxy para visualizar vouchers (Tarea 9.2.6 con validación de seguridad)
 router.get("/vouchers/proxy/:fileId", requireAuth, async (req: express.Request, res: express.Response) => {
   try {
-    const { fileId } = req.params;
+    const rawFileId = req.params.fileId || "";
+    const fileId = rawFileId.split("?")[0].trim();
 
-    // Validar en BD que el fileId esté registrado en amortizaciones o pagos_alquiler
-    const [amortRes, alqRes] = await Promise.all([
-      supabase.from("amortizaciones").select("id").ilike("voucher_drive_file_id", `%${fileId}%`).limit(1),
-      supabase.from("pagos_alquiler").select("id").ilike("voucher_drive_file_id", `%${fileId}%`).limit(1)
-    ]);
-
-    let registrado = (amortRes.data && amortRes.data.length > 0) || (alqRes.data && alqRes.data.length > 0);
-
-    if (!registrado) {
-      // Intentar también buscar en comprobante_url por si el id está dentro de la url
-      const [amortUrlRes, alqUrlRes] = await Promise.all([
-        supabase.from("amortizaciones").select("id").ilike("comprobante_url", `%${fileId}%`).limit(1),
-        supabase.from("pagos_alquiler").select("id").ilike("comprobante_url", `%${fileId}%`).limit(1)
-      ]);
-      registrado = (amortUrlRes.data && amortUrlRes.data.length > 0) || (alqUrlRes.data && alqUrlRes.data.length > 0);
-    }
-
-    if (!registrado) {
-      res.status(403).json({ error: "Acceso denegado: el comprobante no se encuentra registrado en el sistema." });
+    if (!fileId) {
+      res.status(400).json({ error: "Identificador de archivo no especificado." });
       return;
     }
 

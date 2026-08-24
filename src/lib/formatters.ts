@@ -146,6 +146,45 @@ export function parseVoucherUrls(comprobanteUrl: string | null | undefined): str
 }
 
 /**
+ * Resuelve y normaliza la URL de un comprobante para poder visualizarlo en el navegador.
+ * Convierte enlaces directos de Google Drive a través del proxy seguro del backend (/api/vouchers/proxy/:fileId).
+ */
+export function resolveVoucherUrl(url: string | null | undefined): string {
+  if (!url) return "";
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+
+  // Si viene serializado en JSON o lista separada por comas, tomar el primero
+  const urls = parseVoucherUrls(trimmed);
+  const target = (urls[0] || trimmed).trim();
+
+  if (!target) return "";
+
+  // Si ya es un proxy local, un data URI o un blob URL
+  if (
+    target.startsWith("/api/vouchers/proxy/") || 
+    target.startsWith("/api/documentos/proxy/") ||
+    target.startsWith("data:") ||
+    target.startsWith("blob:")
+  ) {
+    return target;
+  }
+
+  // Extraer File ID de enlaces de Google Drive (ej: /file/d/ID, ?id=ID, /d/ID)
+  const match = target.match(/(?:\/file\/d\/|\?id=|&id=|\/d\/)([a-zA-Z0-9_-]+)/);
+  if (match && match[1]) {
+    return `/api/vouchers/proxy/${match[1]}`;
+  }
+
+  // Si es un ID de archivo de Google Drive puro
+  if (/^[a-zA-Z0-9_-]{25,55}$/.test(target)) {
+    return `/api/vouchers/proxy/${target}`;
+  }
+
+  return target;
+}
+
+/**
  * Normaliza el nombre del cliente a Title Case (primera letra de cada palabra en mayúscula, el resto minúscula)
  */
 export function normalizeClientName(name: string): string {
