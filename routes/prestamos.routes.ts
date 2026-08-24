@@ -254,11 +254,9 @@ prestamosRouter.put("/:id", requireAuth, async (req: AuthRequest, res: express.R
     const prestamoId = req.params.id;
     const { fecha_emision, fecha_vencimiento, monto_capital, tasa_interes_porcentaje, notas } = req.body;
 
-    const updatePayload: any = {
-      fecha_emision,
-      fecha_vencimiento
-    };
-
+    const updatePayload: any = {};
+    if (fecha_emision !== undefined) updatePayload.fecha_emision = fecha_emision;
+    if (fecha_vencimiento !== undefined) updatePayload.fecha_vencimiento = fecha_vencimiento;
     if (monto_capital !== undefined) updatePayload.monto_capital = toNumber(monto_capital);
     if (tasa_interes_porcentaje !== undefined) updatePayload.tasa_interes_porcentaje = toNumber(tasa_interes_porcentaje);
     if (notas !== undefined) updatePayload.notas = notas;
@@ -272,11 +270,47 @@ prestamosRouter.put("/:id", requireAuth, async (req: AuthRequest, res: express.R
 
     if (error) throw error;
 
+    // Recalcular estado de deuda tras actualizar fechas o parámetros
+    const [aRes, ajRes] = await Promise.all([
+      supabase.from("amortizaciones").select("*").eq("prestamo_id", prestamoId),
+      supabase.from("ajustes_prestamo").select("*").eq("prestamo_id", prestamoId)
+    ]);
+
+    const pagosActualizados = aRes.data || [];
+    const ajustes = ajRes.data || [];
+    const deudaDespues = buildPaymentSchedule(updated, pagosActualizados, { ajustes, referenceDate: new Date() });
+
+    let nuevoEstado = updated.estado;
+    if (deudaDespues.resumen.saldoPendiente <= 0.01) {
+      nuevoEstado = "liquidado";
+      await supabase
+        .from("prestamos")
+        .update({ estado: "liquidado" })
+        .eq("id", prestamoId);
+    } else if ((deudaDespues.resumen.mesesSinPago ?? 0) > 2) {
+      nuevoEstado = "estancado";
+      await supabase
+        .from("prestamos")
+        .update({ estado: "estancado" })
+        .eq("id", prestamoId);
+    } else if (updated.estado === "liquidado" || updated.estado === "pagado" || updated.estado === "estancado") {
+      nuevoEstado = "activo";
+      await supabase
+        .from("prestamos")
+        .update({ estado: "activo" })
+        .eq("id", prestamoId);
+    }
+
     syncLoanScheduleToGoogleCalendar(prestamoId).catch((calErr) => {
       console.error("Error al reprogramar préstamo en Google Calendar:", calErr);
     });
 
-    res.json(updated);
+    res.json({
+      ...updated,
+      estado: nuevoEstado,
+      deuda_actualizada: deudaDespues.resumen,
+      cuotas_actualizadas: deudaDespues.cuotas
+    });
   } catch (err: any) {
     console.error("Error al actualizar préstamo:", err);
     res.status(500).json({ error: "Error al actualizar préstamo", detail: err.message });

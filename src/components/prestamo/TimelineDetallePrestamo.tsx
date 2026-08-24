@@ -1,5 +1,8 @@
 import React, { useState } from "react";
-import { CheckCircle2, AlertTriangle, Clock, Calendar, ArrowRight, ShieldCheck, FileText, Paperclip, X, Image as ImageIcon, Loader2 } from "lucide-react";
+import { 
+  CheckCircle2, AlertTriangle, Clock, Calendar, ArrowRight, ShieldCheck, 
+  FileText, Paperclip, X, Image as ImageIcon, Loader2, Edit3, Check 
+} from "lucide-react";
 import { comprimirImagen } from "../../lib/imageCompression";
 
 export interface TimelinePagoItem {
@@ -32,15 +35,56 @@ interface TimelineDetallePrestamoProps {
   timeline: TimelineMesItem[];
   onVerVoucher?: (url: string) => void;
   onVoucherAdjuntado?: () => void;
+  onEditarFechaPago?: (pagoId: string, nuevaFecha: string) => Promise<void>;
 }
 
 export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = ({
   timeline,
   onVerVoucher,
-  onVoucherAdjuntado
+  onVoucherAdjuntado,
+  onEditarFechaPago
 }) => {
   const [uploadingPagoId, setUploadingPagoId] = useState<string | null>(null);
   const [activeVoucherUrl, setActiveVoucherUrl] = useState<string | null>(null);
+
+  // Estado para la edición rápida de fecha de abono
+  const [editingPagoId, setEditingPagoId] = useState<string | null>(null);
+  const [tempFechaPago, setTempFechaPago] = useState<string>("");
+  const [isSavingFecha, setIsSavingFecha] = useState<boolean>(false);
+
+  const startEditFecha = (pago: TimelinePagoItem) => {
+    setEditingPagoId(pago.id);
+    setTempFechaPago(pago.fecha ? pago.fecha.split("T")[0] : "");
+  };
+
+  const cancelEditFecha = () => {
+    setEditingPagoId(null);
+    setTempFechaPago("");
+  };
+
+  const handleConfirmSaveFecha = async (pago: TimelinePagoItem) => {
+    if (!tempFechaPago || tempFechaPago === (pago.fecha ? pago.fecha.split("T")[0] : "")) {
+      setEditingPagoId(null);
+      return;
+    }
+
+    const confirmMsg = `⚠️ ¿Confirmas cambiar la fecha de este abono de S/ ${pago.monto.toFixed(2)} al ${tempFechaPago}?\n\nEsto recalculará automáticamente los intereses, mora y saldos del préstamo.`;
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
+
+    if (onEditarFechaPago) {
+      setIsSavingFecha(true);
+      try {
+        await onEditarFechaPago(pago.id, tempFechaPago);
+        setEditingPagoId(null);
+      } catch (err: any) {
+        alert("Error al actualizar la fecha del pago: " + (err.message || "Error desconocido"));
+      } finally {
+        setIsSavingFecha(false);
+      }
+    }
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, pagoId: string) => {
     const file = e.target.files?.[0];
@@ -203,9 +247,53 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
                         key={pago.id}
                         className="p-2.5 bg-emerald-50/60 border border-emerald-200/80 rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-emerald-800">✅ S/ {pago.monto.toFixed(2)}</span>
-                          <span className="text-slate-500 font-medium">({pago.fecha})</span>
+                          
+                          {editingPagoId === pago.id ? (
+                            <div className="inline-flex items-center gap-1 bg-white p-1 rounded-lg border border-indigo-300 shadow-xs">
+                              <input
+                                type="date"
+                                value={tempFechaPago}
+                                onChange={(e) => setTempFechaPago(e.target.value)}
+                                disabled={isSavingFecha}
+                                className="px-1.5 py-0.5 text-xs font-semibold text-slate-800 border border-slate-200 rounded outline-none focus:border-indigo-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleConfirmSaveFecha(pago)}
+                                disabled={isSavingFecha}
+                                title="Guardar fecha"
+                                className="p-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs transition-colors flex items-center justify-center disabled:opacity-50"
+                              >
+                                {isSavingFecha ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={cancelEditFecha}
+                                disabled={isSavingFecha}
+                                title="Cancelar"
+                                className="p-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-xs transition-colors"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-1">
+                              <span className="text-slate-600 font-medium">({pago.fecha})</span>
+                              {onEditarFechaPago && (
+                                <button
+                                  type="button"
+                                  onClick={() => startEditFecha(pago)}
+                                  title="Editar fecha de este abono"
+                                  className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+
                           <span className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[10px] font-semibold text-slate-600">
                             {pago.metodo_pago}
                           </span>

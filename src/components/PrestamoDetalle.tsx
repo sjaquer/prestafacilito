@@ -80,9 +80,11 @@ export const PrestamoDetalle: React.FC = () => {
     };
   }, [montoPago, prestamo, resumen, deuda]);
 
-  // Edición de Préstamo (Sección 5.3.4)
+  // Edición de Préstamo (Sección 5.3.4 y Ajuste de Día de Pago)
   const [isEditing, setIsEditing] = useState(false);
+  const [editFechaEmision, setEditFechaEmision] = useState("");
   const [editFechaVenc, setEditFechaVenc] = useState("");
+  const [editDiaPago, setEditDiaPago] = useState("1");
   const [editTasa, setEditTasa] = useState("");
   const [editNotas, setEditNotas] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
@@ -93,6 +95,42 @@ export const PrestamoDetalle: React.FC = () => {
 
   // Lightbox de comprobante
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  const handleDiaPagoChange = (nuevoDia: number) => {
+    setEditDiaPago(String(nuevoDia));
+    if (editFechaEmision) {
+      const parts = editFechaEmision.split("-");
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        const maxDays = new Date(year, month, 0).getDate();
+        const clampedDay = Math.min(nuevoDia, maxDays);
+        const newEmision = `${parts[0]}-${parts[1]}-${String(clampedDay).padStart(2, "0")}`;
+        setEditFechaEmision(newEmision);
+      }
+    }
+    if (editFechaVenc) {
+      const parts = editFechaVenc.split("-");
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        const maxDays = new Date(year, month, 0).getDate();
+        const clampedDay = Math.min(nuevoDia, maxDays);
+        const newVenc = `${parts[0]}-${parts[1]}-${String(clampedDay).padStart(2, "0")}`;
+        setEditFechaVenc(newVenc);
+      }
+    }
+  };
+
+  const handleFechaEmisionChange = (val: string) => {
+    setEditFechaEmision(val);
+    if (val) {
+      const day = parseInt(val.split("-")[2], 10);
+      if (!isNaN(day)) {
+        setEditDiaPago(String(day));
+      }
+    }
+  };
 
   const fetchDetalle = useCallback(async () => {
     if (!id) return;
@@ -114,9 +152,15 @@ export const PrestamoDetalle: React.FC = () => {
       setAjustes(data.ajustes || []);
 
       if (data.prestamo) {
-        setEditFechaVenc(data.prestamo.fecha_vencimiento || "");
+        const emision = data.prestamo.fecha_emision || "";
+        const venc = data.prestamo.fecha_vencimiento || "";
+        setEditFechaEmision(emision);
+        setEditFechaVenc(venc);
         setEditTasa(String(data.prestamo.tasa_interes_porcentaje || 0));
         setEditNotas(data.prestamo.notas || "");
+
+        const dia = venc ? parseInt(venc.split("-")[2], 10) : (emision ? parseInt(emision.split("-")[2], 10) : 1);
+        setEditDiaPago(String(dia || 1));
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Error al conectar con el servidor");
@@ -187,6 +231,7 @@ export const PrestamoDetalle: React.FC = () => {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          fecha_emision: editFechaEmision || null,
           fecha_vencimiento: editFechaVenc || null,
           tasa_interes_porcentaje: parseFloat(editTasa) || 0,
           notas: editNotas
@@ -198,11 +243,38 @@ export const PrestamoDetalle: React.FC = () => {
       }
 
       setIsEditing(false);
+      setPagoSuccessMsg("¡Préstamo y cronograma actualizados correctamente!");
+      setTimeout(() => setPagoSuccessMsg(""), 5000);
       await fetchDetalle();
     } catch (err: any) {
       alert(err.message || "Error al guardar los cambios");
     } finally {
       setIsSavingEdit(false);
+    }
+  };
+
+  const handleEditarFechaPago = async (pagoId: string, nuevaFecha: string) => {
+    try {
+      const res = await fetch(`/api/amortizaciones/${pagoId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fecha_pago: nuevaFecha
+        })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "No se pudo actualizar la fecha del pago");
+      }
+
+      setPagoSuccessMsg("¡Fecha del pago actualizada y cronograma recalculado con éxito!");
+      setTimeout(() => setPagoSuccessMsg(""), 5000);
+      await fetchDetalle();
+    } catch (err: any) {
+      setPagoErrorMsg(err.message || "Error al actualizar la fecha del pago");
+      setTimeout(() => setPagoErrorMsg(""), 6000);
+      throw err;
     }
   };
 
@@ -306,18 +378,50 @@ export const PrestamoDetalle: React.FC = () => {
 
       {/* Formulario de Edición de Préstamo (Inline) */}
       {isEditing && (
-        <form onSubmit={handleSaveEdit} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 text-xs">
-          <h4 className="font-bold text-slate-800">Editar Datos del Préstamo</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <form onSubmit={handleSaveEdit} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-4 text-xs">
+          <div className="flex items-center justify-between border-b border-slate-200/70 pb-2">
+            <h4 className="font-bold text-slate-800 flex items-center gap-1.5">
+              <Edit3 className="w-4 h-4 text-emerald-600" /> Editar Parámetros y Día de Pago del Préstamo
+            </h4>
+            <span className="text-[11px] text-slate-500">Recalculará el cronograma de cuotas y fechas</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-slate-600 font-medium mb-1">Fecha de Inicio / Emisión</label>
+              <input
+                type="date"
+                value={editFechaEmision}
+                onChange={(e) => handleFechaEmisionChange(e.target.value)}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 outline-none focus:border-emerald-500 font-semibold"
+              />
+            </div>
+
+            <div>
+              <label className="block text-slate-600 font-medium mb-1">Día de Pago Mensual Pactado</label>
+              <select
+                value={editDiaPago}
+                onChange={(e) => handleDiaPagoChange(parseInt(e.target.value, 10))}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 outline-none focus:border-emerald-500 font-bold"
+              >
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                  <option key={d} value={d}>
+                    Día {d} de cada mes
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label className="block text-slate-600 font-medium mb-1">Fecha de Vencimiento</label>
               <input
                 type="date"
                 value={editFechaVenc}
                 onChange={(e) => setEditFechaVenc(e.target.value)}
-                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 outline-none"
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 outline-none focus:border-emerald-500"
               />
             </div>
+
             <div>
               <label className="block text-slate-600 font-medium mb-1">Tasa Interés (%)</label>
               <input
@@ -325,33 +429,36 @@ export const PrestamoDetalle: React.FC = () => {
                 step="0.1"
                 value={editTasa}
                 onChange={(e) => setEditTasa(e.target.value)}
-                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-slate-600 font-medium mb-1">Notas libres</label>
-              <input
-                type="text"
-                value={editNotas}
-                onChange={(e) => setEditNotas(e.target.value)}
-                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 outline-none"
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 outline-none focus:border-emerald-500 font-semibold"
               />
             </div>
           </div>
-          <div className="flex justify-end gap-2 pt-1">
+
+          <div>
+            <label className="block text-slate-600 font-medium mb-1">Notas libres</label>
+            <input
+              type="text"
+              value={editNotas}
+              onChange={(e) => setEditNotas(e.target.value)}
+              placeholder="Notas o acuerdos con el cliente..."
+              className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 outline-none focus:border-emerald-500"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-1 border-t border-slate-200/60">
             <button
               type="button"
               onClick={() => setIsEditing(false)}
-              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg font-medium"
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg font-medium hover:bg-slate-100 transition-colors"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isSavingEdit}
-              className="px-3 py-1.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition-colors"
+              className="px-3 py-1.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50"
             >
-              {isSavingEdit ? "Guardando..." : "Guardar Cambios"}
+              {isSavingEdit ? "Guardando..." : "Guardar Cambios y Recalcular"}
             </button>
           </div>
         </form>
@@ -611,6 +718,8 @@ export const PrestamoDetalle: React.FC = () => {
           <TimelineDetallePrestamo
             timeline={timeline}
             onVerVoucher={setLightboxUrl}
+            onVoucherAdjuntado={fetchDetalle}
+            onEditarFechaPago={handleEditarFechaPago}
           />
         </div>
       </div>
