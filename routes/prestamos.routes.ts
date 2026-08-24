@@ -808,7 +808,8 @@ amortizacionesRouter.post("/:id/voucher", requireAuth, async (req: express.Reque
 
     let buffer: Buffer;
     try {
-      buffer = Buffer.from(base64Data, "base64");
+      const cleanBase64 = String(base64Data).replace(/^data:[^;]+;base64,/, "");
+      buffer = Buffer.from(cleanBase64, "base64");
       if (buffer.length === 0) throw new Error("Buffer vacio");
     } catch {
       res.status(400).json({ error: "El contenido base64 del comprobante es invalido o esta vacio." });
@@ -817,7 +818,7 @@ amortizacionesRouter.post("/:id/voucher", requireAuth, async (req: express.Reque
 
     let uploaded;
     try {
-      uploaded = await uploadVoucherToDrive(fileName, mimeType, buffer);
+      uploaded = await uploadVoucherToDrive(fileName, mimeType || "image/jpeg", buffer);
     } catch (driveErr: any) {
       console.error("Error al subir voucher a Google Drive:", driveErr.message);
       res.status(502).json({

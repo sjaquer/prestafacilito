@@ -8,7 +8,7 @@ import {
 import { Cliente, DocumentoCliente, TipoDocumento, TIPOS_DOCUMENTO_CONFIG, ACCEPT_DOCUMENTOS } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../hooks/useAuth";
-import { getNombreUsuario, generarMensajeCobroPredeterminado, normalizeClientName } from "../lib/formatters";
+import { getNombreUsuario, generarMensajeCobroPredeterminado, normalizeClientName, resolveDocumentUrl } from "../lib/formatters";
 
 // ── Generador de mensaje recordatorio ─────────────────────
 function getMensajeRecordatorio(cliente: Cliente, username: string | null, montoCuota?: number, fechaVencimiento?: string): string {
@@ -190,7 +190,8 @@ export function Clientes() {
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
-        resolve(result.split(',')[1]);
+        const base64 = result.includes(',') ? result.split(',')[1] : result;
+        resolve(base64 || '');
       };
       reader.onerror = reject;
       reader.readAsDataURL(file);
@@ -781,43 +782,46 @@ export function Clientes() {
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {editDocs.map(doc => (
-                          <div key={doc.id} className="doc-preview-card group relative">
-                            {/* Preview */}
-                            <div className="aspect-[4/3] bg-black/30 flex items-center justify-center overflow-hidden">
-                              {doc.mime_type.startsWith('image/') ? (
-                                <img src={doc.drive_url} alt={doc.nombre_archivo}
-                                  className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="flex flex-col items-center gap-1 text-slate-500 p-3 text-center">
-                                  <span className="text-3xl">{getMimeIcon(doc.mime_type)}</span>
-                                  <span className="text-[9px] truncate w-full">{doc.nombre_archivo}</span>
-                                </div>
-                              )}
+                        {editDocs.map(doc => {
+                          const docUrl = resolveDocumentUrl(doc);
+                          return (
+                            <div key={doc.id} className="doc-preview-card group relative">
+                              {/* Preview */}
+                              <div className="aspect-[4/3] bg-black/30 flex items-center justify-center overflow-hidden">
+                                {doc.mime_type.startsWith('image/') ? (
+                                  <img src={docUrl} alt={doc.nombre_archivo}
+                                    className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="flex flex-col items-center gap-1 text-slate-500 p-3 text-center">
+                                    <span className="text-3xl">{getMimeIcon(doc.mime_type)}</span>
+                                    <span className="text-[9px] truncate w-full">{doc.nombre_archivo}</span>
+                                  </div>
+                                )}
+                              </div>
+                              {/* Info */}
+                              <div className="p-2">
+                                <p className="text-[9px] font-black text-indigo-650 uppercase">
+                                  {TIPOS_DOCUMENTO_CONFIG[doc.tipo_documento]?.icon} {TIPOS_DOCUMENTO_CONFIG[doc.tipo_documento]?.label}
+                                </p>
+                                <p className="text-[9px] text-slate-500 truncate">{doc.nombre_archivo}</p>
+                              </div>
+                              {/* Overlay actions */}
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                <a href={docUrl} target="_blank" rel="noopener noreferrer"
+                                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+                                  title="Ver en la app">
+                                  <Eye size={14} />
+                                </a>
+                                <button type="button"
+                                  onClick={() => handleDeleteDoc(doc.id, selectedEditCliente.id)}
+                                  className="p-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 transition cursor-pointer"
+                                  title="Eliminar documento">
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
                             </div>
-                            {/* Info */}
-                            <div className="p-2">
-                              <p className="text-[9px] font-black text-indigo-650 uppercase">
-                                {TIPOS_DOCUMENTO_CONFIG[doc.tipo_documento]?.icon} {TIPOS_DOCUMENTO_CONFIG[doc.tipo_documento]?.label}
-                              </p>
-                              <p className="text-[9px] text-slate-500 truncate">{doc.nombre_archivo}</p>
-                            </div>
-                            {/* Overlay actions */}
-                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                              <a href={doc.drive_url} target="_blank" rel="noopener noreferrer"
-                                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
-                                title="Ver en la app">
-                                <Eye size={14} />
-                              </a>
-                              <button type="button"
-                                onClick={() => handleDeleteDoc(doc.id, selectedEditCliente.id)}
-                                className="p-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 transition cursor-pointer"
-                                title="Eliminar documento">
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -849,9 +853,9 @@ export function Clientes() {
               className="relative max-w-3xl w-full mx-4 rounded-2xl overflow-hidden"
               onClick={e => e.stopPropagation()}>
               {previewDoc.mime_type.startsWith('image/') ? (
-                <img src={previewDoc.drive_url} alt={previewDoc.nombre_archivo} className="w-full max-h-[80vh] object-contain bg-black" />
+                <img src={resolveDocumentUrl(previewDoc)} alt={previewDoc.nombre_archivo} className="w-full max-h-[80vh] object-contain bg-black" />
               ) : (
-                <iframe src={previewDoc.drive_url} className="w-full h-[80vh]" title={previewDoc.nombre_archivo} />
+                <iframe src={resolveDocumentUrl(previewDoc)} className="w-full h-[80vh]" title={previewDoc.nombre_archivo} />
               )}
               <button onClick={() => setPreviewDoc(null)}
                 className="absolute top-3 right-3 p-2 rounded-xl bg-black/60 text-white hover:bg-black/80 transition cursor-pointer">

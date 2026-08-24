@@ -10,7 +10,11 @@ import { UploadDocumentoModal } from "../components/cliente/UploadDocumentoModal
 const fileToBase64 = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve((reader.result as string).split(",")[1]);
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.includes(",") ? result.split(",")[1] : result;
+      resolve(base64 || "");
+    };
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
@@ -38,7 +42,7 @@ export const ClientesPage: React.FC = () => {
     if (clienteToEdit) {
       const res = await updateCliente(clienteToEdit.id, clientData);
       if (res.success) {
-        await uploadDocs(res.cliente?.id, files);
+        await uploadDocs(res.cliente?.id || clienteToEdit.id, files);
         refetch();
         return true;
       } else {

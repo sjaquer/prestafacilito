@@ -185,6 +185,36 @@ export function resolveVoucherUrl(url: string | null | undefined): string {
 }
 
 /**
+ * Resuelve y normaliza la URL de un documento de cliente para poder visualizarlo o descargarlo.
+ */
+export function resolveDocumentUrl(doc: { drive_file_id?: string; drive_url?: string } | string | null | undefined): string {
+  if (!doc) return "";
+  if (typeof doc === "string") {
+    const trimmed = doc.trim();
+    if (!trimmed) return "";
+    if (
+      trimmed.startsWith("/api/documentos/proxy/") || 
+      trimmed.startsWith("/api/vouchers/proxy/") ||
+      trimmed.startsWith("data:") ||
+      trimmed.startsWith("blob:")
+    ) {
+      return trimmed;
+    }
+    const match = trimmed.match(/(?:\/file\/d\/|\?id=|&id=|\/d\/)([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) return `/api/documentos/proxy/${match[1]}`;
+    if (/^[a-zA-Z0-9_-]{25,55}$/.test(trimmed)) return `/api/documentos/proxy/${trimmed}`;
+    return trimmed;
+  }
+  if (doc.drive_file_id) {
+    return `/api/documentos/proxy/${doc.drive_file_id}`;
+  }
+  if (doc.drive_url) {
+    return resolveDocumentUrl(doc.drive_url);
+  }
+  return "";
+}
+
+/**
  * Normaliza el nombre del cliente a Title Case (primera letra de cada palabra en mayúscula, el resto minúscula)
  */
 export function normalizeClientName(name: string): string {

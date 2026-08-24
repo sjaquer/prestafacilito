@@ -14,7 +14,7 @@ import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { ClientFinancialSummary } from "../components/cliente/ClientFinancialSummary";
 import { ClientNotes } from "../components/cliente/ClientNotes";
-import { formatCurrency, formatDate } from "../lib/formatters";
+import { formatCurrency, formatDate, resolveDocumentUrl } from "../lib/formatters";
 import { ScoreBadge } from "../components/ui/ScoreBadge";
 import { Modal } from "../components/ui/Modal";
 import { comprimirImagen } from "../lib/imageCompression";
@@ -139,7 +139,7 @@ export const ClienteDetallePage: React.FC = () => {
 
     try {
       const compressedDataUrl = await comprimirImagen(file, 1024, 0.7);
-      const base64Data = compressedDataUrl.replace(/^data:\w+\/\w+;base64,/, "");
+      const base64Data = compressedDataUrl.replace(/^data:[^;]+;base64,/, "");
 
       const res = await fetch(`/api/clientes/${id}/documentos`, {
         method: "POST",
@@ -162,6 +162,7 @@ export const ClienteDetallePage: React.FC = () => {
       alert("Error al subir documento: " + err.message);
     } finally {
       setIsUploadingDoc(false);
+      if (e.target) e.target.value = "";
     }
   };
 
@@ -872,19 +873,19 @@ export const ClienteDetallePage: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
-                      {doc.drive_file_id && (
+                      {resolveDocumentUrl(doc) && (
                         <a
-                          href={`/api/documentos/proxy/${doc.drive_file_id}`}
+                          href={resolveDocumentUrl(doc)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[10px]"
+                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[10px] cursor-pointer"
                         >
                           Ver
                         </a>
                       )}
                       <button
                         onClick={() => handleDeleteDoc(doc.id)}
-                        className="p-1 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
+                        className="p-1 text-slate-400 hover:text-red-600 rounded-lg transition-colors cursor-pointer"
                         title="Eliminar Documento"
                       >
                         <Trash2 className="w-3.5 h-3.5" />

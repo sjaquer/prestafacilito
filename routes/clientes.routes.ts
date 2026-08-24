@@ -59,12 +59,14 @@ router.post("/", requireAuth, async (req: AuthRequest, res: express.Response) =>
 
     if (error) throw error;
 
-    const parentFolder = getClientesFolderId();
-    if (isDriveConfigured() && parentFolder) {
+    if (isDriveConfigured()) {
       try {
-        const folderId = await createDriveSubfolder(nombre_completo, parentFolder);
-        await supabase.from('clientes').update({ drive_folder_id: folderId }).eq('id', data.id);
-        data.drive_folder_id = folderId;
+        const parentFolder = getClientesFolderId();
+        const folderId = await createDriveSubfolder(nombre_completo, parentFolder || undefined);
+        if (folderId) {
+          await supabase.from('clientes').update({ drive_folder_id: folderId }).eq('id', data.id);
+          data.drive_folder_id = folderId;
+        }
       } catch (driveErr: any) {
         console.warn('No se pudo crear la carpeta de Drive para el cliente:', driveErr.message);
       }
@@ -138,8 +140,8 @@ router.post("/:id/documentos", requireAuth, async (req: AuthRequest, res: expres
     const clienteId = req.params.id;
     const { fileName, mimeType, base64Data, tipo_documento, observacion } = req.body;
 
-    if (!fileName || !mimeType || !base64Data || !tipo_documento) {
-      res.status(400).json({ error: 'Faltan campos requeridos: fileName, mimeType, base64Data, tipo_documento.' });
+    if (!fileName || !base64Data || !tipo_documento) {
+      res.status(400).json({ error: 'Faltan campos requeridos: fileName, base64Data, tipo_documento.' });
       return;
     }
 
@@ -173,15 +175,16 @@ router.post("/:id/documentos", requireAuth, async (req: AuthRequest, res: expres
       folderId = rootFolder;
     }
 
-    if (!folderId) {
-      res.status(400).json({ error: 'No se ha configurado la carpeta de almacenamiento en Google Drive (GOOGLE_DRIVE_FOLDER_ID o GOOGLE_DRIVE_CLIENTES_FOLDER_ID).' });
+    const cleanBase64 = String(base64Data).replace(/^data:[^;]+;base64,/, '');
+    const buffer = Buffer.from(cleanBase64, 'base64');
+    if (buffer.length === 0) {
+      res.status(400).json({ error: 'El archivo recibido está vacío o es inválido.' });
       return;
     }
 
-    const buffer = Buffer.from(base64Data, 'base64');
     let uploaded;
     try {
-      uploaded = await uploadDocumentToDrive(fileName, mimeType, buffer, folderId);
+      uploaded = await uploadDocumentToDrive(fileName, mimeType || 'application/octet-stream', buffer, folderId);
     } catch (uploadErr: any) {
       res.status(502).json({ error: 'No se pudo subir el documento a Drive.', detail: uploadErr.message });
       return;
@@ -195,7 +198,7 @@ router.post("/:id/documentos", requireAuth, async (req: AuthRequest, res: expres
         nombre_archivo: fileName,
         drive_file_id: uploaded.fileId,
         drive_url: uploaded.publicUrl,
-        mime_type: mimeType,
+        mime_type: mimeType || 'application/octet-stream',
         observacion: observacion || ''
       })
       .select()

@@ -18,7 +18,11 @@ interface UploadDocumentoModalProps {
 const fileToBase64 = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve((reader.result as string).split(",")[1]);
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.includes(",") ? result.split(",")[1] : result;
+      resolve(base64 || "");
+    };
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
@@ -70,6 +74,7 @@ export const UploadDocumentoModal: React.FC<UploadDocumentoModalProps> = ({
 
     try {
       let okCount = 0;
+      let lastError = "";
       for (const file of files) {
         const base64Data = await fileToBase64(file);
         const res = await onUpload(cliente.id, {
@@ -79,7 +84,11 @@ export const UploadDocumentoModal: React.FC<UploadDocumentoModalProps> = ({
           tipo_documento: tipoDocumento,
           observacion: observacion || undefined
         });
-        if (res.success) okCount++;
+        if (res.success) {
+          okCount++;
+        } else if (res.error) {
+          lastError = res.error;
+        }
       }
 
       if (okCount > 0) {
@@ -87,7 +96,7 @@ export const UploadDocumentoModal: React.FC<UploadDocumentoModalProps> = ({
         onUploaded();
         setTimeout(() => onClose(), 900);
       } else {
-        setErrorMsg("No se pudo subir ningún documento.");
+        setErrorMsg(lastError || "No se pudo subir ningún documento.");
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Ocurrió un error al subir el documento.");

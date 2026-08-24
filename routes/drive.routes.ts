@@ -43,7 +43,8 @@ router.post("/upload-voucher", requireAuth, async (req: express.Request, res: ex
 
     let buffer: Buffer;
     try {
-      buffer = Buffer.from(base64Data, "base64");
+      const cleanBase64 = String(base64Data).replace(/^data:[^;]+;base64,/, "");
+      buffer = Buffer.from(cleanBase64, "base64");
       if (buffer.length === 0) throw new Error("Buffer vacío");
     } catch {
       res.status(400).json({ error: "El contenido base64 del comprobante es inválido o está vacío." });
@@ -52,7 +53,7 @@ router.post("/upload-voucher", requireAuth, async (req: express.Request, res: ex
 
     let uploaded;
     try {
-      uploaded = await uploadVoucherToDrive(fileName, mimeType, buffer);
+      uploaded = await uploadVoucherToDrive(fileName, mimeType || "image/jpeg", buffer);
     } catch (driveErr: any) {
       console.error("Error al subir voucher a Google Drive:", driveErr.message);
       res.status(502).json({
@@ -120,7 +121,14 @@ router.get("/vouchers/proxy/:fileId", requireAuth, async (req: express.Request, 
 // Proxy para visualizar documentos de clientes desde Google Drive
 router.get("/documentos/proxy/:fileId", requireAuth, async (req: express.Request, res: express.Response) => {
   try {
-    const { fileId } = req.params;
+    const rawFileId = req.params.fileId || "";
+    const fileId = rawFileId.split("?")[0].trim();
+
+    if (!fileId) {
+      res.status(400).json({ error: "Identificador de archivo no especificado." });
+      return;
+    }
+
     const accessToken = await getGoogleDriveAccessToken();
 
     const driveRes = await fetch(

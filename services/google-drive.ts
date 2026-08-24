@@ -62,7 +62,7 @@ export async function uploadVoucherToDrive(fileName: string, mimeType: string, b
   const suffixBuffer = Buffer.from(`\r\n--${boundary}--`, "utf8");
   const multipartBody = Buffer.concat([prefixBuffer, buffer, suffixBuffer]);
 
-  const uploadResponse = await fetch(
+  let uploadResponse = await fetch(
     "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink,mimeType",
     {
       method: "POST",
@@ -73,6 +73,30 @@ export async function uploadVoucherToDrive(fileName: string, mimeType: string, b
       body: multipartBody
     }
   );
+
+  // Si falló por carpeta parent inválida o eliminada, reintentar subida en la raíz
+  if (!uploadResponse.ok && folderId) {
+    console.warn(`Upload de voucher con folderId ${folderId} falló (${uploadResponse.status}), reintentando subida en raíz de Google Drive...`);
+    const fallbackMetadata = { name: uniqueName };
+    const fallbackPrefix = `--${boundary}\r\n` +
+      `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+      `${JSON.stringify(fallbackMetadata)}\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Type: ${mimeType}\r\n\r\n`;
+    const fallbackBody = Buffer.concat([Buffer.from(fallbackPrefix, "utf8"), buffer, suffixBuffer]);
+
+    uploadResponse = await fetch(
+      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink,mimeType",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": `multipart/related; boundary=${boundary}`
+        },
+        body: fallbackBody
+      }
+    );
+  }
 
   if (!uploadResponse.ok) {
     const errorText = await uploadResponse.text();
@@ -96,18 +120,21 @@ export function isDriveConfigured(): boolean {
   return !!getGoogleClientId() && !!getGoogleClientSecret() && !!getGoogleRefreshToken();
 }
 
-export async function createDriveSubfolder(clientName: string, parentFolderId: string): Promise<string> {
+export async function createDriveSubfolder(clientName: string, parentFolderId?: string): Promise<string> {
   const accessToken = await getGoogleDriveAccessToken();
   const safeName = clientName.replace(/[^\w\s\-áéíóúñÁÉÍÓÚÑ]/g, '').trim();
   const folderName = `Documentos - ${safeName}`;
 
-  const metadata = {
+  const metadata: Record<string, unknown> = {
     name: folderName,
-    mimeType: 'application/vnd.google-apps.folder',
-    parents: [parentFolderId]
+    mimeType: 'application/vnd.google-apps.folder'
   };
 
-  const response = await fetch(
+  if (parentFolderId) {
+    metadata.parents = [parentFolderId];
+  }
+
+  let response = await fetch(
     'https://www.googleapis.com/drive/v3/files?fields=id,name',
     {
       method: 'POST',
@@ -119,6 +146,26 @@ export async function createDriveSubfolder(clientName: string, parentFolderId: s
     }
   );
 
+  // Si falló por parentFolderId inválido, reintentar crear en la raíz
+  if (!response.ok && parentFolderId) {
+    console.warn(`Creación de subcarpeta con parent ${parentFolderId} falló, reintentando en raíz...`);
+    const fallbackMetadata = {
+      name: folderName,
+      mimeType: 'application/vnd.google-apps.folder'
+    };
+    response = await fetch(
+      'https://www.googleapis.com/drive/v3/files?fields=id,name',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(fallbackMetadata)
+      }
+    );
+  }
+
   if (!response.ok) {
     const err = await response.text();
     throw new Error(`No se pudo crear la subcarpeta en Google Drive: ${err}`);
@@ -128,24 +175,27 @@ export async function createDriveSubfolder(clientName: string, parentFolderId: s
   return folder.id;
 }
 
-export async function uploadDocumentToDrive(fileName: string, mimeType: string, buffer: Buffer, folderId: string) {
+export async function uploadDocumentToDrive(fileName: string, mimeType: string, buffer: Buffer, folderId?: string) {
   const accessToken = await getGoogleDriveAccessToken();
   const uniqueName = `${Date.now()}-${fileName.replace(/[^a-zA-Z0-9._\-]/g, '_')}`;
-  const boundary = `----prestafacilito-doc-${Date.now()}`;
+  const boundary = `----prestafacilito-doc-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-  const metadata = { name: uniqueName, parents: [folderId] };
+  const metadata: Record<string, unknown> = { name: uniqueName };
+  if (folderId) {
+    metadata.parents = [folderId];
+  }
 
   const prefix = `--${boundary}\r\n` +
     `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
     `${JSON.stringify(metadata)}\r\n` +
     `--${boundary}\r\n` +
-    `Content-Type: ${mimeType}\r\n\r\n`;
+    `Content-Type: ${mimeType || 'application/octet-stream'}\r\n\r\n`;
 
   const prefixBuffer = Buffer.from(prefix, "utf8");
   const suffixBuffer = Buffer.from(`\r\n--${boundary}--`, "utf8");
   const body = Buffer.concat([prefixBuffer, buffer, suffixBuffer]);
 
-  const uploadResponse = await fetch(
+  let uploadResponse = await fetch(
     'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
     {
       method: 'POST',
@@ -156,6 +206,30 @@ export async function uploadDocumentToDrive(fileName: string, mimeType: string, 
       body
     }
   );
+
+  // Si falló por carpeta parent inválida o eliminada (404 / 400), reintentar subida en raíz de Drive
+  if (!uploadResponse.ok && folderId) {
+    console.warn(`Upload de documento con folderId ${folderId} falló (${uploadResponse.status}), reintentando subida en raíz de Google Drive...`);
+    const fallbackMetadata = { name: uniqueName };
+    const fallbackPrefix = `--${boundary}\r\n` +
+      `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+      `${JSON.stringify(fallbackMetadata)}\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Type: ${mimeType || 'application/octet-stream'}\r\n\r\n`;
+    const fallbackBody = Buffer.concat([Buffer.from(fallbackPrefix, "utf8"), buffer, suffixBuffer]);
+
+    uploadResponse = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': `multipart/related; boundary=${boundary}`
+        },
+        body: fallbackBody
+      }
+    );
+  }
 
   if (!uploadResponse.ok) {
     const err = await uploadResponse.text();
