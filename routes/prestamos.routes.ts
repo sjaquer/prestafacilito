@@ -352,7 +352,7 @@ prestamosRouter.delete("/:id", requireAuth, async (_req: express.Request, res: e
 prestamosRouter.post("/:id/pagos", requireAuth, async (req: AuthRequest, res: express.Response) => {
   try {
     const prestamoId = req.params.id;
-    const { monto, tipo_movimiento, metodo_pago, fecha_pago, comprobante_url } = req.body;
+    const { monto, tipo_movimiento, metodo_pago, fecha_pago, comprobante_url, voucher_drive_file_id } = req.body;
 
     const montoPago = parseFloat(monto);
     if (!montoPago || montoPago <= 0) {
@@ -412,7 +412,8 @@ prestamosRouter.post("/:id/pagos", requireAuth, async (req: AuthRequest, res: ex
       monto: montoPago,
       fecha_pago: fecha_pago || new Date().toISOString().split("T")[0],
       metodo_pago: metodo_pago || "Efectivo",
-      comprobante_url: comprobante_url || null
+      comprobante_url: comprobante_url || null,
+      voucher_drive_file_id: voucher_drive_file_id || null
     };
 
     const { data: insertedAmort, error: insertErr } = await supabase
@@ -626,6 +627,8 @@ amortizacionesRouter.put("/:id", requireAuth, async (req: express.Request, res: 
     if (prestamo_id !== undefined) updateData.prestamo_id = prestamo_id;
     if (monto !== undefined) updateData.monto = monto;
     if (metodo_pago !== undefined) updateData.metodo_pago = metodo_pago;
+    if (req.body.comprobante_url !== undefined) updateData.comprobante_url = req.body.comprobante_url;
+    if (req.body.voucher_drive_file_id !== undefined) updateData.voucher_drive_file_id = req.body.voucher_drive_file_id;
 
     const { data: updatedAmort, error: updateErr } = await supabase
       .from("amortizaciones")
@@ -779,21 +782,7 @@ amortizacionesRouter.delete("/:id", requireAuth, async (req: express.Request, re
 amortizacionesRouter.post("/:id/voucher", requireAuth, async (req: express.Request, res: express.Response) => {
   try {
     const amortizacionId = req.params.id;
-    const { fileName, mimeType, base64Data } = req.body;
-
-    if (!fileName || !mimeType || !base64Data) {
-      res.status(400).json({ error: "Datos del comprobante incompletos. Se requieren fileName, mimeType y base64Data." });
-      return;
-    }
-
-    if (!isDriveConfigured()) {
-      res.status(503).json({
-        error: "El almacenamiento de comprobantes (Google Drive) no esta configurado en este servidor.",
-        detail: "Configura GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y GOOGLE_REFRESH_TOKEN en el archivo .env.",
-        driveConfigured: false
-      });
-      return;
-    }
+    const { comprobante_url, voucher_drive_file_id, fileName, mimeType, base64Data } = req.body;
 
     const { data: amortizacion, error: amortErr } = await supabase
       .from("amortizaciones")
@@ -802,7 +791,46 @@ amortizacionesRouter.post("/:id/voucher", requireAuth, async (req: express.Reque
       .single();
 
     if (amortErr || !amortizacion) {
-      res.status(404).json({ error: "No se encontro la amortizacion solicitada." });
+      res.status(404).json({ error: "No se encontró la amortización solicitada." });
+      return;
+    }
+
+    // Caso 1: Se envían la URL y/o fileId directamente (previamente subidos)
+    if (comprobante_url !== undefined || voucher_drive_file_id !== undefined) {
+      const { data: updated, error: updateErr } = await supabase
+        .from("amortizaciones")
+        .update({
+          comprobante_url: comprobante_url || null,
+          voucher_drive_file_id: voucher_drive_file_id || null
+        })
+        .eq("id", amortizacionId)
+        .select()
+        .single();
+
+      if (updateErr) {
+        res.status(500).json({ error: "Error al actualizar comprobante en base de datos", detail: updateErr.message });
+        return;
+      }
+
+      res.json({
+        success: true,
+        amortizacion: updated
+      });
+      return;
+    }
+
+    // Caso 2: Se envían los datos crudos en base64 para subir desde el servidor
+    if (!fileName || !mimeType || !base64Data) {
+      res.status(400).json({ error: "Datos del comprobante incompletos. Se requieren fileName, mimeType y base64Data o comprobante_url." });
+      return;
+    }
+
+    if (!isDriveConfigured()) {
+      res.status(503).json({
+        error: "El almacenamiento de comprobantes (Google Drive) no está configurado en este servidor.",
+        detail: "Configura GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y GOOGLE_REFRESH_TOKEN en el archivo .env.",
+        driveConfigured: false
+      });
       return;
     }
 
@@ -810,9 +838,9 @@ amortizacionesRouter.post("/:id/voucher", requireAuth, async (req: express.Reque
     try {
       const cleanBase64 = String(base64Data).replace(/^data:[^;]+;base64,/, "");
       buffer = Buffer.from(cleanBase64, "base64");
-      if (buffer.length === 0) throw new Error("Buffer vacio");
+      if (buffer.length === 0) throw new Error("Buffer vacío");
     } catch {
-      res.status(400).json({ error: "El contenido base64 del comprobante es invalido o esta vacio." });
+      res.status(400).json({ error: "El contenido base64 del comprobante es inválido o está vacío." });
       return;
     }
 
@@ -841,7 +869,7 @@ amortizacionesRouter.post("/:id/voucher", requireAuth, async (req: express.Reque
 
     if (updateErr) {
       res.status(500).json({
-        error: "El comprobante se subio a Drive pero no se pudo guardar la referencia en la base de datos.",
+        error: "El comprobante se subió a Drive pero no se pudo guardar la referencia en la base de datos.",
         detail: updateErr.message,
         driveFileId: uploaded.fileId,
         driveUrl: uploaded.publicUrl

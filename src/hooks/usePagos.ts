@@ -40,7 +40,13 @@ export function usePagos() {
 
   const uploadVoucherToAmortizacion = async (
     pagoId: string,
-    voucherData: { fileName: string; mimeType: string; base64Data: string }
+    voucherData: {
+      fileName?: string;
+      mimeType?: string;
+      base64Data?: string;
+      comprobante_url?: string;
+      voucher_drive_file_id?: string;
+    }
   ) => {
     try {
       setLoading(true);

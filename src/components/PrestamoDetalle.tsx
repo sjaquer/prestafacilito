@@ -190,10 +190,12 @@ export const PrestamoDetalle: React.FC = () => {
 
     try {
       let comprobanteUrl = "";
+      let driveFileId = "";
 
       if (comprobanteFiles.length > 0 && prestamo) {
         const result = await subirVoucher(comprobanteFiles[0]);
         comprobanteUrl = result.url;
+        driveFileId = result.driveFileId;
       }
 
       const res = await fetch(`/api/prestamos/${id}/pagos`, {
@@ -203,7 +205,8 @@ export const PrestamoDetalle: React.FC = () => {
           monto: montoNum,
           fecha_pago: fechaPago,
           metodo_pago: metodoPago,
-          comprobante_url: comprobanteUrl || null
+          comprobante_url: comprobanteUrl || null,
+          voucher_drive_file_id: driveFileId || null
         })
       });
 
