@@ -8,3 +8,9 @@ coverage/
 !.env.example
 .agents
 .logs/
+# Datos de clientes y salidas locales: nunca versionar
+backups_excel/
+audit_logs/
+logs/
+out.txt
+query.js

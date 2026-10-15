@@ -1,5 +1,5 @@
-import React from "react";
-import { CheckCircle2, Cloud, CloudOff, Download, FileSpreadsheet, Loader2, Type } from "lucide-react";
+import React, { useState } from "react";
+import { CalendarDays, CheckCircle2, Cloud, CloudOff, Download, FileSpreadsheet, Loader2, Type } from "lucide-react";
 import { FontSizeControl } from "../components/common/FontSizeControl";
 import { useFeedback } from "../components/ui/Feedback";
 import { useEstadoSistema } from "./useEstadoSistema";
@@ -9,6 +9,21 @@ type Props = ReturnType<typeof useEstadoSistema>;
 /** Estado de Drive, backup y tamaño de letra. Se usa en el menú de escritorio y en "Más" del celular. */
 export const SistemaPanel: React.FC<Props> = ({ driveOk, backup, descargando, descargarBackup }) => {
   const { notify, confirm } = useFeedback();
+  const [sincronizando, setSincronizando] = useState(false);
+
+  const sincronizarCalendario = async () => {
+    setSincronizando(true);
+    try {
+      const res = await fetch("/api/calendar/sincronizar", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) throw new Error(data.error || "No se pudo sincronizar");
+      notify(data.message, "success");
+    } catch (err: any) {
+      notify(err.message || "Error al sincronizar el calendario");
+    } finally {
+      setSincronizando(false);
+    }
+  };
 
   const conectarDrive = async () => {
     const ok = await confirm({
@@ -41,6 +56,24 @@ export const SistemaPanel: React.FC<Props> = ({ driveOk, backup, descargando, de
         </div>
         <button type="button" onClick={conectarDrive} className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 shrink-0">
           {driveOk ? "Reconectar" : "Conectar"}
+        </button>
+      </div>
+
+      {/* Google Calendar */}
+      <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+        <CalendarDays className="w-5 h-5 text-indigo-600" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold text-slate-800">Calendario de cobros</p>
+          <p className="text-[11px] text-slate-500">Se actualiza solo cada día y con cada pago</p>
+        </div>
+        <button
+          type="button"
+          onClick={sincronizarCalendario}
+          disabled={sincronizando || driveOk === false}
+          className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 shrink-0 inline-flex items-center gap-1 disabled:opacity-50"
+        >
+          {sincronizando && <Loader2 className="w-3 h-3 animate-spin" />}
+          {sincronizando ? "Sincronizando" : "Sincronizar ahora"}
         </button>
       </div>
 

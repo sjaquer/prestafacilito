@@ -4,6 +4,7 @@ import path from "path";
 import http from "http";
 import { createServer as createViteServer } from "vite";
 import app from "./server-app.js";
+import { sincronizarCalendario } from "./services/google-calendar.js";
 
 const PORT = Number(process.env.PORT || 3000);
 const httpServer = http.createServer(app);
@@ -32,6 +33,17 @@ async function startServer() {
   httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
+
+  // Fuera de Vercel no hay cron: sincronización diaria opcional del calendario.
+  // Desactivada por defecto para que un entorno local no modifique el calendario real.
+  if (process.env.ENABLE_CALENDAR_CRON === "true") {
+    const correr = () =>
+      sincronizarCalendario()
+        .then((r) => console.log("[Calendario] Sincronización diaria:", r))
+        .catch((err) => console.error("[Calendario] Error en sincronización diaria:", err.message));
+    correr();
+    setInterval(correr, 24 * 60 * 60 * 1000);
+  }
 }
 
 startServer().catch((error) => {

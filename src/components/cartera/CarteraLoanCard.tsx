@@ -12,7 +12,9 @@ import {
   getIndicatorColor,
   isEnMora,
   esLiquidado,
+  grupoCartera,
 } from "./carteraUtils";
+import { ESTILO_GRUPO } from "../../lib/cobranza";
 
 interface CarteraLoanCardProps {
   loan: any;
@@ -41,6 +43,8 @@ const PlazoBadge: React.FC<{ loan: any; mora?: EstadoMoraCliente; today: Date }>
 /** Tarjeta deslizable de un préstamo para la vista móvil de la cartera. */
 export const CarteraLoanCard: React.FC<CarteraLoanCardProps> = ({ loan, mora, today, waLink, onEdit }) => {
   const navigate = useNavigate();
+  const grupo = grupoCartera(loan, mora);
+  const fondo = grupo === "liquidado" ? "bg-white border-slate-200" : ESTILO_GRUPO[grupo].tarjeta;
   const isPagado = esLiquidado(loan);
   const canCobrar = !esLiquidado(loan) && !!waLink;
 
@@ -92,7 +96,7 @@ export const CarteraLoanCard: React.FC<CarteraLoanCardProps> = ({ loan, mora, to
         dragElastic={0.05}
         dragTransition={{ bounceStiffness: 600, bounceDamping: 25 }}
         onTap={() => navigate(`/prestamos/${loan.id}`)}
-        className="relative bg-white p-3.5 z-10 flex flex-col gap-2.5 border-b border-slate-200 cursor-pointer hover:bg-slate-50/50 touch-pan-y"
+        className={`relative p-3.5 z-10 flex flex-col gap-2.5 border-b cursor-pointer touch-pan-y ${fondo}`}
       >
         <div className="flex justify-between items-start">
           <div className="flex items-center gap-1.5">
@@ -122,9 +126,11 @@ export const CarteraLoanCard: React.FC<CarteraLoanCardProps> = ({ loan, mora, to
             </span>
           </div>
           <div className="flex flex-col">
-            <span className="text-[7.5px] text-indigo-500 font-black uppercase tracking-wider">Cuota Mín.</span>
+            <span className="text-[7.5px] text-indigo-500 font-black uppercase tracking-wider">
+              {mora && isEnMora(mora) ? "Atrasado" : "Cuota mes"}
+            </span>
             <span className="font-financial text-indigo-650 text-[11px] font-extrabold mt-0.5 leading-none">
-              {formatCurrency(mora ? (isEnMora(mora) ? mora.montoTotalAtrasado : mora.montoCuotaActual) : 0)}
+              {formatCurrency(mora ? (isEnMora(mora) ? mora.moraAcumulada : mora.montoCuotaActual) : 0)}
             </span>
           </div>
         </div>

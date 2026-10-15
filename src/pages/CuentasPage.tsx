@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { FileText, Home as HomeIcon, Landmark, RefreshCw, Search } from "lucide-react";
+import { Download, FileText, Home as HomeIcon, Landmark, RefreshCw, Search } from "lucide-react";
+import { hoyISO } from "../lib/fechas";
+import { ResumenMensualTitulares } from "../components/cuentas/ResumenMensualTitulares";
 import { formatCurrency, formatDate, parseVoucherUrls, resolveVoucherUrl } from "../lib/formatters";
 import { agruparPorCuenta, agruparPorTitular, esMetodoAntiguo, resolverCuenta, SIN_IDENTIFICAR_ID } from "../lib/cuentas";
 import { filtrarPorPeriodo, Periodo, PERIODOS, useMovimientosCuentas } from "../hooks/useMovimientosCuentas";
@@ -39,6 +41,28 @@ export const CuentasPage: React.FC = () => {
   }, [delPeriodo, cuenta, busqueda]);
 
   const totalLista = lista.reduce((s, m) => s + m.monto, 0);
+
+  /** CSV de los movimientos visibles, para cuadrar con el estado de cuenta del banco. */
+  const exportarCsv = () => {
+    const celda = (v: unknown) => {
+      const t = String(v ?? "");
+      return /[",\n;]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+    };
+    const filas = [
+      ["Fecha", "Cliente", "Detalle", "Cuenta", "Titular", "Monto", "Método registrado"],
+      ...lista.map((m) => {
+        const c = resolverCuenta(m.metodo_pago);
+        return [String(m.fecha_pago).slice(0, 10), m.cliente_nombre, m.detalle, c?.nombre || "Sin identificar", c?.titular || "", m.monto.toFixed(2), m.metodo_pago];
+      }),
+    ];
+    const blob = new Blob(["\uFEFF" + filas.map((f) => f.map(celda).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `movimientos_${periodo}_${cuenta}_${hoyISO()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-4 pb-12 max-w-5xl mx-auto">
@@ -112,7 +136,18 @@ export const CuentasPage: React.FC = () => {
                 </button>
               )}
             </h2>
-            <span className="text-xs font-black font-mono text-slate-700">{formatCurrency(totalLista)}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black font-mono text-slate-700">{formatCurrency(totalLista)}</span>
+              <button
+                type="button"
+                onClick={exportarCsv}
+                disabled={lista.length === 0}
+                className="h-8 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold inline-flex items-center gap-1 disabled:opacity-50"
+                aria-label="Exportar movimientos a CSV"
+              >
+                <Download className="w-3.5 h-3.5" /> CSV
+              </button>
+            </div>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -170,6 +205,12 @@ export const CuentasPage: React.FC = () => {
           )}
         </section>
       </div>
+
+      <section className="bg-white border border-slate-200/80 rounded-2xl shadow-sm p-4">
+        <h2 className="text-sm font-extrabold text-slate-800">Resumen mensual por titular</h2>
+        <p className="text-[11px] text-slate-500 mb-2">Para cuadrar con los estados de cuenta de cada banco</p>
+        <ResumenMensualTitulares movimientos={movimientos} />
+      </section>
 
       <VoucherLightbox url={lightbox} onClose={() => setLightbox(null)} />
     </div>

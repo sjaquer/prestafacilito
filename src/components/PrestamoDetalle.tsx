@@ -39,7 +39,6 @@ export const PrestamoDetalle: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [flash, setFlash] = useState<Flash>(null);
-  const [isSyncingCal, setIsSyncingCal] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   // Cambia tras cada guardado para reiniciar formularios con los datos nuevos
   const [version, setVersion] = useState(0);
@@ -78,24 +77,6 @@ export const PrestamoDetalle: React.FC = () => {
     },
     [fetchDetalle]
   );
-
-  const handleSyncCalendar = async () => {
-    setIsSyncingCal(true);
-    setFlash(null);
-    try {
-      const res = await fetch("/api/calendar/sync-month", { method: "POST" });
-      const body = await res.json().catch(() => ({}));
-      setFlash(
-        res.ok && body.success
-          ? { type: "info", text: "¡Calendario sincronizado correctamente!" }
-          : { type: "error", text: "No se pudo sincronizar el calendario." }
-      );
-    } catch {
-      setFlash({ type: "error", text: "Error de conexión al sincronizar calendario." });
-    } finally {
-      setIsSyncingCal(false);
-    }
-  };
 
   const prestamo = data?.prestamo;
 
@@ -218,8 +199,6 @@ export const PrestamoDetalle: React.FC = () => {
               prestamo={prestamo}
               onError={(text) => setFlash({ type: "error", text })}
               onSaved={() => refrescar("Préstamo actualizado y cronograma recalculado")}
-              onSyncCalendar={handleSyncCalendar}
-              isSyncingCalendar={isSyncingCal}
             />
           </CollapsibleSection>
         </div>

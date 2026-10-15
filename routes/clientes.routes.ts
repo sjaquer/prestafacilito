@@ -6,7 +6,6 @@ import {
   isDriveConfigured,
   createDriveSubfolder,
   uploadDocumentToDrive,
-  getGoogleDriveAccessToken,
   getClientesFolderId
 } from "../services/google-drive.js";
 

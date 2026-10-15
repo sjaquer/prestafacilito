@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import * as fs from "fs";
 import * as path from "path";
-import { buildPaymentSchedule, round2 } from "../src/lib/loanLogic";
+import { buildPaymentSchedule } from "../src/lib/loanLogic";
 
 function loadEnv() {
   const envPath = path.join(process.cwd(), ".env");

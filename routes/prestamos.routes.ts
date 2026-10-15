@@ -1,8 +1,8 @@
 import express from "express";
 import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { supabase } from "../src/lib/supabase.js";
-import { buildPaymentSchedule, classifyPayment, toNumber, round2, normalizeDate } from "../src/lib/loanLogic.js";
-import { syncLoanScheduleToGoogleCalendar, logPaymentToGoogleCalendar } from "../services/google-calendar.js";
+import { buildPaymentSchedule, classifyPayment, toNumber, round2 } from "../src/lib/loanLogic.js";
+import { programarSync } from "../services/google-calendar.js";
 import { isDriveConfigured, uploadVoucherToDrive } from "../services/google-drive.js";
 
 export const prestamosRouter = express.Router();
@@ -39,9 +39,7 @@ prestamosRouter.post("/", requireAuth, async (req: AuthRequest, res: express.Res
 
     if (error) throw error;
 
-    syncLoanScheduleToGoogleCalendar(data.id).catch((calErr) => {
-      console.error("Error al sincronizar préstamo en Google Calendar:", calErr);
-    });
+    programarSync(`prestamo:${data.id}`);
 
     res.status(201).json(data);
   } catch (err: any) {
@@ -314,9 +312,7 @@ prestamosRouter.put("/:id", requireAuth, async (req: AuthRequest, res: express.R
         .eq("id", prestamoId);
     }
 
-    syncLoanScheduleToGoogleCalendar(prestamoId).catch((calErr) => {
-      console.error("Error al reprogramar préstamo en Google Calendar:", calErr);
-    });
+    programarSync(`prestamo:${prestamoId}`);
 
     res.json({
       ...updated,
@@ -327,30 +323,6 @@ prestamosRouter.put("/:id", requireAuth, async (req: AuthRequest, res: express.R
   } catch (err: any) {
     console.error("Error al actualizar préstamo:", err);
     res.status(500).json({ error: "Error al actualizar préstamo", detail: err.message });
-  }
-});
-
-// Adjuntar comprobante/voucher a una amortización existente (Fase 9)
-prestamosRouter.post("/amortizaciones/:id/voucher", requireAuth, async (req: AuthRequest, res: express.Response) => {
-  try {
-    const { id } = req.params;
-    const { comprobante_url, voucher_drive_file_id } = req.body;
-
-    const { data, error } = await supabase
-      .from("amortizaciones")
-      .update({
-        comprobante_url: comprobante_url || null,
-        voucher_drive_file_id: voucher_drive_file_id || null
-      })
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    res.json({ success: true, amortizacion: data });
-  } catch (err: any) {
-    console.error("Error al actualizar voucher de amortización:", err);
-    res.status(500).json({ error: "Error al actualizar voucher", detail: err.message });
   }
 });
 
@@ -461,24 +433,8 @@ prestamosRouter.post("/:id/pagos", requireAuth, async (req: AuthRequest, res: ex
         .eq("id", prestamoId);
     }
 
-    const { data: cliente } = await supabase.from("clientes").select("*").eq("id", prestamo.cliente_id).single();
+    programarSync(`prestamo:${prestamoId}`);
 
-    syncLoanScheduleToGoogleCalendar(prestamoId).catch((calErr) => {
-      console.error("Error al sincronizar cuotas tras pago en Google Calendar:", calErr);
-    });
-
-    if (cliente) {
-      logPaymentToGoogleCalendar(
-        cliente,
-        prestamo,
-        montoPago,
-        metodo_pago || "Efectivo",
-        clasificacionAutomatica,
-        fecha_pago || new Date().toISOString().split("T")[0]
-      ).catch((calErr) => {
-        console.error("Error al registrar abono en Google Calendar:", calErr);
-      });
-    }
 
     res.status(201).json({
       success: true,
@@ -691,9 +647,7 @@ amortizacionesRouter.put("/:id", requireAuth, async (req: express.Request, res: 
           .eq("id", pId);
       }
 
-      syncLoanScheduleToGoogleCalendar(pId).catch((calErr) => {
-        console.error(`Error al sincronizar cuotas tras edición de pago para préstamo ${pId} en Google Calendar:`, calErr);
-      });
+      programarSync(`prestamo:${pId}`);
 
       recalculateResults[pId] = {
         estado_prestamo: nuevoEstado,
@@ -773,9 +727,7 @@ amortizacionesRouter.delete("/:id", requireAuth, async (req: express.Request, re
         .eq("id", prestamoId);
     }
 
-    syncLoanScheduleToGoogleCalendar(prestamoId).catch((calErr) => {
-      console.error(`Error al sincronizar cuotas tras eliminación de pago para préstamo ${prestamoId} en Google Calendar:`, calErr);
-    });
+    programarSync(`prestamo:${prestamoId}`);
 
     res.json({
       success: true,

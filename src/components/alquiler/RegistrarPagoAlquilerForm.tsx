@@ -3,7 +3,7 @@ import { DollarSign, CheckCircle, AlertCircle } from "lucide-react";
 import { Cliente, Alquiler } from "../../types";
 import { ClienteAutocomplete } from "../common/ClienteAutocomplete";
 import { ImagePasteDropzone } from "../common/ImagePasteDropzone";
-import { METODOS_PAGO } from "../../lib/constants";
+import { CuentaSelector } from "../cuentas/CuentaSelector";
 import { subirVoucher } from "../../lib/imageCompression";
 import { round2 } from "../../lib/loanLogic";
 import { hoyISO } from "../../lib/fechas";
@@ -32,7 +32,8 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
   const [periodoAnio, setPeriodoAnio] = useState<number>(new Date().getFullYear());
   const [monto, setMonto] = useState("");
   const [fechaPago, setFechaPago] = useState(hoyISO());
-  const [metodoPago, setMetodoPago] = useState("Efectivo");
+  const [metodoPago, setMetodoPago] = useState("");
+  const [faltaCuenta, setFaltaCuenta] = useState(false);
   const [comprobanteFiles, setComprobanteFiles] = useState<File[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -116,6 +117,11 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
     const montoNum = parseFloat(monto);
     if (!montoNum || montoNum <= 0) {
       setErrorMsg("El monto del pago debe ser mayor a 0.");
+      return;
+    }
+    if (!metodoPago) {
+      setFaltaCuenta(true);
+      setErrorMsg("Elige la cuenta a la que llegó el pago");
       return;
     }
 
@@ -345,20 +351,14 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
           </div>
         )}
 
-        <div>
-          <label className="text-xs font-semibold text-slate-700 block mb-1">
-            Cuenta / Método de Pago *
-          </label>
-          <select
-            value={metodoPago}
-            onChange={(e) => setMetodoPago(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white"
-          >
-            {METODOS_PAGO.map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-        </div>
+        <CuentaSelector
+          value={metodoPago}
+          error={faltaCuenta && !metodoPago}
+          onChange={(m) => {
+            setMetodoPago(m);
+            setFaltaCuenta(false);
+          }}
+        />
 
         {/* Zona Interactiva para Pegar/Arrastrar Vouchers */}
         <ImagePasteDropzone

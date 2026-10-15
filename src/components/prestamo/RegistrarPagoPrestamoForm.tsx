@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { ImagePasteDropzone } from "../common/ImagePasteDropzone";
-import { METODOS_PAGO } from "../../lib/constants";
+import { CuentaSelector } from "../cuentas/CuentaSelector";
 import { subirVoucher } from "../../lib/imageCompression";
 import { round2 } from "../../lib/loanLogic";
 import { hoyISO } from "../../lib/fechas";
@@ -62,7 +62,8 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
 }) => {
   const [montoPago, setMontoPago] = useState("");
   const [fechaPago, setFechaPago] = useState(hoyISO());
-  const [metodoPago, setMetodoPago] = useState("Efectivo");
+  const [metodoPago, setMetodoPago] = useState("");
+  const [faltaCuenta, setFaltaCuenta] = useState(false);
   const [comprobanteFiles, setComprobanteFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -81,6 +82,11 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
     const montoNum = parseFloat(montoPago);
     if (!montoNum || montoNum <= 0) {
       onError("El monto a abonar debe ser mayor a 0");
+      return;
+    }
+    if (!metodoPago) {
+      setFaltaCuenta(true);
+      onError("Elige la cuenta a la que llegó el pago");
       return;
     }
 
@@ -113,6 +119,7 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
       }
 
       setMontoPago("");
+      setMetodoPago("");
       setComprobanteFiles([]);
       onSuccess("¡Pago registrado correctamente!");
     } catch (err: any) {
@@ -226,21 +233,18 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
           </div>
         )}
 
-        <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1">Fecha de Pago</label>
-            <input type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} className={inputClass} required />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1">Método / Banco de Pago *</label>
-            <select value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)} className={inputClass}>
-              {METODOS_PAGO.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </div>
+        <CuentaSelector
+          value={metodoPago}
+          error={faltaCuenta && !metodoPago}
+          onChange={(m) => {
+            setMetodoPago(m);
+            setFaltaCuenta(false);
+          }}
+        />
+
+        <div>
+          <label className="text-xs font-semibold text-slate-700 block mb-1">Fecha de Pago</label>
+          <input type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} className={inputClass} required />
         </div>
 
         <ImagePasteDropzone files={comprobanteFiles} onFilesChange={setComprobanteFiles} />

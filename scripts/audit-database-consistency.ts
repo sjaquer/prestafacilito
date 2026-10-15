@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import * as fs from "fs";
 import * as path from "path";
-import { buildPaymentSchedule, round2 } from "../src/lib/loanLogic";
+import { buildPaymentSchedule } from "../src/lib/loanLogic";
 import { buildAlquilerSchedule } from "../src/lib/alquilerLogic";
 
 // Cargar variables de entorno desde .env de forma manual si dotenv no está disponible
@@ -61,8 +61,8 @@ async function runAudit() {
   const { data: clientes, error: errC } = await supabase.from("clientes").select("*");
   const { data: ajustes, error: errAj } = await supabase.from("ajustes_prestamo").select("*");
 
-  if (errP || errA || errC) {
-    console.error("❌ Error al obtener datos de Supabase:", errP || errA || errC);
+  if (errP || errA || errC || errAj) {
+    console.error("❌ Error al obtener datos de Supabase:", errP || errA || errC || errAj);
     process.exit(1);
   }
 
@@ -122,6 +122,11 @@ async function runAudit() {
   // 2. Auditar Alquileres
   const { data: alquileres, error: errAlq } = await supabase.from("alquileres").select("*");
   const { data: pagosAlq, error: errPA } = await supabase.from("pagos_alquiler").select("*");
+
+  if (errAlq || errPA) {
+    console.error("❌ Error al obtener alquileres de Supabase:", errAlq || errPA);
+    process.exit(1);
+  }
 
   const listAlquileres = alquileres || [];
   const listPagosAlq = pagosAlq || [];

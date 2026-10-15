@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { ImagePasteDropzone } from "../common/ImagePasteDropzone";
-import { METODOS_PAGO } from "../../lib/constants";
+import { CuentaSelector } from "../cuentas/CuentaSelector";
 import { subirVoucher } from "../../lib/imageCompression";
 import { MESES } from "./alquilerUtils";
 import { hoyISO } from "../../lib/fechas";
@@ -23,7 +23,8 @@ export const PagoMensualidadForm: React.FC<PagoMensualidadFormProps> = ({ alquil
   const [mes, setMes] = useState(sugerencia.mes);
   const [anio, setAnio] = useState(sugerencia.anio);
   const [fechaPago, setFechaPago] = useState(hoyISO());
-  const [metodo, setMetodo] = useState("Efectivo");
+  const [metodo, setMetodo] = useState("");
+  const [faltaCuenta, setFaltaCuenta] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -32,6 +33,11 @@ export const PagoMensualidadForm: React.FC<PagoMensualidadFormProps> = ({ alquil
     const montoNum = parseFloat(monto);
     if (!(montoNum > 0)) {
       onError("El monto debe ser mayor a 0.");
+      return;
+    }
+    if (!metodo) {
+      setFaltaCuenta(true);
+      onError("Elige la cuenta a la que llegó el pago");
       return;
     }
 
@@ -115,16 +121,14 @@ export const PagoMensualidadForm: React.FC<PagoMensualidadFormProps> = ({ alquil
         </div>
       </div>
 
-      <div>
-        <label className={labelClass} htmlFor="alq-metodo">Método / cuenta</label>
-        <select id="alq-metodo" value={metodo} onChange={(e) => setMetodo(e.target.value)} className={fieldClass}>
-          {METODOS_PAGO.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
-      </div>
+      <CuentaSelector
+        value={metodo}
+        error={faltaCuenta && !metodo}
+        onChange={(m) => {
+          setMetodo(m);
+          setFaltaCuenta(false);
+        }}
+      />
 
       <ImagePasteDropzone files={files} onFilesChange={setFiles} />
 

@@ -37,7 +37,7 @@ export const resumirMoraCliente = (clientLoans: any[], amortizaciones: any[]): C
   return {
     tieneMora,
     totalCuotasAtrasadas: cuotasEnMora.reduce((sum, e) => sum + e.cuotasAtrasadas, 0),
-    totalMontoAtrasado: cuotasEnMora.reduce((sum, e) => sum + e.montoTotalAtrasado, 0),
+    totalMontoAtrasado: cuotasEnMora.reduce((sum, e) => sum + e.moraAcumulada, 0),
     proximaCuotaFecha,
     proximaCuotaMonto,
     proximaCuotaTipo,

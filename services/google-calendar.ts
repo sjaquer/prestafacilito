@@ -1,325 +1,248 @@
+/**
+ * Sincronización de cobros con Google Calendar.
+ *
+ * Modelo: UN evento de día completo por préstamo o alquiler vigente, en su próxima fecha
+ * de cobro. Cada evento lleva una marca privada (`extendedProperties.private.ref`), así la
+ * sincronización es idempotente: se puede ejecutar muchas veces y solo crea, actualiza o
+ * borra lo necesario, sin depender del nombre del cliente ni de columnas en la base.
+ *
+ * No va al calendario:
+ *  - préstamos liquidados o alquileres finalizados,
+ *  - préstamos estancados (5+ cuotas atrasadas): se gestionan desde la app,
+ *  - registros de pagos recibidos (eso vive en la sección Cuentas).
+ */
 import { supabase } from "../src/lib/supabase.js";
-import { buildPaymentSchedule, toNumber } from "../src/lib/loanLogic.js";
-import { buildAlquilerSchedule } from "../src/lib/alquilerLogic.js";
+import { CUOTAS_ESTANCADO, EventoDeseado, eventoAlquiler, eventoPrestamo, hoyLima, sumarDias } from "./calendario-eventos.js";
 import {
   getGoogleDriveAccessToken,
   getGoogleClientId,
   getGoogleClientSecret,
-  getGoogleRefreshToken
+  getGoogleRefreshToken,
 } from "./google-drive.js";
+
+const APP_TAG = "prestafacilito";
+export { CUOTAS_ESTANCADO };
 
 export function isGoogleCalendarConfigured(): boolean {
   return !!getGoogleClientId() && !!getGoogleClientSecret() && !!getGoogleRefreshToken();
 }
 
-export function getGoogleCalendarId(): string {
-  return process.env.GOOGLE_CALENDAR_ID || "primary";
+export const getGoogleCalendarId = () => process.env.GOOGLE_CALENDAR_ID || "primary";
+
+// ── Cliente HTTP mínimo de la API de Calendar ─────────────────────────────
+
+async function calendarFetch(path: string, init: RequestInit = {}, intentos = 3): Promise<any> {
+  const accessToken = await getGoogleDriveAccessToken();
+  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(getGoogleCalendarId())}${path}`;
+  for (let intento = 1; ; intento++) {
+    const res = await fetch(url, {
+      ...init,
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", ...(init.headers || {}) },
+    });
+    if (res.ok) return res.status === 204 ? null : res.json();
+    // Ya borrado: no es un error para nosotros
+    if (init.method === "DELETE" && (res.status === 404 || res.status === 410)) return null;
+    if ((res.status === 429 || res.status >= 500) && intento < intentos) {
+      await new Promise((r) => setTimeout(r, 2 ** intento * 500));
+      continue;
+    }
+    throw new Error(`Google Calendar ${res.status}: ${await res.text()}`);
+  }
 }
 
-export const getGoogleAccessToken = getGoogleDriveAccessToken;
+async function listarEventos(params: Record<string, string>): Promise<any[]> {
+  const eventos: any[] = [];
+  let pageToken: string | undefined;
+  do {
+    const qs = new URLSearchParams({ singleEvents: "true", maxResults: "250", ...params, ...(pageToken ? { pageToken } : {}) });
+    const data = await calendarFetch(`/events?${qs}`);
+    eventos.push(...(data.items || []));
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+  return eventos;
+}
 
-/**
- * Reintentos con backoff exponencial para llamadas a APIs de Google (Tarea 10.1.7)
- */
-export async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (err: any) {
-      if (attempt === maxRetries) throw err;
-      const status = err.status || err.statusCode;
-      if (status !== 429 && status !== 503 && !err.message?.includes("timeout")) {
-        throw err;
+/** Ejecuta tareas con concurrencia limitada (evita el límite de la API y timeouts). */
+async function enLotes<T>(items: T[], fn: (item: T) => Promise<unknown>, concurrencia = 5) {
+  let errores = 0;
+  for (let i = 0; i < items.length; i += concurrencia) {
+    const res = await Promise.allSettled(items.slice(i, i + concurrencia).map(fn));
+    for (const r of res) {
+      if (r.status === "rejected") {
+        errores++;
+        console.error("[Calendario]", r.reason?.message || r.reason);
       }
-      const delay = Math.pow(2, attempt) * 1000;
-      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
-  throw new Error("Máximo de reintentos alcanzado");
+  return errores;
 }
 
-export async function findGoogleCalendarEvent(clienteNombre: string, cuotaNumero: number): Promise<string | null> {
-  try {
-    const accessToken = await getGoogleAccessToken();
-    const calendarId = getGoogleCalendarId();
-    const query = encodeURIComponent(clienteNombre);
-    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?q=${query}&singleEvents=true`;
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    if (response.ok) {
-      const data = await response.json();
-      const found = (data.items || []).find((item: any) => {
-        const sum = item.summary || "";
-        return sum.includes(`Cuota ${cuotaNumero}`) && sum.includes(clienteNombre);
-      });
-      return found ? found.id : null;
-    }
-  } catch (err: any) {
-    console.error("Error al buscar evento en Google Calendar:", err.message);
-  }
-  return null;
-}
+/** Calcula los eventos que deberían existir. Con `ref`, solo el de ese préstamo/alquiler. */
+async function eventosDeseados(ref?: string): Promise<EventoDeseado[]> {
+  const hoy = hoyLima();
+  const [tipo, id] = ref ? ref.split(":") : [undefined, undefined];
+  const resultado: EventoDeseado[] = [];
 
-export async function createOrUpdateGoogleCalendarEvent({
-  eventId,
-  summary,
-  description,
-  dateStr,
-  colorId,
-}: {
-  eventId?: string;
-  summary: string;
-  description: string;
-  dateStr: string;
-  colorId?: string;
-}) {
-  return withRetry(async () => {
-    const accessToken = await getGoogleAccessToken();
-    const calendarId = getGoogleCalendarId();
-    const url = eventId
-      ? `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`
-      : `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
-    const method = eventId ? "PUT" : "POST";
-
-    const eventBody = {
-      summary,
-      description,
-      start: { date: dateStr },
-      end: { date: dateStr },
-      ...(colorId ? { colorId } : {})
-    };
-
-    const response = await fetch(url, {
-      method,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(eventBody)
-    });
-
-    if (!response.ok) {
-      if (method === "PUT" && response.status === 404) {
-        console.warn(`Evento ${eventId} no encontrado. Intentando crear uno nuevo...`);
-        const postUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
-        const postResponse = await fetch(postUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(eventBody)
-        });
-        if (postResponse.ok) {
-          return await postResponse.json();
-        }
-        const postErrText = await postResponse.text();
-        throw new Error(`Error en Google Calendar API al recrear: ${postErrText}`);
+  if (!tipo || tipo === "prestamo") {
+    let q = supabase.from("prestamos").select("*").in("estado", ["activo", "estancado"]);
+    if (id) q = q.eq("id", id);
+    const { data: prestamos, error } = await q;
+    if (error) throw error;
+    if (prestamos?.length) {
+      const ids = prestamos.map((p) => p.id);
+      const [aRes, ajRes, cRes] = await Promise.all([
+        supabase.from("amortizaciones").select("*").in("prestamo_id", ids),
+        supabase.from("ajustes_prestamo").select("*").in("prestamo_id", ids),
+        supabase.from("clientes").select("id, nombre_completo, telefono").in("id", [...new Set(prestamos.map((p) => p.cliente_id))]),
+      ]);
+      for (const p of prestamos) {
+        const ev = eventoPrestamo(
+          p,
+          cRes.data?.find((c) => c.id === p.cliente_id),
+          (aRes.data || []).filter((a) => a.prestamo_id === p.id),
+          (ajRes.data || []).filter((a) => a.prestamo_id === p.id),
+          hoy
+        );
+        if (ev) resultado.push(ev);
       }
-      const errText = await response.text();
-      throw new Error(`Error en Google Calendar API: ${errText}`);
     }
+  }
 
-    return await response.json();
+  if (!tipo || tipo === "alquiler") {
+    let q = supabase.from("alquileres").select("*").eq("estado", "activo");
+    if (id) q = q.eq("id", id);
+    const { data: alquileres, error } = await q;
+    if (error) throw error;
+    if (alquileres?.length) {
+      const ids = alquileres.map((a) => a.id);
+      const [pRes, cRes] = await Promise.all([
+        supabase.from("pagos_alquiler").select("*").in("alquiler_id", ids),
+        supabase.from("clientes").select("id, nombre_completo, telefono").in("id", [...new Set(alquileres.map((a) => a.cliente_id))]),
+      ]);
+      for (const a of alquileres) {
+        const ev = eventoAlquiler(a, cRes.data?.find((c) => c.id === a.cliente_id), (pRes.data || []).filter((p) => p.alquiler_id === a.id), hoy);
+        if (ev) resultado.push(ev);
+      }
+    }
+  }
+
+  return resultado;
+}
+
+// ── Limpieza de eventos de la versión anterior ────────────────────────────
+
+const PREFIJOS_ANTIGUOS = ["[PENDIENTE]", "[VENCIDO]", "[PARCIAL]", "[PAGADO]", "Cobro Recibido", "🔔 [PENDIENTE]", "✅ [PAGADO]", "🔶 [PARCIAL]", "🚨 [VENCIDO]", "💰 Cobro Recibido"];
+
+/** Eventos creados por versiones anteriores (uno por cuota, cobros recibidos, rentas duplicadas). */
+async function eventosAntiguos(): Promise<any[]> {
+  const timeMin = new Date(Date.now() - 548 * 86400000).toISOString(); // ~18 meses atrás
+  const timeMax = new Date(Date.now() + 730 * 86400000).toISOString(); // ~24 meses adelante
+  const porTexto = async (q: string) => listarEventos({ q, timeMin, timeMax });
+  const candidatos = [...(await porTexto("PrestaFacilito")), ...(await porTexto("Pago de Renta Mensual"))];
+  const vistos = new Set<string>();
+  return candidatos.filter((ev) => {
+    if (vistos.has(ev.id) || ev.extendedProperties?.private?.app === APP_TAG) return false;
+    vistos.add(ev.id);
+    const summary = String(ev.summary || "");
+    const description = String(ev.description || "");
+    return (
+      description.includes("PrestaFacilito") ||
+      description.startsWith("Pago de Renta Mensual:") ||
+      PREFIJOS_ANTIGUOS.some((p) => summary.startsWith(p))
+    );
   });
 }
 
-export async function deleteGoogleCalendarEvent(eventId: string) {
-  return withRetry(async () => {
-    const accessToken = await getGoogleAccessToken();
-    const calendarId = getGoogleCalendarId();
-    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`;
+// ── Reconciliación ────────────────────────────────────────────────────────
 
-    const response = await fetch(url, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
-    });
-
-    if (!response.ok && response.status !== 404) {
-      const errText = await response.text();
-      console.error(`Error de Google Calendar API al eliminar event ${eventId}: ${errText}`);
-    }
-  });
+export interface ResultadoSync {
+  creados: number;
+  actualizados: number;
+  eliminados: number;
+  antiguosEliminados: number;
+  errores: number;
 }
 
-export async function syncLoanScheduleToGoogleCalendar(prestamoId: string) {
-  if (!isGoogleCalendarConfigured()) {
-    console.warn("Google Calendar no está configurado. Omitiendo sincronización.");
-    return;
+const cuerpoEvento = (e: EventoDeseado) => ({
+  summary: e.summary,
+  description: e.description,
+  colorId: e.colorId,
+  start: { date: e.fecha },
+  end: { date: sumarDias(e.fecha, 1) }, // en Google, el fin de un evento de día completo es exclusivo
+  transparency: "transparent", // no bloquea la agenda
+  reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 15 * 60 }] }, // 9:00 a. m. del día anterior
+  extendedProperties: { private: { app: APP_TAG, ref: e.ref } },
+});
+
+const difiere = (actual: any, deseado: EventoDeseado) =>
+  actual.start?.date !== deseado.fecha ||
+  actual.summary !== deseado.summary ||
+  (actual.description || "") !== deseado.description ||
+  actual.colorId !== deseado.colorId;
+
+/**
+ * Deja Google Calendar igual a la cartera actual.
+ * Sin `ref`: sincronización completa (incluye limpiar eventos antiguos).
+ * Con `ref` ("prestamo:<id>" o "alquiler:<id>"): solo ese préstamo/alquiler.
+ */
+export async function sincronizarCalendario(ref?: string): Promise<ResultadoSync> {
+  const resultado: ResultadoSync = { creados: 0, actualizados: 0, eliminados: 0, antiguosEliminados: 0, errores: 0 };
+  if (!isGoogleCalendarConfigured()) return resultado;
+
+  const deseados = await eventosDeseados(ref);
+  const filtroApp = ref ? `ref=${ref}` : `app=${APP_TAG}`;
+  const existentes = await listarEventos({ privateExtendedProperty: filtroApp });
+
+  const porRef = new Map<string, any[]>();
+  for (const ev of existentes) {
+    const r = ev.extendedProperties?.private?.ref;
+    if (!r) continue;
+    porRef.set(r, [...(porRef.get(r) || []), ev]);
   }
 
-  try {
-    const { data: prestamo, error: pErr } = await supabase
-      .from("prestamos")
-      .select("*")
-      .eq("id", prestamoId)
-      .single();
+  const crear: EventoDeseado[] = [];
+  const actualizar: [string, EventoDeseado][] = [];
+  const borrar: string[] = [];
 
-    if (pErr || !prestamo) throw pErr || new Error("Préstamo no encontrado");
-
-    const [cRes, aRes, ajRes] = await Promise.all([
-      supabase.from("clientes").select("*").eq("id", prestamo.cliente_id).single(),
-      supabase.from("amortizaciones").select("*").eq("prestamo_id", prestamoId),
-      supabase.from("ajustes_prestamo").select("*").eq("prestamo_id", prestamoId)
-    ]);
-
-    const cliente = cRes.data;
-    const pagosRealizados = aRes.data || [];
-    const ajustes = ajRes.data || [];
-
-    if (!cliente) throw new Error("Cliente no encontrado para el préstamo");
-
-    const debtState = buildPaymentSchedule(prestamo, pagosRealizados, { ajustes, referenceDate: new Date() });
-    const cuotas = debtState.cuotas;
-
-    const existingEvents = Array.isArray(prestamo.google_calendar_events)
-      ? prestamo.google_calendar_events
-      : [];
-
-    const updatedEvents = [];
-
-    for (const cuota of cuotas) {
-      const existing = existingEvents.find((e: any) => e.numero === cuota.numero);
-      let eventId = existing?.eventId;
-
-      // Si la cuota ya fue saldada, eliminar el evento pendiente de Calendar (Tarea 10.1.4)
-      if (cuota.estado === "Saldada") {
-        if (eventId) {
-          await deleteGoogleCalendarEvent(eventId).catch(() => {});
-        }
-        continue;
-      }
-
-      if (!eventId) {
-        eventId = await findGoogleCalendarEvent(cliente.nombre_completo, cuota.numero);
-      }
-
-      const colorId = cuota.estado === "Vencida" ? "11" : "5";
-      const statusPrefix = cuota.estado === "Vencida" ? "[VENCIDO]" : cuota.estado === "Parcial" ? "[PARCIAL]" : "[PENDIENTE]";
-
-      const summary = `${statusPrefix} Cuota ${cuota.numero} - ${cliente.nombre_completo}`;
-      const description = [
-        `ESTADO DEL CRÉDITO:`,
-        `Cliente: ${cliente.nombre_completo}`,
-        `Teléfono: ${cliente.telefono || "No registrado"}`,
-        `Tipo de Préstamo: ${prestamo.tipo_prestamo || "Personal"}`,
-        `N° de Cuota: ${cuota.numero} de ${debtState.resumen.totalCuotas}`,
-        `Monto de la Cuota: S/. ${cuota.montoExigible.toFixed(2)}`,
-        `Capital de Cuota: S/. ${cuota.capitalPendiente.toFixed(2)}`,
-        cuota.interesOriginal ? `Interés de Cuota: S/. ${cuota.interesOriginal.toFixed(2)}` : null,
-        `Total Pagado: S/. ${cuota.pagado.toFixed(2)}`,
-        `Saldo Pendiente: S/. ${cuota.saldoPendiente.toFixed(2)}`,
-        `Fecha de Vencimiento: ${cuota.fechaVencimiento}`,
-        `\nRegistro actualizado desde PrestaFacilito.`
-      ].filter(Boolean).join("\n");
-
-      try {
-        const calEvent = await createOrUpdateGoogleCalendarEvent({
-          eventId,
-          summary,
-          description,
-          dateStr: cuota.fechaVencimiento,
-          colorId
-        });
-
-        updatedEvents.push({
-          numero: cuota.numero,
-          eventId: calEvent.id,
-          fechaVencimiento: cuota.fechaVencimiento
-        });
-      } catch (calErr: any) {
-        console.error(`Error al registrar cuota ${cuota.numero} en Google Calendar:`, calErr);
-        if (existing) {
-          updatedEvents.push(existing);
-        }
-      }
-    }
-
-    await supabase
-      .from("prestamos")
-      .update({ google_calendar_events: updatedEvents })
-      .eq("id", prestamoId);
-
-  } catch (err: any) {
-    console.error("Error en syncLoanScheduleToGoogleCalendar:", err);
+  for (const d of deseados) {
+    const [primero, ...duplicados] = porRef.get(d.ref) || [];
+    porRef.delete(d.ref);
+    borrar.push(...duplicados.map((e) => e.id));
+    if (!primero) crear.push(d);
+    else if (difiere(primero, d)) actualizar.push([primero.id, d]);
   }
+  // Lo que quedó ya no corresponde (liquidado, finalizado, estancado o eliminado)
+  for (const eventos of porRef.values()) borrar.push(...eventos.map((e) => e.id));
+
+  resultado.errores += await enLotes(crear, async (d) => {
+    await calendarFetch("/events", { method: "POST", body: JSON.stringify(cuerpoEvento(d)) });
+    resultado.creados++;
+  });
+  resultado.errores += await enLotes(actualizar, async ([id, d]) => {
+    await calendarFetch(`/events/${id}`, { method: "PUT", body: JSON.stringify(cuerpoEvento(d)) });
+    resultado.actualizados++;
+  });
+  resultado.errores += await enLotes(borrar, async (id) => {
+    await calendarFetch(`/events/${id}`, { method: "DELETE" });
+    resultado.eliminados++;
+  });
+
+  if (!ref) {
+    const antiguos = await eventosAntiguos();
+    resultado.errores += await enLotes(antiguos, async (ev) => {
+      await calendarFetch(`/events/${ev.id}`, { method: "DELETE" });
+      resultado.antiguosEliminados++;
+    });
+  }
+
+  return resultado;
 }
 
 /**
- * Sincronización de contratos de alquiler a Google Calendar (Tarea 10.1.5)
+ * Sincroniza un préstamo o alquiler tras un cambio, sin bloquear la respuesta HTTP.
+ * Si falla, la sincronización diaria lo corrige.
  */
-export async function syncAlquilerToGoogleCalendar(alquilerId: string) {
+export function programarSync(ref: string) {
   if (!isGoogleCalendarConfigured()) return;
-
-  try {
-    const [alqRes, pagosRes] = await Promise.all([
-      supabase.from("alquileres").select("*").eq("id", alquilerId).single(),
-      supabase.from("pagos_alquiler").select("*").eq("alquiler_id", alquilerId)
-    ]);
-
-    if (!alqRes.data) return;
-
-    const alquiler = alqRes.data;
-    const pagos = pagosRes.data || [];
-
-    const { data: cliente } = await supabase
-      .from("clientes")
-      .select("nombre_completo, telefono")
-      .eq("id", alquiler.cliente_id)
-      .single();
-
-    const schedule = buildAlquilerSchedule(alquiler, pagos);
-
-    if (schedule.mesSiguiente) {
-      const summary = `🏠 Alquiler (${alquiler.descripcion_inmueble}) — ${cliente?.nombre_completo || "Inquilino"} — S/ ${alquiler.monto_mensual.toFixed(2)}`;
-      const description = `Pago de Renta Mensual:\nInmueble: ${alquiler.descripcion_inmueble}\nInquilino: ${cliente?.nombre_completo}\nMonto: S/ ${alquiler.monto_mensual.toFixed(2)}`;
-
-      await createOrUpdateGoogleCalendarEvent({
-        summary,
-        description,
-        dateStr: schedule.mesSiguiente.fechaVencimiento,
-        colorId: "6"
-      });
-    }
-  } catch (err: any) {
-    console.error("Error en syncAlquilerToGoogleCalendar:", err);
-  }
-}
-
-export async function logPaymentToGoogleCalendar(
-  cliente: any,
-  prestamo: any,
-  monto: number,
-  metodoPago: string,
-  clasificacion: string,
-  fechaPago: string
-) {
-  if (!isGoogleCalendarConfigured()) return;
-
-  try {
-    const summary = `Cobro Recibido: S/. ${monto.toFixed(2)} - ${cliente.nombre_completo}`;
-    const description = [
-      `REGISTRO DE COBRO RECIBIDO:`,
-      `Cliente: ${cliente.nombre_completo}`,
-      `Teléfono: ${cliente.telefono || "No registrado"}`,
-      `Monto Recibido: S/. ${monto.toFixed(2)}`,
-      `Método de Pago: ${metodoPago}`,
-      `Tipo de Movimiento: ${clasificacion}`,
-      `Préstamo de Capital: S/. ${toNumber(prestamo.monto_capital).toFixed(2)}`,
-      `Fecha del Pago: ${fechaPago}`,
-      `\nRegistro creado automáticamente desde PrestaFacilito.`
-    ].join("\n");
-
-    await createOrUpdateGoogleCalendarEvent({
-      summary,
-      description,
-      dateStr: fechaPago,
-      colorId: "2"
-    });
-  } catch (err: any) {
-    console.error("Error al registrar cobro en Google Calendar:", err);
-  }
+  sincronizarCalendario(ref).catch((err) => console.error(`[Calendario] Error al sincronizar ${ref}:`, err.message));
 }

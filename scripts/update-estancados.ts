@@ -33,7 +33,6 @@ async function run() {
   const { data: prestamos } = await supabase.from("prestamos").select("*");
   const { data: amortizaciones } = await supabase.from("amortizaciones").select("*");
   const { data: ajustes } = await supabase.from("ajustes_prestamo").select("*");
-  const { data: clientes } = await supabase.from("clientes").select("*");
 
   if (!prestamos) return;
 

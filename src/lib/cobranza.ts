@@ -6,9 +6,13 @@ import { estandarizarTelefono } from "../../helpers/telefono";
  * Clasificación de cobros para la vista de trabajo diario.
  * Solo ordena y agrupa lo que ya calcula el servidor; no recalcula deudas.
  */
-export type GrupoCobro = "vencido" | "hoy" | "semana" | "despues" | "al_dia";
+export type GrupoCobro = "vencido" | "hoy" | "semana" | "despues" | "al_dia" | "estancado";
 
-export const GRUPOS_COBRO: { id: GrupoCobro; label: string; corto: string }[] = [
+/** Cuotas atrasadas a partir de las cuales un cobro se considera estancado (se muestra aparte). */
+export const CUOTAS_ESTANCADO = 5;
+
+/** Grupos que se muestran como pestañas (los estancados van en su propia sección). */
+export const GRUPOS_COBRO: { id: Exclude<GrupoCobro, "estancado">; label: string; corto: string }[] = [
   { id: "vencido", label: "Vencidos", corto: "Vencidos" },
   { id: "hoy", label: "Vencen hoy", corto: "Hoy" },
   { id: "semana", label: "Próximos 7 días", corto: "7 días" },
@@ -16,12 +20,17 @@ export const GRUPOS_COBRO: { id: GrupoCobro; label: string; corto: string }[] = 
   { id: "al_dia", label: "Al día / pagados", corto: "Al día" },
 ];
 
-export const ESTILO_GRUPO: Record<GrupoCobro, { dot: string; texto: string; pill: string; borde: string }> = {
-  vencido: { dot: "bg-rose-500", texto: "text-rose-700", pill: "bg-rose-100 text-rose-800", borde: "border-l-rose-500" },
-  hoy: { dot: "bg-amber-500", texto: "text-amber-700", pill: "bg-amber-100 text-amber-800", borde: "border-l-amber-500" },
-  semana: { dot: "bg-sky-500", texto: "text-sky-700", pill: "bg-sky-100 text-sky-800", borde: "border-l-sky-500" },
-  despues: { dot: "bg-slate-300", texto: "text-slate-600", pill: "bg-slate-100 text-slate-700", borde: "border-l-slate-300" },
-  al_dia: { dot: "bg-emerald-500", texto: "text-emerald-700", pill: "bg-emerald-100 text-emerald-800", borde: "border-l-emerald-500" },
+/**
+ * Colores por grupo. La tarjeta entera lleva el color del grupo (no solo un borde),
+ * para distinguir el estado de un vistazo.
+ */
+export const ESTILO_GRUPO: Record<GrupoCobro, { dot: string; texto: string; pill: string; tarjeta: string; etiqueta: string }> = {
+  vencido: { dot: "bg-rose-500", texto: "text-rose-700", pill: "bg-rose-600 text-white", tarjeta: "bg-rose-50 border-rose-200", etiqueta: "Vencido" },
+  hoy: { dot: "bg-amber-500", texto: "text-amber-800", pill: "bg-amber-500 text-white", tarjeta: "bg-amber-50 border-amber-200", etiqueta: "Vence hoy" },
+  semana: { dot: "bg-sky-500", texto: "text-sky-800", pill: "bg-sky-600 text-white", tarjeta: "bg-sky-50 border-sky-200", etiqueta: "Esta semana" },
+  despues: { dot: "bg-slate-400", texto: "text-slate-600", pill: "bg-slate-200 text-slate-700", tarjeta: "bg-white border-slate-200", etiqueta: "Más adelante" },
+  al_dia: { dot: "bg-emerald-500", texto: "text-emerald-700", pill: "bg-emerald-600 text-white", tarjeta: "bg-emerald-50 border-emerald-200", etiqueta: "Al día" },
+  estancado: { dot: "bg-slate-500", texto: "text-slate-600", pill: "bg-slate-600 text-white", tarjeta: "bg-slate-100 border-slate-200", etiqueta: "Estancado" },
 };
 
 interface DatosClasificacion {
@@ -35,6 +44,7 @@ interface DatosClasificacion {
 
 export function clasificarCobro({ fechaProxima, atrasadas = 0, sinPendiente = false }: DatosClasificacion, hoy = new Date()): GrupoCobro {
   if (sinPendiente) return "al_dia";
+  if (atrasadas >= CUOTAS_ESTANCADO) return "estancado";
   if (atrasadas > 0) return "vencido";
   const dias = diasHasta(fechaProxima, hoy);
   if (dias === null) return "al_dia";

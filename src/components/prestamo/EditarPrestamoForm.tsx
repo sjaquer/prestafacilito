@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { ClienteAutocomplete } from "../common/ClienteAutocomplete";
 import { useClientes } from "../../hooks/useClientes";
 
@@ -7,8 +7,6 @@ interface EditarPrestamoFormProps {
   prestamo: any;
   onSaved: () => void;
   onError: (msg: string) => void;
-  onSyncCalendar: () => void;
-  isSyncingCalendar: boolean;
 }
 
 const TIPOS_PRESTAMO = ["Personal", "Negocio", "Hipotecario"];
@@ -32,8 +30,6 @@ export const EditarPrestamoForm: React.FC<EditarPrestamoFormProps> = ({
   prestamo,
   onSaved,
   onError,
-  onSyncCalendar,
-  isSyncingCalendar,
 }) => {
   const { clientes } = useClientes();
   const [clienteId, setClienteId] = useState<string>(prestamo.cliente_id);
@@ -210,15 +206,7 @@ export const EditarPrestamoForm: React.FC<EditarPrestamoFormProps> = ({
         El estado (activo, estancado o liquidado) se actualiza solo según los pagos.
       </p>
 
-      <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2 pt-2 border-t border-slate-100">
-        <button
-          type="button"
-          onClick={onSyncCalendar}
-          disabled={isSyncingCalendar}
-          className="h-11 px-4 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 disabled:opacity-50"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isSyncingCalendar ? "animate-spin" : ""}`} /> Sincronizar Google Calendar
-        </button>
+      <div className="flex justify-end pt-2 border-t border-slate-100">
         <button
           type="submit"
           disabled={isSaving}

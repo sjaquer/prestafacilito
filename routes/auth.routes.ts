@@ -2,9 +2,18 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import { getJwtSecret } from "../helpers/jwt.js";
 import { requireAuth, cookieOptions, clearCookieOptions, AuthRequest } from "../middleware/auth.js";
-import { supabase } from "../src/lib/supabase.js";
+import crypto from "crypto";
+import { crearLimitadorLogin } from "../middleware/rateLimit.js";
 
 const router = express.Router();
+const limitador = crearLimitadorLogin();
+
+/** Comparación en tiempo constante para no filtrar información del PIN por tiempos de respuesta. */
+const pinCoincide = (recibido: string, esperado: string) => {
+  const a = crypto.createHash("sha256").update(recibido).digest();
+  const b = crypto.createHash("sha256").update(esperado).digest();
+  return crypto.timingSafeEqual(a, b);
+};
 
 function getEnv(name: string) {
   return process.env[name]?.trim().replace(/^["']+|["']+$/g, "") || "";
@@ -22,7 +31,7 @@ const getPinForUser = (username: string) => {
   return "";
 };
 
-router.post("/login", async (req: express.Request, res: express.Response) => {
+router.post("/login", limitador.verificar, async (req: express.Request, res: express.Response) => {
   try {
     const { username, password } = req.body || {};
     if (!username || !password) {
@@ -39,13 +48,15 @@ router.post("/login", async (req: express.Request, res: express.Response) => {
       );
     }
 
-    const isValid = !!(expectedPin && String(password) === expectedPin);
+    const isValid = !!expectedPin && pinCoincide(String(password), expectedPin);
 
     if (isValid) {
       const token = jwt.sign({ username: cleanUser }, getJwtSecret(), { expiresIn: "24h" });
+      limitador.registrarExito(req);
       res.cookie("token", token, cookieOptions);
       res.json({ success: true, username: cleanUser });
     } else {
+      limitador.registrarFallo(req);
       res.status(401).json({ success: false, message: "Usuario o contraseña / PIN de acceso incorrecto" });
     }
   } catch (err: any) {
@@ -72,16 +83,4 @@ router.post("/logout", requireAuth, async (req: AuthRequest, res: express.Respon
   res.clearCookie("token", clearCookieOptions);
   res.json({ success: true });
 });
-
-router.post("/initialize-sheets", requireAuth, async (req: AuthRequest, res: express.Response) => {
-  try {
-    const { error } = await supabase.from("clientes").select("id").limit(1);
-    if (error) throw error;
-    res.json({ success: true, message: "Conexión con Supabase verificada correctamente." });
-  } catch (err: any) {
-    console.error("Error de conectividad a Supabase:", err);
-    res.status(500).json({ error: "No se pudo conectar a la base de datos de Supabase", detail: err.message });
-  }
-});
-
 export default router;

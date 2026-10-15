@@ -13,6 +13,7 @@ export const ESTADO_FILTROS: { value: "todos" | GrupoCartera; label: string }[] 
   { value: "hoy", label: "Hoy" },
   { value: "semana", label: "7 días" },
   { value: "despues", label: "Después" },
+  { value: "estancado", label: "Estancados" },
   { value: "liquidado", label: "Pagados" },
 ];
 
@@ -20,6 +21,7 @@ export const estadoFiltroClass = (value: string, active: boolean) => {
   if (!active) return "text-slate-500 hover:text-slate-700";
   if (value === "vencido") return "bg-rose-600 text-white shadow-md";
   if (value === "hoy") return "bg-amber-500 text-white shadow-md";
+  if (value === "estancado") return "bg-slate-500 text-white";
   if (value === "liquidado") return "bg-slate-700 text-white";
   return "bg-slate-900 text-white shadow-md";
 };

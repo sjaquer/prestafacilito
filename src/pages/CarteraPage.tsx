@@ -76,7 +76,7 @@ export const CarteraPage: React.FC = () => {
         fechaVencimiento: mora.fechaCuotaActual,
         diasAtraso: mora.diasAtraso,
         atrasado: vencido,
-        monto: vencido ? mora.montoTotalAtrasado : mora.montoCuotaActual,
+        monto: vencido ? mora.moraAcumulada : mora.montoCuotaActual,
       });
     },
     [clientesById, moraById]
@@ -99,7 +99,7 @@ export const CarteraPage: React.FC = () => {
       const grupo = grupoCartera(p, mora);
       if (grupo === "vencido") {
         vencidosCount++;
-        montoVencido += mora?.montoTotalAtrasado || 0;
+        montoVencido += mora?.moraAcumulada || 0;
       } else if (grupo === "hoy") hoyCount++;
     }
     return { capitalPendiente, activasCount: vigentes.length, vencidosCount, montoVencido, hoyCount };
@@ -107,7 +107,7 @@ export const CarteraPage: React.FC = () => {
 
   // Más urgente primero: vencidos, hoy, 7 días, después y al final los pagados
   const filteredLoans = useMemo(() => {
-    const prioridad = { vencido: 0, hoy: 1, semana: 2, despues: 3, al_dia: 4, liquidado: 5 } as const;
+    const prioridad = { vencido: 0, hoy: 1, semana: 2, despues: 3, al_dia: 4, estancado: 5, liquidado: 6 } as const;
     const fecha = (p: any) => moraById.get(p.id)?.fechaCuotaActual || "9999";
     return filterLoans(prestamos, moraById, filters).sort(
       (a, b) =>

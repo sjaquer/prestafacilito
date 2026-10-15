@@ -1,7 +1,7 @@
 import express from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { supabase } from "../src/lib/supabase.js";
-import { buildPaymentSchedule, normalizeDate, toNumber, round2 } from "../src/lib/loanLogic.js";
+import { normalizeDate, toNumber, round2 } from "../src/lib/loanLogic.js";
 import { buildAlquilerSchedule } from "../src/lib/alquilerLogic.js";
 import { calcularEstadoMora } from "../src/lib/moraLogic.js";
 
@@ -18,12 +18,11 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
 
-    const [pRes, aRes, cRes, ajRes, alqRes, pagosAlqRes] = await Promise.all([
+    const [pRes, aRes, cRes, alqRes, pagosAlqRes] = await Promise.all([
       // Incluye estancados: son los que más urge cobrar
       supabase.from("prestamos").select("*").in("estado", ["activo", "estancado"]),
       supabase.from("amortizaciones").select("*"),
       supabase.from("clientes").select("*"),
-      supabase.from("ajustes_prestamo").select("*").eq("activo", true),
       supabase.from("alquileres").select("*").eq("estado", "activo"),
       supabase.from("pagos_alquiler").select("*")
     ]);
@@ -31,12 +30,10 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
     if (pRes.error) throw pRes.error;
     if (aRes.error) throw aRes.error;
     if (cRes.error) throw cRes.error;
-    if (ajRes.error) throw ajRes.error;
 
     const prestamos = pRes.data || [];
     const amortizaciones = aRes.data || [];
     const clientes = cRes.data || [];
-    const ajustes = ajRes.data || [];
     const alquileres = alqRes.data || [];
     const pagosAlquiler = pagosAlqRes.data || [];
 
@@ -104,7 +101,8 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
         cuotas_debiendo: estadoMora.cuotasAtrasadas,
         estado_pago_mes: estadoPagoMes,
         saldo_pendiente: estadoMora.saldoPendiente,
-        monto_atrasado: estadoMora.montoTotalAtrasado,
+        // Mora acumulada = interés vencido sin pagar. (montoTotalAtrasado de moraLogic suma saldos acumulativos y lo infla)
+        monto_atrasado: estadoMora.moraAcumulada,
         mora_acumulada: estadoMora.moraAcumulada,
         ultimo_pago_fecha: estadoMora.ultimoPagoFecha || null,
         dias_atraso: estadoMora.diasAtraso

@@ -38,25 +38,6 @@ router.get("/status", requireAuth, async (_req: express.Request, res: express.Re
   }
 });
 
-// POST /api/backup/update-date
-router.post("/update-date", requireAuth, async (_req: express.Request, res: express.Response) => {
-  try {
-    const ahora = new Date().toISOString();
-    const { data, error } = await supabase
-      .from("configuracion_sistema")
-      .upsert({ id: 1, ultima_fecha_backup: ahora })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    res.json({ success: true, ultima_fecha_backup: data.ultima_fecha_backup });
-  } catch (err: any) {
-    console.error("Error al actualizar fecha de backup:", err);
-    res.status(500).json({ error: "Error al actualizar fecha de backup", detail: err.message });
-  }
-});
-
 // GET /api/backup/excel
 router.get("/excel", requireAuth, async (_req: express.Request, res: express.Response) => {
   try {

@@ -2,6 +2,7 @@ import express from "express";
 import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { supabase } from "../src/lib/supabase.js";
 import { buildAlquilerSchedule } from "../src/lib/alquilerLogic.js";
+import { programarSync } from "../services/google-calendar.js";
 
 const router = express.Router();
 
@@ -113,6 +114,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: express.Response) =>
       .single();
 
     if (error) throw error;
+    programarSync(`alquiler:${data.id}`);
     res.status(201).json(data);
   } catch (err: any) {
     console.error("Error al crear alquiler:", err);
@@ -163,6 +165,7 @@ router.put("/:id", requireAuth, async (req: AuthRequest, res: express.Response) 
       .single();
 
     if (error) throw error;
+    programarSync(`alquiler:${id}`);
     res.json(data);
   } catch (err: any) {
     console.error("Error al actualizar alquiler:", err);
@@ -198,6 +201,7 @@ router.post("/:id/pagos", requireAuth, async (req: AuthRequest, res: express.Res
       .single();
 
     if (error) throw error;
+    programarSync(`alquiler:${id}`);
     res.status(201).json(data);
   } catch (err: any) {
     console.error("Error al registrar pago de alquiler:", err);
@@ -240,6 +244,7 @@ router.put("/:id/pagos/:pagoId", requireAuth, async (req: AuthRequest, res: expr
       .single();
 
     if (error) throw error;
+    programarSync(`alquiler:${id}`);
     res.json(data);
   } catch (err: any) {
     console.error("Error al editar pago de alquiler:", err);
@@ -259,33 +264,11 @@ router.delete("/:id/pagos/:pagoId", requireAuth, async (req: AuthRequest, res: e
       .eq("alquiler_id", id);
 
     if (error) throw error;
+    programarSync(`alquiler:${id}`);
     res.json({ message: "Pago de alquiler eliminado correctamente" });
   } catch (err: any) {
     console.error("Error al eliminar pago de alquiler:", err);
     res.status(500).json({ error: "Error al eliminar pago de alquiler", detail: err.message });
-  }
-});
-
-// Finalizar contrato de alquiler (Fase 8)
-router.put("/:id/finalizar", requireAuth, async (req: AuthRequest, res: express.Response) => {
-  try {
-    const { id } = req.params;
-
-    const { data, error } = await supabase
-      .from("alquileres")
-      .update({
-        estado: "finalizado",
-        fecha_fin: new Date().toISOString().split("T")[0]
-      })
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    res.json({ success: true, alquiler: data });
-  } catch (err: any) {
-    console.error("Error al finalizar contrato de alquiler:", err);
-    res.status(500).json({ error: "Error al finalizar contrato de alquiler", detail: err.message });
   }
 });
 

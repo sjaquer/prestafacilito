@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router-dom";
-import { ArrowRight, Plus, RefreshCw, Search, Share2, Wallet } from "lucide-react";
+import { Archive, ArrowRight, Plus, RefreshCw, Search, Share2, Wallet } from "lucide-react";
 import { Cliente, Prestamo } from "../types";
 import { formatCurrency, getSaludoPorHora } from "../lib/formatters";
-import { GRUPOS_COBRO, GrupoCobro, ESTILO_GRUPO } from "../lib/cobranza";
+import { GRUPOS_COBRO, GrupoCobro, ESTILO_GRUPO, CUOTAS_ESTANCADO } from "../lib/cobranza";
+import { CollapsibleSection } from "../components/ui/CollapsibleSection";
 import { agruparPorCuenta } from "../lib/cuentas";
 import { filtrarPorPeriodo, useMovimientosCuentas } from "../hooks/useMovimientosCuentas";
 import { useClientes } from "../hooks/useClientes";
@@ -101,6 +102,7 @@ export const InicioPage: React.FC = () => {
       semana: { n: 0, monto: 0 },
       despues: { n: 0, monto: 0 },
       al_dia: { n: 0, monto: 0 },
+      estancado: { n: 0, monto: 0 },
     };
     for (const it of items) {
       c[it.grupo].n++;
@@ -116,8 +118,8 @@ export const InicioPage: React.FC = () => {
   const visibles = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
     return items.filter((it) => {
-      if (!q && filtroActivo !== "todos" && it.grupo !== filtroActivo) return false;
-      if (!q) return true;
+      // Los estancados tienen su propia sección; solo aparecen en la lista al buscar
+      if (!q) return it.grupo !== "estancado" && (filtroActivo === "todos" || it.grupo === filtroActivo);
       return (
         it.cliente_nombre.toLowerCase().includes(q) ||
         (it.cliente_apodo || "").toLowerCase().includes(q) ||
@@ -125,6 +127,8 @@ export const InicioPage: React.FC = () => {
       );
     });
   }, [items, filtroActivo, busqueda]);
+
+  const estancados = useMemo(() => items.filter((it) => it.grupo === "estancado"), [items]);
 
   const movimientosHoy = useMemo(() => filtrarPorPeriodo(movimientos, "hoy"), [movimientos]);
   const gruposHoy = useMemo(() => agruparPorCuenta(movimientosHoy), [movimientosHoy]);
@@ -215,7 +219,7 @@ export const InicioPage: React.FC = () => {
         <section className="lg:col-span-8 space-y-3">
           <div className="sticky top-14 sm:top-[6.5rem] lg:top-16 z-20 -mx-4 px-4 py-2 bg-slate-50/95 backdrop-blur space-y-2 sm:mx-0 sm:px-0">
             <div className="flex gap-1.5 overflow-x-auto pb-0.5" role="tablist" aria-label="Filtrar cobros">
-              {[...GRUPOS_COBRO.map((g) => ({ id: g.id as Filtro, label: g.corto, n: conteo[g.id].n })), { id: "todos" as Filtro, label: "Todos", n: items.length }].map(
+              {[...GRUPOS_COBRO.map((g) => ({ id: g.id as Filtro, label: g.corto, n: conteo[g.id].n })), { id: "todos" as Filtro, label: "Todos", n: items.length - conteo.estancado.n }].map(
                 (t) => {
                   const activo = filtroActivo === t.id && !busqueda;
                   const dot = t.id !== "todos" ? ESTILO_GRUPO[t.id as GrupoCobro].dot : "bg-slate-400";
@@ -269,6 +273,25 @@ export const InicioPage: React.FC = () => {
                 <CobroCard key={`${it.es_alquiler ? "a" : "p"}-${it.prestamo_id}`} item={it} onCobrar={handleCobrar} />
               ))}
             </ul>
+          )}
+
+          {/* Estancados: aparte y plegados para no estorbar la cobranza diaria */}
+          {estancados.length > 0 && !busqueda && (
+            <CollapsibleSection
+              className="bg-slate-50"
+              title={`Estancados (${CUOTAS_ESTANCADO}+ meses sin pagar)`}
+              icon={<Archive className="w-4 h-4" />}
+              aside={`${estancados.length} · ${formatCurrency(conteo.estancado.monto)}`}
+            >
+              <p className="text-[11px] text-slate-500 pt-2 pb-3">
+                No se incluyen en los totales de vencidos ni en el calendario. Revísalos aparte para negociar o cerrar.
+              </p>
+              <ul className="space-y-2">
+                {estancados.map((it) => (
+                  <CobroCard key={`e-${it.prestamo_id}`} item={it} onCobrar={handleCobrar} />
+                ))}
+              </ul>
+            </CollapsibleSection>
           )}
         </section>
 

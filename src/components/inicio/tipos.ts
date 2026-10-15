@@ -48,7 +48,7 @@ export function prepararItems(items: ItemCobroApi[], hoy = new Date()): ItemCobr
     const grupo = clasificarCobro({ fechaProxima: it.dia_vencimiento_mes, atrasadas, sinPendiente }, hoy);
     const dias = diasHasta(it.dia_vencimiento_mes, hoy);
     const montoACobrar =
-      grupo === "vencido"
+      grupo === "vencido" || grupo === "estancado"
         ? Number(it.monto_atrasado) || Number(it.cuota_exigible) || 0
         : grupo === "al_dia"
         ? 0
@@ -58,7 +58,7 @@ export function prepararItems(items: ItemCobroApi[], hoy = new Date()): ItemCobr
   });
 }
 
-const PRIORIDAD: Record<GrupoCobro, number> = { vencido: 0, hoy: 1, semana: 2, despues: 3, al_dia: 4 };
+const PRIORIDAD: Record<GrupoCobro, number> = { vencido: 0, hoy: 1, semana: 2, despues: 3, al_dia: 4, estancado: 5 };
 
 /** Orden de trabajo: primero lo más urgente; dentro del grupo, por fecha (más antiguo primero). */
 export const ordenarPorUrgencia = (a: ItemCobro, b: ItemCobro) =>

@@ -1,6 +1,5 @@
 import express from "express";
 import { requireAuth } from "../middleware/auth.js";
-import { supabase } from "../src/lib/supabase.js";
 import {
   isDriveConfigured,
   getDriveFolderId,
