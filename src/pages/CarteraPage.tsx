@@ -19,8 +19,12 @@ import {
   esLiquidado,
   exportCarteraCsv,
   grupoCartera,
+  GrupoCartera,
   filterLoans,
 } from "../components/cartera/carteraUtils";
+import { buildPaymentSchedule } from "../lib/loanLogic";
+import { proximoCobroPrestamo } from "../lib/proximoCobro";
+import { toISODateLocal } from "../lib/fechas";
 
 export const CarteraPage: React.FC = () => {
   const { clientes } = useClientes();
@@ -64,13 +68,26 @@ export const CarteraPage: React.FC = () => {
     return map;
   }, [prestamos, amortizaciones, today]);
 
+  // Próximo cobro con la misma regla que Inicio y el calendario
+  const grupoById = useMemo(() => {
+    const hoy = toISODateLocal(today);
+    const map = new Map<string, GrupoCartera>();
+    for (const p of prestamos) {
+      const pagos = amortizaciones.filter((a) => a.prestamo_id === p.id);
+      const deuda = buildPaymentSchedule(p, pagos, { referenceDate: new Date(`${hoy}T12:00:00`) });
+      map.set(p.id, grupoCartera(p, proximoCobroPrestamo(deuda, p.fecha_emision, hoy)));
+    }
+    return map;
+  }, [prestamos, amortizaciones, today]);
+  const grupoDe = useCallback((p: any): GrupoCartera => grupoById.get(p.id) || "despues", [grupoById]);
+
   const clientesById = useMemo(() => new Map(clientes.map((c) => [c.id, c])), [clientes]);
 
   const getWhatsAppLink = useCallback(
     (loan: any) => {
       const mora = moraById.get(loan.id);
       if (!mora || esLiquidado(loan)) return null;
-      const vencido = grupoCartera(loan, mora) === "vencido";
+      const vencido = grupoDe(loan) === "atrasado" || grupoDe(loan) === "estancado";
       return linkCobroWhatsApp(clientesById.get(loan.cliente_id)?.telefono, {
         esAlquiler: loan.tipo_prestamo === "Alquiler de Casa",
         fechaVencimiento: mora.fechaCuotaActual,
@@ -79,7 +96,7 @@ export const CarteraPage: React.FC = () => {
         monto: vencido ? mora.moraAcumulada : mora.montoCuotaActual,
       });
     },
-    [clientesById, moraById]
+    [clientesById, moraById, grupoDe]
   );
 
   const loanTypes = useMemo(
@@ -96,25 +113,23 @@ export const CarteraPage: React.FC = () => {
     for (const p of vigentes) {
       const mora = moraById.get(p.id);
       capitalPendiente += mora ? Math.max(0, mora.saldoPendiente - mora.moraAcumulada) : parseFloat(p.monto_capital) || 0;
-      const grupo = grupoCartera(p, mora);
-      if (grupo === "vencido") {
+      const grupo = grupoDe(p);
+      if (grupo === "atrasado") {
         vencidosCount++;
         montoVencido += mora?.moraAcumulada || 0;
       } else if (grupo === "hoy") hoyCount++;
     }
     return { capitalPendiente, activasCount: vigentes.length, vencidosCount, montoVencido, hoyCount };
-  }, [prestamos, moraById]);
+  }, [prestamos, moraById, grupoDe]);
 
   // Más urgente primero: vencidos, hoy, 7 días, después y al final los pagados
   const filteredLoans = useMemo(() => {
-    const prioridad = { vencido: 0, hoy: 1, semana: 2, despues: 3, al_dia: 4, estancado: 5, liquidado: 6 } as const;
+    const prioridad: Record<GrupoCartera, number> = { atrasado: 0, hoy: 1, manana: 2, semana: 3, despues: 4, estancado: 5, liquidado: 6 };
     const fecha = (p: any) => moraById.get(p.id)?.fechaCuotaActual || "9999";
-    return filterLoans(prestamos, moraById, filters).sort(
-      (a, b) =>
-        prioridad[grupoCartera(a, moraById.get(a.id))] - prioridad[grupoCartera(b, moraById.get(b.id))] ||
-        fecha(a).localeCompare(fecha(b))
+    return filterLoans(prestamos, grupoDe, filters).sort(
+      (a, b) => prioridad[grupoDe(a)] - prioridad[grupoDe(b)] || fecha(a).localeCompare(fecha(b))
     );
-  }, [prestamos, moraById, filters]);
+  }, [prestamos, moraById, filters, grupoDe]);
 
   const columns = useMemo(
     () => buildCarteraColumns({ moraById, today, getWhatsAppLink, onEdit: setEditingLoan }),
@@ -193,6 +208,7 @@ export const CarteraPage: React.FC = () => {
                 key={loan.id}
                 loan={loan}
                 mora={moraById.get(loan.id)}
+                grupo={grupoDe(loan)}
                 today={today}
                 waLink={getWhatsAppLink(loan)}
                 onEdit={setEditingLoan}

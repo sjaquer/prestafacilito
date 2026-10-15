@@ -13,96 +13,108 @@ interface CobroCardProps {
 
 const SCORE_COLOR = { A: "bg-emerald-100 text-emerald-800", B: "bg-amber-100 text-amber-800", C: "bg-rose-100 text-rose-800" };
 
-/** Texto corto de "cuándo": en días para lo próximo, en cuotas para lo atrasado. */
+/** Texto corto de "cuándo": cuotas atrasadas o días a la próxima fecha. */
 function textoCuando(item: ItemCobro) {
-  const atrasadas = item.cuotas_debiendo || 0;
-  const unidad = item.es_alquiler ? "mes" : "cuota";
-  if ((item.grupo === "vencido" || item.grupo === "estancado") && atrasadas > 0) {
-    return `${atrasadas} ${unidad}${atrasadas > 1 ? "s" : ""} atrasada${atrasadas > 1 ? "s" : ""}`;
+  if (item.grupo === "atrasado" || item.grupo === "estancado") {
+    const n = item.cuotas_atrasadas || 1;
+    const unidad = item.es_alquiler ? "mes" : "cuota";
+    return `${n} ${unidad}${n > 1 ? "s" : ""} sin pagar`;
   }
-  if (item.grupo === "al_dia") return item.estado_pago_mes === "pagado" ? "Sin deuda" : `Próximo ${formatDate(item.dia_vencimiento_mes)}`;
-  return textoRelativo(item.dias);
+  return item.proximo_cobro ? `${textoRelativo(item.dias)} · ${formatDate(item.proximo_cobro)}` : "Sin fecha";
 }
 
+const Celda: React.FC<{ label: string; valor: string; destacado?: boolean }> = ({ label, valor, destacado }) => (
+  <div className={`rounded-xl px-2.5 py-1.5 ${destacado ? "bg-white shadow-sm" : "bg-white/60"}`}>
+    <p className="text-[9.5px] font-bold text-slate-500 uppercase tracking-wide">{label}</p>
+    <p className={`font-mono leading-tight ${destacado ? "text-[15px] font-black text-slate-900" : "text-[13px] font-bold text-slate-700"}`}>{valor}</p>
+  </div>
+);
+
 /**
- * Tarjeta de un cobro. Toda la tarjeta toma el color de su estado (vencido, hoy, semana…)
- * para leer la lista de un vistazo, sin tener que fijarse en detalles.
+ * Tarjeta de un cobro. Toda la tarjeta toma el color de su estado (atrasado, hoy, mañana…)
+ * y muestra en casillas lo esencial del préstamo para decidir sin abrirlo.
  */
 export const CobroCard: React.FC<CobroCardProps> = ({ item, onCobrar }) => {
   const estilo = ESTILO_GRUPO[item.grupo];
-  const detalle = item.es_alquiler ? `/alquileres/${item.prestamo_id}` : `/prestamos/${item.prestamo_id}`;
-  const pendiente = item.grupo !== "al_dia";
-  const atrasado = item.grupo === "vencido" || item.grupo === "estancado";
-  const wa = pendiente
-    ? linkCobroWhatsApp(item.cliente_telefono, {
-        esAlquiler: item.es_alquiler,
-        fechaVencimiento: item.dia_vencimiento_mes,
-        diasAtraso: item.dias !== null && item.dias < 0 ? Math.abs(item.dias) : item.dias_atraso,
-        atrasado,
-        monto: item.montoACobrar,
-      })
-    : null;
+  const detalle = item.es_alquiler ? `/alquileres/${item.id}` : `/prestamos/${item.id}`;
+  const esAtraso = item.grupo === "atrasado" || item.grupo === "estancado";
+  const wa = linkCobroWhatsApp(item.cliente_telefono, {
+    esAlquiler: item.es_alquiler,
+    fechaVencimiento: esAtraso ? item.debe_desde || undefined : item.proximo_cobro || undefined,
+    atrasado: esAtraso,
+    monto: item.montoACobrar,
+  });
 
   return (
     <li className={`border rounded-2xl overflow-hidden ${estilo.tarjeta}`}>
-      <Link to={detalle} className="block px-4 pt-3 pb-2.5 decoration-none">
+      <Link to={detalle} className="block px-3.5 pt-3 pb-2.5 decoration-none">
         <div className="flex items-center justify-between gap-2">
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${estilo.pill}`}>{estilo.etiqueta}</span>
-          <span className={`text-[11px] font-bold ${estilo.texto}`}>{textoCuando(item)}</span>
+          <span className={`text-[11px] font-bold ${estilo.texto} truncate`}>{textoCuando(item)}</span>
         </div>
 
-        <div className="mt-2 flex items-end gap-3">
+        <div className="mt-2 flex items-center gap-2">
           <div className="flex-1 min-w-0">
             <p className="flex items-center gap-1.5 font-extrabold text-slate-900 text-[15px] leading-tight">
               <span className="truncate">{item.cliente_nombre}</span>
               {item.score && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${SCORE_COLOR[item.score]}`}>{item.score}</span>}
             </p>
-            <p className="text-[11px] text-slate-600 font-semibold truncate flex items-center gap-1 mt-0.5">
+            <p className="text-[11px] text-slate-600 font-semibold truncate flex items-center gap-1">
               {item.es_alquiler ? (
                 <>
-                  <HomeIcon className="w-3 h-3 shrink-0" /> {item.descripcion_inmueble || "Alquiler"}
+                  <HomeIcon className="w-3 h-3 shrink-0" /> {item.descripcion_inmueble}
                 </>
               ) : (
                 <>
-                  {item.tipo_prestamo} · {formatCurrency(item.monto_capital)} al {item.tasa_interes_porcentaje}%
+                  {item.tipo} · {item.tasa}% mensual · prestó {formatCurrency(item.monto_original)}
                 </>
               )}
             </p>
           </div>
-          <div className="text-right shrink-0">
-            {pendiente && <p className="text-[10px] font-bold text-slate-500">{atrasado ? "Atrasado" : "A cobrar"}</p>}
-            <p className="text-lg font-black font-mono text-slate-900 leading-tight">{pendiente ? formatCurrency(item.montoACobrar) : "—"}</p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 mb-1" />
+          <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+        </div>
+
+        <div className="mt-2 grid grid-cols-3 gap-1.5">
+          {item.es_alquiler ? (
+            <>
+              <Celda label="Renta" valor={formatCurrency(item.renta_mensual)} />
+              <Celda label="Atrasado" valor={formatCurrency(item.atrasado)} />
+            </>
+          ) : (
+            <>
+              <Celda label="Capital" valor={formatCurrency(item.capital_restante)} />
+              <Celda label="Interés/mes" valor={formatCurrency(item.interes_mes)} />
+            </>
+          )}
+          <Celda label={esAtraso ? "Atrasado" : "A cobrar"} valor={formatCurrency(item.montoACobrar)} destacado />
         </div>
       </Link>
 
-      {pendiente && (
-        <div className="flex items-center gap-2 px-4 pb-3">
-          <span className="flex-1 text-[10px] text-slate-500 font-semibold truncate">
-            {atrasado && item.dia_vencimiento_mes ? `Debe desde ${formatDate(item.dia_vencimiento_mes)}` : item.dia_vencimiento_mes ? `Vence ${formatDate(item.dia_vencimiento_mes)}` : ""}
-            {item.ultimo_pago_fecha ? ` · último pago ${formatDate(item.ultimo_pago_fecha)}` : " · sin pagos"}
-          </span>
-          {wa && (
-            <a
-              href={wa}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="h-10 w-10 min-[400px]:w-auto min-[400px]:px-3 rounded-xl bg-white/80 hover:bg-white border border-black/5 text-emerald-700 text-xs font-bold inline-flex items-center justify-center gap-1.5 decoration-none"
-              aria-label={`Enviar recordatorio por WhatsApp a ${item.cliente_nombre}`}
-            >
-              <MessageCircle className="w-4 h-4" /> <span className="hidden min-[400px]:inline">Recordar</span>
-            </a>
-          )}
-          <button
-            type="button"
-            onClick={() => onCobrar(item)}
-            className="h-10 px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold inline-flex items-center gap-1.5"
+      <div className="flex items-center gap-2 px-3.5 pb-3">
+        <span className="flex-1 text-[10px] text-slate-500 font-semibold truncate">
+          {esAtraso && item.debe_desde ? `Debe desde ${formatDate(item.debe_desde)}` : ""}
+          {esAtraso && item.debe_desde ? " · " : ""}
+          {item.ultimo_pago_fecha ? `Último pago ${formatDate(item.ultimo_pago_fecha)}` : "Sin pagos"}
+        </span>
+        {wa && (
+          <a
+            href={wa}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="h-10 w-10 min-[400px]:w-auto min-[400px]:px-3 rounded-xl bg-white/80 hover:bg-white border border-black/5 text-emerald-700 text-xs font-bold inline-flex items-center justify-center gap-1.5 decoration-none"
+            aria-label={`Enviar recordatorio por WhatsApp a ${item.cliente_nombre}`}
           >
-            <Wallet className="w-4 h-4" /> Cobrar
-          </button>
-        </div>
-      )}
+            <MessageCircle className="w-4 h-4" /> <span className="hidden min-[400px]:inline">Recordar</span>
+          </a>
+        )}
+        <button
+          type="button"
+          onClick={() => onCobrar(item)}
+          className="h-10 px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold inline-flex items-center gap-1.5"
+        >
+          <Wallet className="w-4 h-4" /> Cobrar
+        </button>
+      </div>
     </li>
   );
 };

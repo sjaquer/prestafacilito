@@ -12,13 +12,14 @@ import {
   getIndicatorColor,
   isEnMora,
   esLiquidado,
-  grupoCartera,
+  GrupoCartera,
 } from "./carteraUtils";
 import { ESTILO_GRUPO } from "../../lib/cobranza";
 
 interface CarteraLoanCardProps {
   loan: any;
   mora?: EstadoMoraCliente;
+  grupo: GrupoCartera;
   today: Date;
   waLink: string | null;
   onEdit: (loan: any) => void;
@@ -41,9 +42,8 @@ const PlazoBadge: React.FC<{ loan: any; mora?: EstadoMoraCliente; today: Date }>
 };
 
 /** Tarjeta deslizable de un préstamo para la vista móvil de la cartera. */
-export const CarteraLoanCard: React.FC<CarteraLoanCardProps> = ({ loan, mora, today, waLink, onEdit }) => {
+export const CarteraLoanCard: React.FC<CarteraLoanCardProps> = ({ loan, mora, grupo, today, waLink, onEdit }) => {
   const navigate = useNavigate();
-  const grupo = grupoCartera(loan, mora);
   const fondo = grupo === "liquidado" ? "bg-white border-slate-200" : ESTILO_GRUPO[grupo].tarjeta;
   const isPagado = esLiquidado(loan);
   const canCobrar = !esLiquidado(loan) && !!waLink;

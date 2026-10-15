@@ -39,7 +39,7 @@ interface CarteraKPIsProps {
   vencidosCount: number;
   montoVencido: number;
   hoyCount: number;
-  onFiltrar: (grupo: "vencido" | "hoy") => void;
+  onFiltrar: (grupo: "atrasado" | "hoy") => void;
 }
 
 export const CarteraKPIs: React.FC<CarteraKPIsProps> = ({
@@ -52,16 +52,16 @@ export const CarteraKPIs: React.FC<CarteraKPIsProps> = ({
 }) => (
   <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
     <Kpi
-      label="Vencidos"
+      label="Atrasados"
       value={formatCurrency(montoVencido)}
       hint={`${vencidosCount} préstamo${vencidosCount === 1 ? "" : "s"} con atraso`}
       icon={<AlertTriangle size={14} />}
       accent="bg-rose-50 text-rose-600"
       valueClass={vencidosCount ? "text-rose-600" : "text-slate-900"}
-      onClick={() => onFiltrar("vencido")}
+      onClick={() => onFiltrar("atrasado")}
     />
     <Kpi
-      label="Vencen hoy"
+      label="Cobrar hoy"
       value={hoyCount}
       hint="Cuotas que vencen hoy"
       icon={<CalendarClock size={14} />}

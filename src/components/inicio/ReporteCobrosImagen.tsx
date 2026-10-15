@@ -1,260 +1,105 @@
 import React from "react";
+import { GrupoCobro } from "../../lib/cobranza";
 import { ItemCobro } from "./tipos";
 
 interface ReporteCobrosImagenProps {
   items: ItemCobro[];
 }
 
+/** Grupos que entran al reporte, en orden. */
+const SECCIONES: { grupo: GrupoCobro; titulo: string; color: string; fondo: string }[] = [
+  { grupo: "atrasado", titulo: "ATRASADOS", color: "#b91c1c", fondo: "#fef2f2" },
+  { grupo: "hoy", titulo: "COBRAR HOY", color: "#b45309", fondo: "#fffbeb" },
+  { grupo: "manana", titulo: "MAÑANA", color: "#0369a1", fondo: "#f0f9ff" },
+  { grupo: "semana", titulo: "ESTA SEMANA", color: "#4338ca", fondo: "#eef2ff" },
+];
+
+const soles = (n?: number) => (n === undefined || n === null ? "—" : `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+const fecha = (iso?: string | null) => {
+  if (!iso) return "—";
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("es-PE", { day: "2-digit", month: "short" });
+};
+
+// Estilos tipo hoja de cálculo: bordes finos, sin adornos
+const borde = "1px solid #d4d4d8";
+const th: React.CSSProperties = { border: borde, padding: "7px 8px", fontSize: 12, fontWeight: 700, background: "#f4f4f5", color: "#3f3f46", textAlign: "left", whiteSpace: "nowrap" };
+const td: React.CSSProperties = { border: borde, padding: "7px 8px", fontSize: 13, color: "#18181b", whiteSpace: "nowrap" };
+const num: React.CSSProperties = { ...td, textAlign: "right", fontFamily: "Consolas, 'Courier New', monospace" };
+
+/**
+ * Imagen para enviar por WhatsApp: tabla simple estilo Excel con lo que hay que cobrar,
+ * agrupado por urgencia, con capital restante e interés de cada préstamo.
+ */
 export const ReporteCobrosImagen: React.FC<ReporteCobrosImagenProps> = ({ items }) => {
-  const fechaHoyStr = new Date().toLocaleDateString("es-ES", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric"
-  });
-  const fechaHoyCapitalizada = fechaHoyStr.charAt(0).toUpperCase() + fechaHoyStr.slice(1);
-
-  // Totales
-  const totalAtrasado = items
-    .filter((d) => d.grupo === "vencido")
-    .reduce((sum, d) => sum + d.montoACobrar, 0);
-
-  const totalPendienteSemana = items
-    .filter((d) => d.grupo !== "vencido")
-    .reduce((sum, d) => sum + d.montoACobrar, 0);
-
-  const totalGeneral = totalAtrasado + totalPendienteSemana;
+  const hoy = new Date().toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const secciones = SECCIONES.map((s) => ({ ...s, filas: items.filter((i) => i.grupo === s.grupo) })).filter((s) => s.filas.length > 0);
+  const totalGeneral = items.reduce((sum, i) => sum + i.montoACobrar, 0);
+  let n = 0;
 
   return (
     <div
       id="reporte-cobros-container"
-      style={{
-        backgroundColor: "#ffffff",
-        color: "#0f172a",
-        fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-        padding: "24px",
-        width: "900px",
-        boxSizing: "border-box"
-      }}
+      style={{ background: "#ffffff", color: "#18181b", fontFamily: "'Segoe UI', Roboto, Arial, sans-serif", padding: 20, width: 920, boxSizing: "border-box" }}
     >
-      {/* Encabezado Principal Estilo Ejecutivo */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          borderBottom: "3px solid #059669",
-          paddingBottom: "14px",
-          marginBottom: "16px"
-        }}
-      >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div
-              style={{
-                width: "36px",
-                height: "36px",
-                backgroundColor: "#059669",
-                borderRadius: "8px",
-                color: "#ffffff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: "900",
-                fontSize: "20px"
-              }}
-            >
-              P
-            </div>
-            <h1 style={{ margin: 0, fontSize: "24px", fontWeight: "900", color: "#0f172a" }}>
-              Gestión de Cartera
-            </h1>
-          </div>
-          <p style={{ margin: "4px 0 0 0", fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Reporte Semanal de Cobros y Vencimientos
-          </p>
+          <div style={{ fontSize: 20, fontWeight: 800 }}>Cobros pendientes</div>
+          <div style={{ fontSize: 13, color: "#52525b", textTransform: "capitalize" }}>{hoy}</div>
         </div>
-
         <div style={{ textAlign: "right" }}>
-          <div
-            style={{
-              backgroundColor: "#d1fae5",
-              color: "#065f46",
-              border: "1px solid #6ee7b7",
-              padding: "4px 12px",
-              borderRadius: "9999px",
-              fontSize: "11px",
-              fontWeight: "900",
-              display: "inline-block"
-            }}
-          >
-            📋 LISTA PARA WHATSAPP
-          </div>
-          <p style={{ margin: "4px 0 0 0", fontSize: "11px", fontWeight: "600", color: "#64748b" }}>
-            {fechaHoyCapitalizada}
-          </p>
+          <div style={{ fontSize: 12, color: "#52525b" }}>Total a cobrar</div>
+          <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "Consolas, 'Courier New', monospace" }}>{soles(totalGeneral)}</div>
         </div>
       </div>
 
-      {/* Tabla Estilo Excel Moderno */}
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          fontSize: "12px",
-          textAlign: "left"
-        }}
-      >
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
-          <tr style={{ backgroundColor: "#0f172a", color: "#ffffff" }}>
-            <th style={{ padding: "10px 12px", fontWeight: "900", fontSize: "11px", textTransform: "uppercase", width: "40px" }}>#</th>
-            <th style={{ padding: "10px 12px", fontWeight: "900", fontSize: "11px", textTransform: "uppercase", width: "230px" }}>Cliente / Inquilino</th>
-            <th style={{ padding: "10px 12px", fontWeight: "900", fontSize: "11px", textTransform: "uppercase", width: "230px" }}>Concepto</th>
-            <th style={{ padding: "10px 12px", fontWeight: "900", fontSize: "11px", textTransform: "uppercase", width: "150px" }}>Día de Cobro</th>
-            <th style={{ padding: "10px 12px", fontWeight: "900", fontSize: "11px", textTransform: "uppercase", width: "110px", textAlign: "right" }}>Cuota (S/)</th>
-            <th style={{ padding: "10px 12px", fontWeight: "900", fontSize: "11px", textTransform: "uppercase", width: "130px", textAlign: "center" }}>Estado</th>
+          <tr>
+            <th style={{ ...th, width: 28, textAlign: "center" }}>#</th>
+            <th style={th}>Cliente</th>
+            <th style={th}>Tipo</th>
+            <th style={{ ...th, textAlign: "right" }}>Capital restante</th>
+            <th style={{ ...th, textAlign: "right" }}>Tasa</th>
+            <th style={{ ...th, textAlign: "right" }}>Interés mes</th>
+            <th style={th}>Fecha</th>
+            <th style={{ ...th, textAlign: "right" }}>A cobrar</th>
           </tr>
         </thead>
         <tbody>
-          {items.map((item, index) => {
-            const isAtrasado = item.grupo === "vencido";
-            const dayNum = item.dia_vencimiento_mes
-              ? parseInt(item.dia_vencimiento_mes.split("-")[2] || item.dia_vencimiento_mes, 10)
-              : 5;
-
-            const isEven = index % 2 === 0;
-
-            return (
-              <tr
-                key={item.prestamo_id}
-                style={{
-                  backgroundColor: isEven ? "#f8fafc" : "#ffffff",
-                  borderBottom: "1px solid #e2e8f0"
-                }}
-              >
-                <td style={{ padding: "10px 12px", fontWeight: "800", color: "#94a3b8" }}>{index + 1}</td>
-                <td style={{ padding: "10px 12px" }}>
-                  <span style={{ fontWeight: "800", color: "#0f172a", fontSize: "13px", display: "block" }}>
-                    {item.cliente_nombre}
-                  </span>
-                  {item.cliente_apodo && (
-                    <span style={{ fontSize: "11px", fontWeight: "600", color: "#64748b", fontStyle: "italic" }}>
-                      ({item.cliente_apodo})
-                    </span>
-                  )}
+          {secciones.map((s) => (
+            <React.Fragment key={s.grupo}>
+              <tr>
+                <td colSpan={7} style={{ ...td, background: s.fondo, color: s.color, fontWeight: 800, fontSize: 12, letterSpacing: 0.5 }}>
+                  {s.titulo} ({s.filas.length})
                 </td>
-                <td style={{ padding: "10px 12px", fontWeight: "600" }}>
-                  {item.es_alquiler ? (
-                    <span style={{ color: "#4338ca", fontWeight: "700" }}>
-                      🏠 Alquiler: {item.descripcion_inmueble || "Inmueble"}
-                    </span>
-                  ) : (
-                    <span style={{ color: "#047857", fontWeight: "700" }}>
-                      💰 Préstamo ({item.tipo_prestamo})
-                    </span>
-                  )}
-                </td>
-                <td style={{ padding: "10px 12px", fontWeight: "800", color: "#1e293b" }}>
-                  📅 Día {dayNum}
-                  {isAtrasado ? (
-                    <span style={{ display: "block", fontSize: "10px", fontWeight: "900", color: "#dc2626", marginTop: "2px" }}>
-                      ⚠️ Atrasado ({item.dias !== null && item.dias < 0 ? Math.abs(item.dias) : item.dias_atraso || 1}d)
-                    </span>
-                  ) : item.dias_restantes !== undefined && item.dias_restantes > 0 ? (
-                    <span style={{ display: "block", fontSize: "10px", fontWeight: "800", color: "#b45309", marginTop: "2px" }}>
-                      ⚡ Quedan {item.dias_restantes}d
-                    </span>
-                  ) : null}
-                </td>
-                <td style={{ padding: "10px 12px", fontWeight: "900", color: "#0f172a", fontSize: "14px", textAlign: "right" }}>
-                  S/ {item.montoACobrar.toFixed(2)}
-                </td>
-                <td style={{ padding: "10px 12px", textAlign: "center" }}>
-                  {isAtrasado ? (
-                    <span
-                      style={{
-                        backgroundColor: "#dc2626",
-                        color: "#ffffff",
-                        padding: "5px 12px",
-                        borderRadius: "9999px",
-                        fontSize: "10px",
-                        fontWeight: "900",
-                        display: "inline-block",
-                        whiteSpace: "nowrap",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.15)"
-                      }}
-                    >
-                      🔴 POR COBRAR
-                    </span>
-                  ) : (
-                    <span
-                      style={{
-                        backgroundColor: "#f59e0b",
-                        color: "#0f172a",
-                        padding: "5px 12px",
-                        borderRadius: "9999px",
-                        fontSize: "10px",
-                        fontWeight: "900",
-                        display: "inline-block",
-                        whiteSpace: "nowrap",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.15)"
-                      }}
-                    >
-                      ⚡ PENDIENTE
-                    </span>
-                  )}
-                </td>
+                <td style={{ ...num, background: s.fondo, color: s.color, fontWeight: 800 }}>{soles(s.filas.reduce((sum, i) => sum + i.montoACobrar, 0))}</td>
               </tr>
-            );
-          })}
+              {s.filas.map((i) => {
+                n += 1;
+                const atraso = s.grupo === "atrasado";
+                return (
+                  <tr key={`${i.es_alquiler ? "a" : "p"}-${i.id}`}>
+                    <td style={{ ...td, textAlign: "center", color: "#71717a" }}>{n}</td>
+                    <td style={{ ...td, fontWeight: 600, maxWidth: 230, overflow: "hidden", textOverflow: "ellipsis" }}>{i.cliente_nombre}</td>
+                    <td style={{ ...td, color: "#52525b" }}>{i.es_alquiler ? `Alquiler` : i.tipo}</td>
+                    <td style={num}>{i.es_alquiler ? "—" : soles(i.capital_restante)}</td>
+                    <td style={num}>{i.es_alquiler ? "—" : `${i.tasa}%`}</td>
+                    <td style={num}>{i.es_alquiler ? soles(i.renta_mensual) : soles(i.interes_mes)}</td>
+                    <td style={{ ...td, color: atraso ? "#b91c1c" : "#18181b" }}>
+                      {atraso ? `Desde ${fecha(i.debe_desde)} (${i.cuotas_atrasadas})` : fecha(i.proximo_cobro)}
+                    </td>
+                    <td style={{ ...num, fontWeight: 700 }}>{soles(i.montoACobrar)}</td>
+                  </tr>
+                );
+              })}
+            </React.Fragment>
+          ))}
         </tbody>
       </table>
 
-      {/* Resumen de Totales al Pie */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: "12px",
-          backgroundColor: "#0f172a",
-          color: "#ffffff",
-          padding: "14px 16px",
-          borderRadius: "12px",
-          marginTop: "16px"
-        }}
-      >
-        <div>
-          <span style={{ fontSize: "10px", fontWeight: "800", color: "#fca5a5", textTransform: "uppercase", display: "block" }}>
-            Total Por Cobrar (Atrasado)
-          </span>
-          <span style={{ fontSize: "16px", fontWeight: "900", color: "#fca5a5" }}>
-            S/ {totalAtrasado.toFixed(2)}
-          </span>
-        </div>
-
-        <div>
-          <span style={{ fontSize: "10px", fontWeight: "800", color: "#fcd34d", textTransform: "uppercase", display: "block" }}>
-            Total Pendiente Esta Semana
-          </span>
-          <span style={{ fontSize: "16px", fontWeight: "900", color: "#fcd34d" }}>
-            S/ {totalPendienteSemana.toFixed(2)}
-          </span>
-        </div>
-
-        <div style={{ borderLeft: "1px solid #334155", paddingLeft: "12px" }}>
-          <span style={{ fontSize: "10px", fontWeight: "800", color: "#6ee7b7", textTransform: "uppercase", display: "block" }}>
-            Gran Total a Recaudar
-          </span>
-          <span style={{ fontSize: "18px", fontWeight: "900", color: "#34d399" }}>
-            S/ {totalGeneral.toFixed(2)}
-          </span>
-        </div>
-      </div>
-
-      <div style={{ textAlign: "center", paddingTop: "8px", borderTop: "1px solid #e2e8f0" }}>
-        <p style={{ margin: 0, fontSize: "10px", fontWeight: "700", color: "#94a3b8" }}>
-          Sistema de Gestión de Cartera y Cobranzas
-        </p>
+      <div style={{ marginTop: 8, fontSize: 11, color: "#71717a" }}>
+        Atrasados: interés vencido sin pagar (entre paréntesis, cuotas). En alquileres, "Interés mes" es la renta mensual.
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { EstadoMoraCliente } from "../../lib/moraLogic";
 import { hoyISO } from "../../lib/fechas";
 import { clasificarCobro, GrupoCobro } from "../../lib/cobranza";
+import type { ProximoCobroPrestamo } from "../../lib/proximoCobro";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -9,17 +10,18 @@ export type GrupoCartera = GrupoCobro | "liquidado";
 
 export const ESTADO_FILTROS: { value: "todos" | GrupoCartera; label: string }[] = [
   { value: "todos", label: "Todos" },
-  { value: "vencido", label: "Vencidos" },
-  { value: "hoy", label: "Hoy" },
-  { value: "semana", label: "7 días" },
-  { value: "despues", label: "Después" },
+  { value: "atrasado", label: "Atrasados" },
+  { value: "hoy", label: "Cobrar hoy" },
+  { value: "manana", label: "Mañana" },
+  { value: "semana", label: "Esta semana" },
+  { value: "despues", label: "Más adelante" },
   { value: "estancado", label: "Estancados" },
-  { value: "liquidado", label: "Pagados" },
+  { value: "liquidado", label: "Liquidados" },
 ];
 
 export const estadoFiltroClass = (value: string, active: boolean) => {
   if (!active) return "text-slate-500 hover:text-slate-700";
-  if (value === "vencido") return "bg-rose-600 text-white shadow-md";
+  if (value === "atrasado") return "bg-rose-600 text-white shadow-md";
   if (value === "hoy") return "bg-amber-500 text-white shadow-md";
   if (value === "estancado") return "bg-slate-500 text-white";
   if (value === "liquidado") return "bg-slate-700 text-white";
@@ -29,10 +31,9 @@ export const estadoFiltroClass = (value: string, active: boolean) => {
 export const esLiquidado = (p: any) => p.estado === "pagado" || p.estado === "liquidado";
 
 /** Clasifica un préstamo con la misma regla que la pantalla de Inicio. */
-export const grupoCartera = (p: any, mora: EstadoMoraCliente | undefined): GrupoCartera => {
-  if (esLiquidado(p) || mora?.estadoCuotaMes === "al_dia") return "liquidado";
-  if (!mora) return "despues";
-  return clasificarCobro({ fechaProxima: mora.fechaCuotaActual, atrasadas: mora.cuotasAtrasadas });
+export const grupoCartera = (p: any, prox: ProximoCobroPrestamo | undefined): GrupoCartera => {
+  if (esLiquidado(p) || !prox || prox.liquidado) return "liquidado";
+  return clasificarCobro({ fechaProxima: prox.fecha, atrasadas: prox.cuotasAtrasadas });
 };
 
 export interface CarteraFilters {
@@ -111,11 +112,7 @@ export const getEstadoCuotaLabel = (mora: EstadoMoraCliente, compact = false) =>
 };
 
 /** Filtra la cartera aplicando búsqueda, estado, tipo, rango de fechas y montos. */
-export const filterLoans = (
-  prestamos: any[],
-  moraById: Map<string, EstadoMoraCliente>,
-  f: CarteraFilters
-) =>
+export const filterLoans = (prestamos: any[], grupoDe: (p: any) => GrupoCartera, f: CarteraFilters) =>
   prestamos.filter((p) => {
     if (f.searchTerm) {
       const query = f.searchTerm.toLowerCase();
@@ -124,7 +121,7 @@ export const filterLoans = (
       if (!clientMatch && !typeMatch) return false;
     }
 
-    if (f.estado !== "todos" && grupoCartera(p, moraById.get(p.id)) !== f.estado) return false;
+    if (f.estado !== "todos" && grupoDe(p) !== f.estado) return false;
 
     if (f.tipo !== "todos" && p.tipo_prestamo !== f.tipo) return false;
 

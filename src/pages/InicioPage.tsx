@@ -72,8 +72,8 @@ export const InicioPage: React.FC = () => {
       const res = await fetch("/api/dashboard/home");
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setItems(prepararItems((data.deudoresDelMes || []) as ItemCobroApi[]).sort(ordenarPorUrgencia));
-      if (data.resumenCartera) setResumen(data.resumenCartera);
+      setItems(prepararItems((data.items || []) as ItemCobroApi[]).sort(ordenarPorUrgencia));
+      if (data.resumen) setResumen(data.resumen);
     } catch {
       notify("No se pudieron cargar los cobros.");
     } finally {
@@ -97,11 +97,11 @@ export const InicioPage: React.FC = () => {
 
   const conteo = useMemo(() => {
     const c: Record<GrupoCobro, { n: number; monto: number }> = {
-      vencido: { n: 0, monto: 0 },
+      atrasado: { n: 0, monto: 0 },
       hoy: { n: 0, monto: 0 },
+      manana: { n: 0, monto: 0 },
       semana: { n: 0, monto: 0 },
       despues: { n: 0, monto: 0 },
-      al_dia: { n: 0, monto: 0 },
       estancado: { n: 0, monto: 0 },
     };
     for (const it of items) {
@@ -113,7 +113,7 @@ export const InicioPage: React.FC = () => {
 
   // Por defecto se abre el grupo más urgente que tenga algo
   const filtroActivo: Filtro =
-    filtro ?? (conteo.vencido.n ? "vencido" : conteo.hoy.n ? "hoy" : conteo.semana.n ? "semana" : "todos");
+    filtro ?? (conteo.atrasado.n ? "atrasado" : conteo.hoy.n ? "hoy" : conteo.manana.n ? "manana" : conteo.semana.n ? "semana" : "todos");
 
   const visibles = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -140,11 +140,11 @@ export const InicioPage: React.FC = () => {
   };
 
   const handleCobrar = (item: ItemCobro) => {
-    if (item.es_alquiler) navigate(`/alquileres/${item.prestamo_id}`);
-    else abrirPago(item.prestamo_id);
+    if (item.es_alquiler) navigate(`/alquileres/${item.id}`);
+    else abrirPago(item.id);
   };
 
-  const pendientesReporte = items.filter((i) => ["vencido", "hoy", "semana"].includes(i.grupo));
+  const pendientesReporte = items.filter((i) => ["atrasado", "hoy", "manana", "semana"].includes(i.grupo));
 
   return (
     <div className="space-y-4 pb-12 max-w-6xl mx-auto">
@@ -171,14 +171,14 @@ export const InicioPage: React.FC = () => {
       {/* Resumen del día */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         <Kpi
-          label="Vencido"
-          valor={formatCurrency(conteo.vencido.monto)}
-          detalle={`${conteo.vencido.n} por cobrar`}
-          tono={conteo.vencido.n ? "text-rose-600" : "text-slate-900"}
-          onClick={() => setFiltro("vencido")}
+          label="Atrasado"
+          valor={formatCurrency(conteo.atrasado.monto)}
+          detalle={`${conteo.atrasado.n} cliente${conteo.atrasado.n === 1 ? "" : "s"}`}
+          tono={conteo.atrasado.n ? "text-rose-600" : "text-slate-900"}
+          onClick={() => setFiltro("atrasado")}
         />
         <Kpi
-          label="Vence hoy"
+          label="Cobrar hoy"
           valor={formatCurrency(conteo.hoy.monto)}
           detalle={`${conteo.hoy.n} cliente${conteo.hoy.n === 1 ? "" : "s"}`}
           tono={conteo.hoy.n ? "text-amber-600" : "text-slate-900"}
@@ -219,7 +219,7 @@ export const InicioPage: React.FC = () => {
         <section className="lg:col-span-8 space-y-3">
           <div className="sticky top-14 sm:top-[6.5rem] lg:top-16 z-20 -mx-4 px-4 py-2 bg-slate-50/95 backdrop-blur space-y-2 sm:mx-0 sm:px-0">
             <div className="flex gap-1.5 overflow-x-auto pb-0.5" role="tablist" aria-label="Filtrar cobros">
-              {[...GRUPOS_COBRO.map((g) => ({ id: g.id as Filtro, label: g.corto, n: conteo[g.id].n })), { id: "todos" as Filtro, label: "Todos", n: items.length - conteo.estancado.n }].map(
+              {[...GRUPOS_COBRO.map((g) => ({ id: g.id as Filtro, label: g.label, n: conteo[g.id].n })), { id: "todos" as Filtro, label: "Todos", n: items.length - conteo.estancado.n }].map(
                 (t) => {
                   const activo = filtroActivo === t.id && !busqueda;
                   const dot = t.id !== "todos" ? ESTILO_GRUPO[t.id as GrupoCobro].dot : "bg-slate-400";
@@ -270,7 +270,7 @@ export const InicioPage: React.FC = () => {
           ) : (
             <ul className="space-y-2">
               {visibles.map((it) => (
-                <CobroCard key={`${it.es_alquiler ? "a" : "p"}-${it.prestamo_id}`} item={it} onCobrar={handleCobrar} />
+                <CobroCard key={`${it.es_alquiler ? "a" : "p"}-${it.id}`} item={it} onCobrar={handleCobrar} />
               ))}
             </ul>
           )}
@@ -284,11 +284,11 @@ export const InicioPage: React.FC = () => {
               aside={`${estancados.length} · ${formatCurrency(conteo.estancado.monto)}`}
             >
               <p className="text-[11px] text-slate-500 pt-2 pb-3">
-                No se incluyen en los totales de vencidos ni en el calendario. Revísalos aparte para negociar o cerrar.
+                No se incluyen en los totales de atrasados ni en el calendario. Revísalos aparte para negociar o cerrar.
               </p>
               <ul className="space-y-2">
                 {estancados.map((it) => (
-                  <CobroCard key={`e-${it.prestamo_id}`} item={it} onCobrar={handleCobrar} />
+                  <CobroCard key={`e-${it.es_alquiler ? "a" : "p"}-${it.id}`} item={it} onCobrar={handleCobrar} />
                 ))}
               </ul>
             </CollapsibleSection>

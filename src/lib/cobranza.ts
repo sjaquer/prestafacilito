@@ -6,18 +6,18 @@ import { estandarizarTelefono } from "../../helpers/telefono";
  * Clasificación de cobros para la vista de trabajo diario.
  * Solo ordena y agrupa lo que ya calcula el servidor; no recalcula deudas.
  */
-export type GrupoCobro = "vencido" | "hoy" | "semana" | "despues" | "al_dia" | "estancado";
+export type GrupoCobro = "atrasado" | "hoy" | "manana" | "semana" | "despues" | "estancado";
 
 /** Cuotas atrasadas a partir de las cuales un cobro se considera estancado (se muestra aparte). */
 export const CUOTAS_ESTANCADO = 5;
 
-/** Grupos que se muestran como pestañas (los estancados van en su propia sección). */
-export const GRUPOS_COBRO: { id: Exclude<GrupoCobro, "estancado">; label: string; corto: string }[] = [
-  { id: "vencido", label: "Vencidos", corto: "Vencidos" },
-  { id: "hoy", label: "Vencen hoy", corto: "Hoy" },
-  { id: "semana", label: "Próximos 7 días", corto: "7 días" },
-  { id: "despues", label: "Más adelante", corto: "Después" },
-  { id: "al_dia", label: "Al día / pagados", corto: "Al día" },
+/** Grupos que se muestran como pestañas, en orden de urgencia (los estancados van en su propia sección). */
+export const GRUPOS_COBRO: { id: Exclude<GrupoCobro, "estancado">; label: string }[] = [
+  { id: "atrasado", label: "Atrasados" },
+  { id: "hoy", label: "Cobrar hoy" },
+  { id: "manana", label: "Mañana" },
+  { id: "semana", label: "Esta semana" },
+  { id: "despues", label: "Más adelante" },
 ];
 
 /**
@@ -25,33 +25,29 @@ export const GRUPOS_COBRO: { id: Exclude<GrupoCobro, "estancado">; label: string
  * para distinguir el estado de un vistazo.
  */
 export const ESTILO_GRUPO: Record<GrupoCobro, { dot: string; texto: string; pill: string; tarjeta: string; etiqueta: string }> = {
-  vencido: { dot: "bg-rose-500", texto: "text-rose-700", pill: "bg-rose-600 text-white", tarjeta: "bg-rose-50 border-rose-200", etiqueta: "Vencido" },
-  hoy: { dot: "bg-amber-500", texto: "text-amber-800", pill: "bg-amber-500 text-white", tarjeta: "bg-amber-50 border-amber-200", etiqueta: "Vence hoy" },
-  semana: { dot: "bg-sky-500", texto: "text-sky-800", pill: "bg-sky-600 text-white", tarjeta: "bg-sky-50 border-sky-200", etiqueta: "Esta semana" },
+  atrasado: { dot: "bg-rose-500", texto: "text-rose-700", pill: "bg-rose-600 text-white", tarjeta: "bg-rose-50 border-rose-200", etiqueta: "Atrasado" },
+  hoy: { dot: "bg-amber-500", texto: "text-amber-800", pill: "bg-amber-500 text-white", tarjeta: "bg-amber-50 border-amber-200", etiqueta: "Cobrar hoy" },
+  manana: { dot: "bg-sky-500", texto: "text-sky-800", pill: "bg-sky-600 text-white", tarjeta: "bg-sky-50 border-sky-200", etiqueta: "Mañana" },
+  semana: { dot: "bg-indigo-400", texto: "text-indigo-800", pill: "bg-indigo-600 text-white", tarjeta: "bg-indigo-50/60 border-indigo-200", etiqueta: "Esta semana" },
   despues: { dot: "bg-slate-400", texto: "text-slate-600", pill: "bg-slate-200 text-slate-700", tarjeta: "bg-white border-slate-200", etiqueta: "Más adelante" },
-  al_dia: { dot: "bg-emerald-500", texto: "text-emerald-700", pill: "bg-emerald-600 text-white", tarjeta: "bg-emerald-50 border-emerald-200", etiqueta: "Al día" },
   estancado: { dot: "bg-slate-500", texto: "text-slate-600", pill: "bg-slate-600 text-white", tarjeta: "bg-slate-100 border-slate-200", etiqueta: "Estancado" },
 };
 
 interface DatosClasificacion {
-  /** Fecha (YYYY-MM-DD) de la próxima cuota/mensualidad sin pagar. */
+  /** Próxima fecha de cobro (YYYY-MM-DD), desde hoy. */
   fechaProxima?: string | null;
-  /** Cuotas o mensualidades ya vencidas sin cubrir. */
+  /** Cuotas o mensualidades vencidas con dinero aún sin pagar. */
   atrasadas?: number;
-  /** Préstamo liquidado o sin nada pendiente. */
-  sinPendiente?: boolean;
 }
 
-export function clasificarCobro({ fechaProxima, atrasadas = 0, sinPendiente = false }: DatosClasificacion, hoy = new Date()): GrupoCobro {
-  if (sinPendiente) return "al_dia";
+export function clasificarCobro({ fechaProxima, atrasadas = 0 }: DatosClasificacion, hoy = new Date()): GrupoCobro {
   if (atrasadas >= CUOTAS_ESTANCADO) return "estancado";
-  if (atrasadas > 0) return "vencido";
+  if (atrasadas > 0) return "atrasado";
   const dias = diasHasta(fechaProxima, hoy);
-  if (dias === null) return "al_dia";
-  if (dias < 0) return "vencido";
-  if (dias === 0) return "hoy";
-  if (dias <= 7) return "semana";
-  return "despues";
+  if (dias === null || dias > 7) return "despues";
+  if (dias <= 0) return "hoy";
+  if (dias === 1) return "manana";
+  return "semana";
 }
 
 /** Enlace de WhatsApp con mensaje de cobro, o `null` si no hay teléfono válido. */

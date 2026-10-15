@@ -1,9 +1,9 @@
 import express from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { supabase } from "../src/lib/supabase.js";
-import { normalizeDate, toNumber, round2 } from "../src/lib/loanLogic.js";
+import { buildPaymentSchedule, toNumber, round2 } from "../src/lib/loanLogic.js";
+import { proximoCobroAlquiler, proximoCobroPrestamo } from "../src/lib/proximoCobro.js";
 import { buildAlquilerSchedule } from "../src/lib/alquilerLogic.js";
-import { calcularEstadoMora } from "../src/lib/moraLogic.js";
 
 const router = express.Router();
 
@@ -11,180 +11,105 @@ const router = express.Router();
 /** Fecha de hoy (YYYY-MM-DD) en hora de Lima, independiente de la zona horaria del servidor. */
 const hoyLima = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Lima" }).format(new Date());
 
-router.get("/home", requireAuth, async (req: express.Request, res: express.Response) => {
+/**
+ * Cobros pendientes para la pantalla de Inicio: un item por préstamo o alquiler vigente
+ * (los liquidados no aparecen). Los montos salen de la lógica de préstamos/alquileres;
+ * aquí solo se resumen para la vista.
+ */
+router.get("/home", requireAuth, async (_req: express.Request, res: express.Response) => {
   try {
-    const referenceDate = req.query.fecha ? new Date(String(req.query.fecha)) : new Date();
-    const now = normalizeDate(referenceDate);
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
+    const hoy = hoyLima();
+    const referencia = new Date(`${hoy}T12:00:00`);
 
-    const [pRes, aRes, cRes, alqRes, pagosAlqRes] = await Promise.all([
-      // Incluye estancados: son los que más urge cobrar
+    const [pRes, aRes, cRes, ajRes, alqRes, pagosAlqRes] = await Promise.all([
       supabase.from("prestamos").select("*").in("estado", ["activo", "estancado"]),
       supabase.from("amortizaciones").select("*"),
-      supabase.from("clientes").select("*"),
+      supabase.from("clientes").select("id, nombre_completo, apodo, telefono, score"),
+      supabase.from("ajustes_prestamo").select("*").eq("activo", true),
       supabase.from("alquileres").select("*").eq("estado", "activo"),
-      supabase.from("pagos_alquiler").select("*")
+      supabase.from("pagos_alquiler").select("*"),
     ]);
+    for (const r of [pRes, aRes, cRes, ajRes, alqRes, pagosAlqRes]) if (r.error) throw r.error;
 
-    if (pRes.error) throw pRes.error;
-    if (aRes.error) throw aRes.error;
-    if (cRes.error) throw cRes.error;
-
-    const prestamos = pRes.data || [];
     const amortizaciones = aRes.data || [];
-    const clientes = cRes.data || [];
-    const alquileres = alqRes.data || [];
     const pagosAlquiler = pagosAlqRes.data || [];
+    const clientePorId = new Map((cRes.data || []).map((c) => [c.id, c]));
 
     // Dinero recibido (por fecha de pago) hoy y en el mes, préstamos + alquileres, en hora de Lima
-    const hoy = hoyLima();
-    const mesActualStr = hoy.slice(0, 7);
-    const todosLosCobros = [...amortizaciones, ...pagosAlquiler].map((p) => ({
-      fecha: String(p.fecha_pago || "").slice(0, 10),
-      monto: toNumber(p.monto),
-    }));
-    const totalCobradoEsteMes = round2(
-      todosLosCobros.filter((p) => p.fecha.startsWith(mesActualStr)).reduce((sum, p) => sum + p.monto, 0)
-    );
-    const totalCobradoHoy = round2(todosLosCobros.filter((p) => p.fecha === hoy).reduce((sum, p) => sum + p.monto, 0));
+    const cobros = [...amortizaciones, ...pagosAlquiler].map((p) => ({ fecha: String(p.fecha_pago || "").slice(0, 10), monto: toNumber(p.monto) }));
+    const totalCobradoHoy = round2(cobros.filter((p) => p.fecha === hoy).reduce((s, p) => s + p.monto, 0));
+    const totalCobradoEsteMes = round2(cobros.filter((p) => p.fecha.startsWith(hoy.slice(0, 7))).reduce((s, p) => s + p.monto, 0));
 
-    const deudoresDelMes: any[] = [];
-    let prestamosAtrasadosCount = 0;
+    const ultimoPago = (pagos: any[]) =>
+      pagos.reduce((max: string | null, p) => (!max || String(p.fecha_pago) > max ? String(p.fecha_pago).slice(0, 10) : max), null);
 
-    // 1. Procesar Préstamos Activos
-    for (const prestamo of prestamos) {
-      const cliente = clientes.find(c => c.id === prestamo.cliente_id);
-      const pagosDelPrestamo = amortizaciones.filter(a => a.prestamo_id === prestamo.id);
-      
-      const estadoMora = calcularEstadoMora(prestamo, pagosDelPrestamo, now);
+    const items: any[] = [];
 
-      const pagosMesActual = pagosDelPrestamo.filter(a => {
-        const d = normalizeDate(a.fecha_pago);
-        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-      });
+    for (const prestamo of pRes.data || []) {
+      const pagos = amortizaciones.filter((a) => a.prestamo_id === prestamo.id);
+      const ajustes = (ajRes.data || []).filter((a) => a.prestamo_id === prestamo.id);
+      const deuda = buildPaymentSchedule(prestamo, pagos, { ajustes, referenceDate: referencia });
+      const prox = proximoCobroPrestamo(deuda, prestamo.fecha_emision, hoy);
+      if (prox.liquidado) continue;
 
-      const totalPagadoMesActual = pagosMesActual.reduce((sum, a) => sum + toNumber(a.monto), 0);
-
-      let estadoPagoMes: 'atrasado' | 'pendiente' | 'pagado' | 'estancado' = 'pendiente';
-      if (estadoMora.esEstancado) {
-        estadoPagoMes = 'estancado';
-      } else if (estadoMora.estadoCuotaMes === 'al_dia') {
-        estadoPagoMes = 'pagado';
-      } else if (estadoMora.cuotasAtrasadas > 0) {
-        estadoPagoMes = 'atrasado';
-        prestamosAtrasadosCount++;
-      } else {
-        estadoPagoMes = 'pendiente';
-      }
-
-      deudoresDelMes.push({
-        prestamo_id: prestamo.id,
-        cliente_id: prestamo.cliente_id,
-        cliente_nombre: cliente?.nombre_completo || "Cliente Desconocido",
-        cliente_apodo: cliente?.apodo || "",
-        cliente_telefono: cliente?.telefono || "",
-        score: cliente?.score || null,
+      const cliente = clientePorId.get(prestamo.cliente_id);
+      const tasa = toNumber(prestamo.tasa_interes_porcentaje);
+      const { resumen } = deuda;
+      items.push({
+        id: prestamo.id,
         es_alquiler: false,
-        monto_capital: toNumber(prestamo.monto_capital),
-        tasa_interes_porcentaje: toNumber(prestamo.tasa_interes_porcentaje),
-        tipo_prestamo: prestamo.tipo_prestamo,
-        fecha_emision: prestamo.fecha_emision,
-        fecha_vencimiento: prestamo.fecha_vencimiento,
-        dia_vencimiento_mes: estadoMora.fechaCuotaActual,
-        dias_restantes: estadoMora.diasRestantes,
-        cuota_actual: estadoMora.montoCuotaActual,
-        cuota_exigible: estadoMora.montoCuotaActual,
-        cuota_pagado: totalPagadoMesActual,
-        cuota_numero: 1,
-        total_cuotas: 1,
-        cuotas_debiendo: estadoMora.cuotasAtrasadas,
-        estado_pago_mes: estadoPagoMes,
-        saldo_pendiente: estadoMora.saldoPendiente,
-        // Mora acumulada = interés vencido sin pagar. (montoTotalAtrasado de moraLogic suma saldos acumulativos y lo infla)
-        monto_atrasado: estadoMora.moraAcumulada,
-        mora_acumulada: estadoMora.moraAcumulada,
-        ultimo_pago_fecha: estadoMora.ultimoPagoFecha || null,
-        dias_atraso: estadoMora.diasAtraso
-      });
-    }
-
-    // 2. Procesar Alquileres Activos (Inquilinos en Inicio)
-    for (const alquiler of alquileres) {
-      const cliente = clientes.find(c => c.id === alquiler.cliente_id);
-      const pagosDelAlquiler = pagosAlquiler.filter(p => p.alquiler_id === alquiler.id);
-      const estadoAlq = buildAlquilerSchedule(alquiler, pagosDelAlquiler, now);
-
-      const mesSig = estadoAlq.mesSiguiente;
-      const mesesAtrasados = estadoAlq.mesesAtrasados;
-
-      let estadoPagoMes: 'atrasado' | 'pendiente' | 'pagado' | 'estancado' = 'pendiente';
-      if (mesesAtrasados >= 3) {
-        estadoPagoMes = 'estancado';
-      } else if (mesesAtrasados > 0) {
-        estadoPagoMes = 'atrasado';
-      } else if (!mesSig || mesSig.estado === 'Saldada') {
-        estadoPagoMes = 'pagado';
-      } else {
-        estadoPagoMes = 'pendiente';
-      }
-
-      const diaVencStr = mesSig ? mesSig.fechaVencimiento : alquiler.fecha_inicio;
-      const diasRestantesAlq = estadoAlq.diasRestantesProximoCobro;
-
-      deudoresDelMes.push({
-        prestamo_id: alquiler.id,
-        cliente_id: alquiler.cliente_id,
-        cliente_nombre: cliente?.nombre_completo || "Inquilino Desconocido",
+        cliente_id: prestamo.cliente_id,
+        cliente_nombre: cliente?.nombre_completo || "Cliente desconocido",
         cliente_apodo: cliente?.apodo || "",
         cliente_telefono: cliente?.telefono || "",
         score: cliente?.score || null,
-        es_alquiler: true,
-        descripcion_inmueble: alquiler.descripcion_inmueble || "Alquiler Inmueble",
-        monto_capital: toNumber(alquiler.monto_mensual),
-        tasa_interes_porcentaje: 0,
-        tipo_prestamo: "Alquiler de Inmueble",
-        fecha_emision: alquiler.fecha_inicio,
-        fecha_vencimiento: alquiler.fecha_fin || "",
-        dia_vencimiento_mes: diaVencStr,
-        dias_restantes: diasRestantesAlq,
-        cuota_actual: toNumber(alquiler.monto_mensual),
-        cuota_exigible: mesSig ? mesSig.saldoPendiente : toNumber(alquiler.monto_mensual),
-        cuota_pagado: mesSig ? mesSig.montoPagado : 0,
-        cuota_numero: mesSig ? mesSig.numero : 1,
-        total_cuotas: estadoAlq.mesesGenerados.length,
-        cuotas_debiendo: mesesAtrasados,
-        estado_pago_mes: estadoPagoMes,
-        saldo_pendiente: estadoAlq.totalPendiente,
-        monto_atrasado: round2(
-          estadoAlq.mesesGenerados.filter((m) => m.diasVencidos > 0).reduce((sum, m) => sum + m.saldoPendiente, 0)
-        ),
-        mora_acumulada: 0,
-        ultimo_pago_fecha: pagosDelAlquiler.reduce((max: string | null, p) => (!max || p.fecha_pago > max ? p.fecha_pago : max), null),
-        dias_atraso: mesSig ? mesSig.diasVencidos : 0
+        tipo: prestamo.tipo_prestamo || "Personal",
+        monto_original: toNumber(prestamo.monto_capital),
+        tasa,
+        capital_restante: resumen.capitalPendiente,
+        // Interés del próximo mes (respeta congelamientos); si aún no está en el cronograma, sobre el capital restante
+        interes_mes: prox.cuota?.interesOriginal ?? round2((resumen.capitalPendiente * tasa) / 100),
+        proximo_cobro: prox.fecha,
+        // Lo que debe pagar en esa fecha para quedar al día (interés del mes + lo atrasado)
+        monto_proximo: prox.cuota ? prox.cuota.montoCuotaBase : round2(resumen.moraAcumulada + resumen.interesPendiente),
+        atrasado: prox.atrasado ? resumen.moraAcumulada : 0,
+        cuotas_atrasadas: prox.cuotasAtrasadas,
+        debe_desde: prox.debeDesde,
+        saldo_pendiente: resumen.saldoPendiente,
+        ultimo_pago_fecha: ultimoPago(pagos),
       });
     }
 
-    // Ordenar deudores: 1° atrasado, 2° estancado, 3° pendiente, 4° pagado
-    const ordenEstado = { atrasado: 1, estancado: 2, pendiente: 3, pagado: 4 };
-    deudoresDelMes.sort((a, b) => {
-      const diff = ordenEstado[a.estado_pago_mes as keyof typeof ordenEstado] - ordenEstado[b.estado_pago_mes as keyof typeof ordenEstado];
-      if (diff !== 0) return diff;
-      return new Date(a.dia_vencimiento_mes).getTime() - new Date(b.dia_vencimiento_mes).getTime();
-    });
+    for (const alquiler of alqRes.data || []) {
+      const pagos = pagosAlquiler.filter((p) => p.alquiler_id === alquiler.id);
+      const estado = buildAlquilerSchedule(alquiler, pagos, referencia);
+      const prox = proximoCobroAlquiler(estado, hoy, alquiler.fecha_fin);
+      if (!prox.fecha && prox.atrasado <= 0) continue;
 
-    const totalCapitalEnCirculacion = round2(prestamos.reduce((sum, p) => sum + toNumber(p.monto_capital), 0));
+      const cliente = clientePorId.get(alquiler.cliente_id);
+      const renta = toNumber(alquiler.monto_mensual);
+      items.push({
+        id: alquiler.id,
+        es_alquiler: true,
+        cliente_id: alquiler.cliente_id,
+        cliente_nombre: cliente?.nombre_completo || "Inquilino desconocido",
+        cliente_apodo: cliente?.apodo || "",
+        cliente_telefono: cliente?.telefono || "",
+        score: cliente?.score || null,
+        tipo: "Alquiler",
+        descripcion_inmueble: alquiler.descripcion_inmueble || "Inmueble",
+        renta_mensual: renta,
+        proximo_cobro: prox.fecha,
+        monto_proximo: round2((prox.mes ? prox.mes.saldoPendiente : renta) + prox.atrasado),
+        atrasado: prox.atrasado,
+        cuotas_atrasadas: prox.mesesAtrasados,
+        debe_desde: prox.debeDesde,
+        saldo_pendiente: estado.totalPendiente,
+        ultimo_pago_fecha: ultimoPago(pagos),
+      });
+    }
 
-    res.json({
-      deudoresDelMes,
-      resumenCartera: {
-        totalActivoCount: prestamos.length,
-        totalCapitalEnCirculacion,
-        totalCobradoEsteMes,
-        totalCobradoHoy,
-        prestamosAtrasadosCount
-      }
-    });
+    res.json({ items, resumen: { totalCobradoHoy, totalCobradoEsteMes } });
   } catch (err: any) {
     console.error("Error al obtener datos del Home:", err);
     res.status(500).json({ error: "Error en el servidor", detail: err.message });

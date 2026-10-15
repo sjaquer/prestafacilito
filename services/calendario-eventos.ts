@@ -2,7 +2,8 @@
  * Cálculo puro de los eventos de cobro para Google Calendar (sin acceso a base ni a Google).
  * Ver services/google-calendar.ts para la sincronización.
  */
-import { buildPaymentSchedule, addMonthsClamped, round2, toNumber } from "../src/lib/loanLogic.js";
+import { buildPaymentSchedule, round2, toNumber } from "../src/lib/loanLogic.js";
+import { proximoCobroAlquiler, proximoCobroPrestamo } from "../src/lib/proximoCobro.js";
 import { buildAlquilerSchedule } from "../src/lib/alquilerLogic.js";
 
 /** A partir de cuántas cuotas atrasadas un préstamo se considera estancado (igual que en la app). */
@@ -36,37 +37,23 @@ const dinero = (n: number) => `S/ ${round2(n).toFixed(2)}`;
 
 export function eventoPrestamo(prestamo: any, cliente: any, pagos: any[], ajustes: any[], hoy: string): EventoDeseado | null {
   const deuda = buildPaymentSchedule(prestamo, pagos, { ajustes, referenceDate: new Date(`${hoy}T12:00:00`) });
-  const { resumen, cuotas } = deuda;
-  if (resumen.saldoPendiente <= 0.01) return null;
-  const atrasadas = resumen.cuotasVencidas || 0;
-  if (atrasadas >= CUOTAS_ESTANCADO) return null;
+  const prox = proximoCobroPrestamo(deuda, prestamo.fecha_emision, hoy);
+  if (prox.liquidado || !prox.fecha || prox.cuotasAtrasadas >= CUOTAS_ESTANCADO) return null;
 
-  // Próxima fecha de cobro desde hoy (si hay atraso, el recordatorio va en el siguiente vencimiento)
-  let cuota = cuotas.find((c) => c.estado !== "Saldada" && c.fechaVencimiento >= hoy);
-  let fecha = cuota?.fechaVencimiento;
-  if (!fecha) {
-    for (let n = 1; n <= cuotas.length + 24; n++) {
-      const f = isoLocal(addMonthsClamped(prestamo.fecha_emision, n));
-      if (f >= hoy) {
-        fecha = f;
-        break;
-      }
-    }
-  }
-  if (!fecha) return null;
-
-  const monto = cuota ? cuota.montoCuotaBase : resumen.moraAcumulada + resumen.interesPendiente;
+  const { resumen } = deuda;
+  const atrasadas = prox.cuotasAtrasadas;
+  const monto = prox.cuota ? prox.cuota.montoCuotaBase : resumen.moraAcumulada + resumen.interesPendiente;
   const nombre = cliente?.nombre_completo || "Cliente";
   const enlace = enlaceApp(`/prestamos/${prestamo.id}`);
   return {
     ref: `prestamo:${prestamo.id}`,
-    fecha,
+    fecha: prox.fecha,
     summary: `${atrasadas > 0 ? "⚠️" : "💰"} Cobrar ${dinero(monto)} — ${nombre}`,
     description: [
       `Préstamo ${prestamo.tipo_prestamo || "Personal"} de ${dinero(toNumber(prestamo.monto_capital))} al ${prestamo.tasa_interes_porcentaje}%`,
+      `Capital restante: ${dinero(resumen.capitalPendiente)}`,
       `Mínimo a pagar ese día: ${dinero(monto)}`,
       atrasadas > 0 ? `Atrasado: ${atrasadas} cuota(s), mora ${dinero(resumen.moraAcumulada)}` : null,
-      `Saldo pendiente: ${dinero(resumen.saldoPendiente)}`,
       cliente?.telefono ? `Teléfono: ${cliente.telefono}` : null,
       enlace ? `\nAbrir en la app: ${enlace}` : null,
     ]
@@ -78,44 +65,25 @@ export function eventoPrestamo(prestamo: any, cliente: any, pagos: any[], ajuste
 
 export function eventoAlquiler(alquiler: any, cliente: any, pagos: any[], hoy: string): EventoDeseado | null {
   const estado = buildAlquilerSchedule(alquiler, pagos, new Date(`${hoy}T12:00:00`));
-  const meses = estado.mesesGenerados;
-  if (estado.mesesAtrasados >= CUOTAS_ESTANCADO) return null;
+  const prox = proximoCobroAlquiler(estado, hoy, alquiler.fecha_fin);
+  if (!prox.fecha || prox.mesesAtrasados >= CUOTAS_ESTANCADO) return null;
 
-  let mes = meses.find((m) => m.estado !== "Saldada" && m.fechaVencimiento >= hoy);
-  let fecha = mes?.fechaVencimiento;
-  if (!fecha) {
-    // Todo lo generado está pagado (o vencido): el siguiente cobro es el mes que sigue al último generado
-    const ultimo = meses[meses.length - 1];
-    const base = ultimo ? new Date(ultimo.anio, ultimo.mes, 1) : new Date(`${hoy}T12:00:00`);
-    for (let n = 0; n < 24 && !fecha; n++) {
-      const y = base.getFullYear();
-      const m = base.getMonth() + n;
-      const ultimoDia = new Date(y, m + 1, 0).getDate();
-      const f = isoLocal(new Date(y, m, Math.min(estado.diaCobroFijo, ultimoDia)));
-      if (f >= hoy) fecha = f;
-    }
-  }
-  if (!fecha) return null;
-  if (alquiler.fecha_fin && fecha > String(alquiler.fecha_fin).slice(0, 10)) return null;
-
-  const atrasado = round2(meses.filter((m) => m.fechaVencimiento < hoy).reduce((s, m) => s + m.saldoPendiente, 0));
-  const monto = round2((mes ? mes.saldoPendiente : toNumber(alquiler.monto_mensual)) + atrasado);
+  const monto = round2((prox.mes ? prox.mes.saldoPendiente : toNumber(alquiler.monto_mensual)) + prox.atrasado);
   const nombre = cliente?.nombre_completo || "Inquilino";
   const enlace = enlaceApp(`/alquileres/${alquiler.id}`);
   return {
     ref: `alquiler:${alquiler.id}`,
-    fecha,
-    summary: `${atrasado > 0 ? "⚠️" : "🏠"} Renta ${dinero(monto)} — ${nombre}`,
+    fecha: prox.fecha,
+    summary: `${prox.atrasado > 0 ? "⚠️" : "🏠"} Renta ${dinero(monto)} — ${nombre}`,
     description: [
       `Alquiler: ${alquiler.descripcion_inmueble || "Inmueble"}`,
       `Renta mensual: ${dinero(toNumber(alquiler.monto_mensual))}`,
-      atrasado > 0 ? `Atrasado: ${dinero(atrasado)} (${estado.mesesAtrasados} mes/es)` : null,
+      prox.atrasado > 0 ? `Atrasado: ${dinero(prox.atrasado)} (${prox.mesesAtrasados} mes/es)` : null,
       cliente?.telefono ? `Teléfono: ${cliente.telefono}` : null,
       enlace ? `\nAbrir en la app: ${enlace}` : null,
     ]
       .filter(Boolean)
       .join("\n"),
-    colorId: atrasado > 0 ? "11" : "7",
+    colorId: prox.atrasado > 0 ? "11" : "7",
   };
 }
-
