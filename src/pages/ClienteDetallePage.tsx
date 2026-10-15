@@ -1,80 +1,53 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import {
-  ArrowLeft, User, Phone, MapPin, Calendar, CreditCard,
-  Info, Loader2, ArrowUpRight, CheckCircle2, TrendingUp, Sparkles, AlertTriangle,
-  Paperclip, FileText, Trash2, FolderOpen, Upload
-} from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, User, Loader2 } from "lucide-react";
 import { usePagos } from "../hooks/usePagos";
-import { calcularEstadoMora } from "../lib/moraLogic";
-import { buildPaymentSchedule } from "../lib/loanLogic";
 import { useClientes } from "../hooks/useClientes";
 import { Cliente } from "../types";
-import { Card } from "../components/ui/Card";
-import { Badge } from "../components/ui/Badge";
 import { ClientFinancialSummary } from "../components/cliente/ClientFinancialSummary";
 import { ClientNotes } from "../components/cliente/ClientNotes";
-import { formatCurrency, formatDate, resolveDocumentUrl } from "../lib/formatters";
-import { ScoreBadge } from "../components/ui/ScoreBadge";
-import { Modal } from "../components/ui/Modal";
-import { comprimirImagen } from "../lib/imageCompression";
+import { ClientePerfilHeader, ClienteMoraBanner } from "../components/cliente/ClientePerfilHeader";
+import { ClienteScoreCard } from "../components/cliente/ClienteScoreCard";
+import { ClienteDocumentos } from "../components/cliente/ClienteDocumentos";
+import { ClienteCreditos, ClienteAlquileres, ClienteDistribucionCard } from "../components/cliente/ClienteCreditos";
+import { calcularDistribucionFinanciera, resumirMoraCliente } from "../components/cliente/clienteFinanzas";
 
 export const ClienteDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { clientes, loading: loadingClientes, updateCliente, refetch: refetchClientes } = useClientes();
   const { fetchAmortizaciones } = usePagos();
-  
+
   const [clientLoans, setClientLoans] = useState<any[]>([]);
   const [clientAlquileres, setClientAlquileres] = useState<any[]>([]);
-  const [documentos, setDocumentos] = useState<any[]>([]);
   const [amortizaciones, setAmortizaciones] = useState<any[]>([]);
   const [loadingLoans, setLoadingLoans] = useState(true);
   const [loanError, setLoanError] = useState("");
 
-  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
-  const [tipoDocInput, setTipoDocInput] = useState("DNI");
+  const cliente = clientes.find((c) => c.id === id);
 
-  // Score State (Fase 6)
-  const [scoreData, setScoreData] = useState<any>(null);
-  const [showScoreModal, setShowScoreModal] = useState(false);
-  const [overrideScore, setOverrideScore] = useState<"A" | "B" | "C" | "restablecer">("A");
-  const [overrideMotivo, setOverrideMotivo] = useState("");
-  const [isSavingScore, setIsSavingScore] = useState(false);
-
-  const cliente = clientes.find(c => c.id === id);
-
-  // Fetch loans & alquileres for this client
   const fetchClientLoans = useCallback(async () => {
     if (!id) return;
     setLoadingLoans(true);
     setLoanError("");
-    
+
     try {
-      const [dashRes, amortList, alquileresRes, docsRes] = await Promise.all([
+      const [dashRes, amortList, alquileresRes] = await Promise.all([
         fetch("/api/dashboard"),
         fetchAmortizaciones(),
         fetch("/api/alquileres"),
-        fetch(`/api/clientes/${id}/documentos`)
       ]);
+
       if (dashRes.ok) {
         const data = await dashRes.json();
-        const allLoans = data.prestamos || [];
-        const filtered = allLoans.filter((p: any) => p.cliente_id === id);
-        setClientLoans(filtered);
+        setClientLoans((data.prestamos || []).filter((p: any) => p.cliente_id === id));
       } else {
         setLoanError("No se pudieron cargar los préstamos del cliente.");
       }
 
       if (alquileresRes.ok) {
         const alqData = await alquileresRes.json();
-        const filteredAlq = (alqData || []).filter((a: any) => a.cliente_id === id);
-        setClientAlquileres(filteredAlq);
-      }
-
-      if (docsRes.ok) {
-        const docsData = await docsRes.json();
-        setDocumentos(docsData || []);
+        setClientAlquileres((alqData || []).filter((a: any) => a.cliente_id === id));
       }
 
       setAmortizaciones(amortList || []);
@@ -85,202 +58,19 @@ export const ClienteDetallePage: React.FC = () => {
     }
   }, [id, fetchAmortizaciones]);
 
-  const fetchScore = useCallback(async () => {
-    if (!id) return;
-    try {
-      const res = await fetch(`/api/clientes/${id}/score`);
-      if (res.ok) {
-        const data = await res.json();
-        setScoreData(data);
-      }
-    } catch (err) {
-      console.error("Error al cargar score del cliente:", err);
-    }
-  }, [id]);
-
   useEffect(() => {
     fetchClientLoans();
-    fetchScore();
-  }, [fetchClientLoans, fetchScore]);
+  }, [fetchClientLoans]);
 
-  const handleSaveScoreOverride = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!id) return;
-    setIsSavingScore(true);
+  const moraResumen = useMemo(() => resumirMoraCliente(clientLoans, amortizaciones), [clientLoans, amortizaciones]);
+  const distribucion = useMemo(
+    () => calcularDistribucionFinanciera(clientLoans, amortizaciones),
+    [clientLoans, amortizaciones]
+  );
 
-    try {
-      const targetScore = overrideScore === "restablecer" ? null : overrideScore;
-      const res = await fetch(`/api/clientes/${id}/score/override`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          score_manual: targetScore,
-          motivo: overrideMotivo
-        })
-      });
-
-      if (res.ok) {
-        setShowScoreModal(false);
-        setOverrideMotivo("");
-        await fetchScore();
-      }
-    } catch (err) {
-      console.error("Error al guardar override del score:", err);
-    } finally {
-      setIsSavingScore(false);
-    }
-  };
-
-  const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !id) return;
-
-    setIsUploadingDoc(true);
-
-    try {
-      const compressedDataUrl = await comprimirImagen(file, 1024, 0.7);
-      const base64Data = compressedDataUrl.replace(/^data:[^;]+;base64,/, "");
-
-      const res = await fetch(`/api/clientes/${id}/documentos`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tipo_documento: tipoDocInput,
-          fileName: file.name,
-          mimeType: file.type || "application/octet-stream",
-          base64Data
-        })
-      });
-
-      if (res.ok) {
-        await fetchClientLoans();
-      } else {
-        const errData = await res.json();
-        alert(errData.error || "No se pudo subir el documento.");
-      }
-    } catch (err: any) {
-      alert("Error al subir documento: " + err.message);
-    } finally {
-      setIsUploadingDoc(false);
-      if (e.target) e.target.value = "";
-    }
-  };
-
-  const handleDeleteDoc = async (docId: string) => {
-    if (!id || !window.confirm("¿Confirmar que desea eliminar este documento?")) return;
-
-    try {
-      const res = await fetch(`/api/clientes/${id}/documentos/${docId}`, {
-        method: "DELETE"
-      });
-
-      if (res.ok) {
-        await fetchClientLoans();
-      }
-    } catch (err) {
-      console.error("Error al eliminar documento:", err);
-    }
-  };
-
-  const clientMoraDetails = useMemo(() => {
-    const activeClientLoans = clientLoans.filter(l => l.estado === "activo");
-    const estados = activeClientLoans.map(l => {
-      const computed = calcularEstadoMora(l, amortizaciones, new Date());
-      return { ...computed, tipo_prestamo: l.tipo_prestamo };
-    });
-    
-    const cuotasEnMora = estados.filter(e => ["mora_mes", "mora_acumulada"].includes(e.estadoCuotaMes));
-    const totalCuotasAtrasadas = cuotasEnMora.reduce((sum, e) => sum + e.cuotasAtrasadas, 0);
-    const totalMontoAtrasado = cuotasEnMora.reduce((sum, e) => sum + e.montoTotalAtrasado, 0);
-    
-    const tieneMora = cuotasEnMora.length > 0;
-    
-    let proximaCuotaFecha = "";
-    let proximaCuotaMonto = 0;
-    let proximaCuotaTipo = "";
-    
-    if (!tieneMora) {
-      const cuotasPendientes = estados
-        .filter(e => e.estadoCuotaMes === "pendiente_mes")
-        .sort((a, b) => new Date(a.fechaCuotaActual).getTime() - new Date(b.fechaCuotaActual).getTime());
-      
-      if (cuotasPendientes.length > 0) {
-        proximaCuotaFecha = cuotasPendientes[0].fechaCuotaActual;
-        proximaCuotaMonto = cuotasPendientes[0].montoCuotaActual;
-        proximaCuotaTipo = cuotasPendientes[0].tipo_prestamo;
-      }
-    }
-    
-    return {
-      tieneMora,
-      totalCuotasAtrasadas,
-      totalMontoAtrasado,
-      proximaCuotaFecha,
-      proximaCuotaMonto,
-      proximaCuotaTipo
-    };
-  }, [clientLoans, amortizaciones]);
-
-  // Calcular distribución financiera agregada del cliente para las barras de progreso lineales de alta definición
-  const clientFinancialDistribution = useMemo(() => {
-    if (clientLoans.length === 0) return null;
-
-    let capitalTotal = 0;
-    let capitalAmortizado = 0;
-    let interesTotal = 0;
-    let interesPagado = 0;
-    let moraTotal = 0;
-    let moraPagado = 0;
-
-    clientLoans.forEach(loan => {
-      if (loan.tipo_prestamo === "Alquiler de Casa") return; // Alquileres no entran en desglose de interés/mora tradicional
-      
-      const pagosDelPrestamo = amortizaciones.filter(a => a.prestamo_id === loan.id);
-      const computed = buildPaymentSchedule(loan, pagosDelPrestamo, { ajustes: [], referenceDate: new Date() });
-      
-      const capTotal = Number(loan.monto_capital) || 0;
-      const capPendiente = Number(computed.resumen?.capitalPendiente) || 0;
-      const capAmortizado = Math.max(0, capTotal - capPendiente);
-
-      const intPagado = computed.cuotas?.reduce((sum: number, c: any) => sum + (c.interesPagado || 0), 0) || 0;
-      const intPendiente = Number(computed.resumen?.interesPendiente) || 0;
-      const intTotal = intPagado + intPendiente;
-
-      const morPagado = computed.cuotas?.reduce((sum: number, c: any) => sum + (c.moraPagado || 0), 0) || 0;
-      const morPendiente = Number(computed.resumen?.moraAcumulada) || 0;
-      const morTotal = morPagado + morPendiente;
-
-      capitalTotal += capTotal;
-      capitalAmortizado += capAmortizado;
-      interesTotal += intTotal;
-      interesPagado += intPagado;
-      moraTotal += morTotal;
-      moraPagado += morPagado;
-    });
-
-    const capitalPct = capitalTotal > 0 ? (capitalAmortizado / capitalTotal) * 100 : 0;
-    const interesPct = interesTotal > 0 ? (interesPagado / interesTotal) * 100 : 0;
-    const moraPct = moraTotal > 0 ? (moraPagado / moraTotal) * 100 : 0;
-
-    return {
-      capitalTotal,
-      capitalAmortizado,
-      capitalPct: Math.min(100, capitalPct),
-      interesTotal,
-      interesPagado,
-      interesPct: Math.min(100, interesPct),
-      moraTotal,
-      moraPagado,
-      moraPct: Math.min(100, moraPct)
-    };
-  }, [clientLoans, amortizaciones]);
-
-  // Wrapper update client callback for child components
   const handleUpdateClient = async (clientId: string, data: Partial<Cliente>) => {
     const result = await updateCliente(clientId, data);
-    if (result.success) {
-      refetchClientes();
-    }
+    if (result.success) refetchClientes();
     return result;
   };
 
@@ -293,7 +83,7 @@ export const ClienteDetallePage: React.FC = () => {
     );
   }
 
-  if (!cliente) {
+  if (!cliente || !id) {
     return (
       <div className="space-y-4 max-w-md mx-auto text-center py-16">
         <div className="w-16 h-16 bg-slate-100 border border-slate-200 rounded-3xl flex items-center justify-center mx-auto text-slate-500">
@@ -314,590 +104,41 @@ export const ClienteDetallePage: React.FC = () => {
     );
   }
 
-  const initials = cliente.nombre_completo.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase();
-  const avatarGradient = "from-indigo-500 to-violet-600";
-
   return (
     <div className="space-y-6">
-      {/* Back link & Actions */}
       <div className="flex items-center justify-between">
         <button
           onClick={() => navigate("/clientes")}
-          className="text-slate-600 hover:text-slate-900 text-xs font-black inline-flex items-center gap-2 cursor-pointer bg-none border-none"
+          className="text-slate-600 hover:text-slate-900 text-xs font-black inline-flex items-center gap-2 cursor-pointer bg-transparent border-none"
         >
           <ArrowLeft size={14} />
           <span>Volver al directorio</span>
         </button>
       </div>
 
-      {/* Client Header Card */}
-      <Card variant="simple" className="relative overflow-hidden p-6 md:p-8">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+      <ClientePerfilHeader cliente={cliente} />
 
-        <div className="flex flex-col md:flex-row items-center md:items-start gap-6 relative">
-          {/* Large initials avatar */}
-          <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${avatarGradient} flex items-center justify-center text-white font-black text-2xl shadow-xl shrink-0 select-none`}>
-            {initials}
-          </div>
+      {!loadingLoans && <ClienteMoraBanner resumen={moraResumen} />}
 
-          <div className="flex-1 text-center md:text-left space-y-4">
-            <div>
-              <div className="flex flex-col md:flex-row md:items-center gap-2 flex-wrap justify-center md:justify-start">
-                <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-none">
-                  {cliente.nombre_completo}
-                </h1>
-                {cliente.prestamos_activos && cliente.prestamos_activos > 0 ? (
-                  <Badge variant="success" className="w-fit mx-auto md:mx-0">
-                    Deudor Activo
-                  </Badge>
-                ) : (
-                  <Badge variant="neutral" className="w-fit mx-auto md:mx-0">
-                    Historial Limpio
-                  </Badge>
-                )}
-              </div>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-2 flex items-center justify-center md:justify-start gap-1">
-                <Calendar size={12} /> Cliente desde: {formatDate(cliente.fecha_registro || "")}
-              </p>
-            </div>
-
-            {/* Quick Contact & Bank Details */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs font-semibold text-slate-500 pt-2 border-t border-slate-200/80 text-left">
-              <div className="space-y-1">
-                <span className="text-[9px] text-slate-500 font-black uppercase tracking-wider block">Canal Telefónico</span>
-                <span className="text-slate-800 font-mono">{cliente.telefono || "Sin teléfono registrado"}</span>
-              </div>
-              
-              {cliente.direccion && (
-                <div className="space-y-1">
-                  <span className="text-[9px] text-slate-500 font-black uppercase tracking-wider block">Domicilio</span>
-                  <span className="text-slate-800 flex items-center gap-1">
-                    <MapPin size={11} className="text-indigo-650 shrink-0" /> {cliente.direccion}
-                  </span>
-                </div>
-              )}
-
-              {cliente.numero_cuenta && (
-                <div className="space-y-1">
-                  <span className="text-[9px] text-slate-500 font-black uppercase tracking-wider block">Datos de Abono</span>
-                  <span className="text-slate-800 flex items-center gap-1 font-mono">
-                    <CreditCard size={11} className="text-indigo-650 shrink-0" /> {cliente.numero_cuenta}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Banner de Estado de Mora / Cobros */}
-      {!loadingLoans && (clientMoraDetails.tieneMora ? (
-        <div className="bg-rose-50 border border-rose-200 rounded-3xl p-5 flex items-start gap-4 shadow-sm animate-fadeIn">
-          <div className="w-10 h-10 rounded-2xl bg-rose-100/80 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
-            <AlertTriangle size={20} />
-          </div>
-          <div>
-            <p className="text-sm font-black text-rose-900 leading-none">Este cliente tiene mensualidades o cuotas pendientes vencidas</p>
-            <p className="text-xs text-rose-700 mt-2 font-medium">
-              Tiene <strong className="font-extrabold">{clientMoraDetails.totalCuotasAtrasadas} mensualidad(es) o cuota(s) vencida(s)</strong> sin pagar.
-              Total atrasado: <strong className="font-mono font-extrabold">{formatCurrency(clientMoraDetails.totalMontoAtrasado)}</strong>.
-            </p>
-          </div>
-        </div>
-      ) : clientMoraDetails.proximaCuotaFecha ? (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-5 flex items-start gap-4 shadow-sm animate-fadeIn">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-100/80 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
-            <CheckCircle2 size={20} />
-          </div>
-          <div>
-            {clientMoraDetails.proximaCuotaTipo === "Alquiler de Casa" ? (
-              <>
-                <p className="text-sm font-black text-emerald-900 leading-none">Alquiler al día</p>
-                <p className="text-xs text-emerald-700 mt-2 font-medium">
-                  Próxima mensualidad de alquiler programada para el <strong className="font-extrabold">{formatDate(clientMoraDetails.proximaCuotaFecha)}</strong> (Día {parseInt(clientMoraDetails.proximaCuotaFecha.split("-")[2])} de cada mes) por un monto de <strong className="font-mono font-extrabold">{formatCurrency(clientMoraDetails.proximaCuotaMonto)}</strong>.
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-sm font-black text-emerald-900 leading-none">Cliente al día en sus cuotas</p>
-                <p className="text-xs text-emerald-700 mt-2 font-medium">
-                  Próximo vencimiento programado para el <strong className="font-extrabold">{formatDate(clientMoraDetails.proximaCuotaFecha)}</strong> por un monto de <strong className="font-mono font-extrabold">{formatCurrency(clientMoraDetails.proximaCuotaMonto)}</strong>.
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-      ) : null)}
-
-      {/* Financial Summary KPIs */}
       <ClientFinancialSummary cliente={cliente} />
 
-      {/* 🏆 TARJETA DE SCORE DE CLIENTE (Fase 6) */}
-      <Card variant="simple" className="p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2">
-            <h3 className="font-extrabold text-slate-800 text-sm">Score de Comportamiento de Pago</h3>
-            <ScoreBadge
-              score={scoreData?.scoreEfectivo}
-              sobreescrito={scoreData?.sobreescrito}
-              size="md"
-            />
-          </div>
+      <ClienteScoreCard clienteId={id} />
 
-          <button
-            type="button"
-            onClick={() => setShowScoreModal(true)}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all self-start sm:self-auto"
-          >
-            ⚙️ Sobreescribir Score Manualmente
-          </button>
-        </div>
+      <ClienteDistribucionCard data={distribucion} />
 
-        {scoreData ? (
-          <div className="space-y-3 text-xs">
-            <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
-              <span className="font-semibold text-slate-600">Puntuación Numérica Calculada:</span>
-              <span className="font-extrabold text-slate-900 text-sm">
-                {scoreData.scoreNumerico} / 100
-              </span>
-            </div>
-
-            {scoreData.sobreescrito && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 font-medium">
-                <strong>Score Manual Activo ({scoreData.scoreManual}):</strong> {scoreData.motivoOverride || "Sin motivo especificado"}
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-slate-700">
-              <div className="p-2.5 bg-white border border-slate-200 rounded-xl">
-                <span className="text-[10px] text-slate-400 font-bold block">Cuotas a Tiempo</span>
-                <span className="font-bold text-emerald-600">
-                  {scoreData.detalle.cuotasPagadasATiempo} / {scoreData.detalle.cuotasTotales}
-                </span>
-              </div>
-
-              <div className="p-2.5 bg-white border border-slate-200 rounded-xl">
-                <span className="text-[10px] text-slate-400 font-bold block">Cuotas Completas</span>
-                <span className="font-bold text-slate-800">
-                  {scoreData.detalle.cuotasPagadasCompletas} / {scoreData.detalle.cuotasTotales}
-                </span>
-              </div>
-
-              <div className="p-2.5 bg-white border border-slate-200 rounded-xl">
-                <span className="text-[10px] text-slate-400 font-bold block">Préstamos Liquidados</span>
-                <span className="font-bold text-blue-600">
-                  {scoreData.detalle.prestamosLiquidados} / {scoreData.detalle.prestamosTotales}
-                </span>
-              </div>
-
-              <div className="p-2.5 bg-white border border-slate-200 rounded-xl">
-                <span className="text-[10px] text-slate-400 font-bold block">Atraso Promedio</span>
-                <span className="font-bold text-red-600">
-                  {scoreData.detalle.diasAtrasoPromedio} días
-                </span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <p className="text-xs text-slate-400 italic">Cargando score del cliente...</p>
-        )}
-      </Card>
-
-      {/* Modal para Sobreescribir Score Manualmente */}
-      <Modal
-        isOpen={showScoreModal}
-        onClose={() => setShowScoreModal(false)}
-        title="Cambiar Score Manualmente"
-        size="sm"
-      >
-        <form onSubmit={handleSaveScoreOverride} className="space-y-4 text-xs">
-          <p className="text-slate-600">
-            Score calculado automáticamente: <strong>{scoreData?.scoreLetra || "Sin datos"}</strong>
-          </p>
-
-          <div>
-            <label className="font-bold text-slate-700 block mb-1.5">Nuevo Score Manual:</label>
-            <div className="grid grid-cols-4 gap-2">
-              <button
-                type="button"
-                onClick={() => setOverrideScore("A")}
-                className={`py-2 rounded-xl font-extrabold border transition-all ${
-                  overrideScore === "A"
-                    ? "bg-emerald-600 text-white border-emerald-600"
-                    : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                }`}
-              >
-                A
-              </button>
-              <button
-                type="button"
-                onClick={() => setOverrideScore("B")}
-                className={`py-2 rounded-xl font-extrabold border transition-all ${
-                  overrideScore === "B"
-                    ? "bg-amber-500 text-white border-amber-500"
-                    : "bg-amber-50 text-amber-700 border-amber-200"
-                }`}
-              >
-                B
-              </button>
-              <button
-                type="button"
-                onClick={() => setOverrideScore("C")}
-                className={`py-2 rounded-xl font-extrabold border transition-all ${
-                  overrideScore === "C"
-                    ? "bg-red-600 text-white border-red-600"
-                    : "bg-red-50 text-red-700 border-red-200"
-                }`}
-              >
-                C
-              </button>
-              <button
-                type="button"
-                onClick={() => setOverrideScore("restablecer")}
-                className={`py-2 rounded-xl font-bold text-[10px] border transition-all ${
-                  overrideScore === "restablecer"
-                    ? "bg-slate-800 text-white border-slate-800"
-                    : "bg-slate-100 text-slate-700 border-slate-200"
-                }`}
-              >
-                Auto
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="font-bold text-slate-700 block mb-1">Motivo u Observación:</label>
-            <textarea
-              rows={2}
-              placeholder="Explique el motivo de la sobreescritura manual..."
-              value={overrideMotivo}
-              onChange={(e) => setOverrideMotivo(e.target.value)}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 outline-none focus:border-indigo-500 transition-all resize-none"
-            />
-          </div>
-
-          <div className="flex gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setShowScoreModal(false)}
-              className="flex-1 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSavingScore}
-              className="flex-1 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
-            >
-              {isSavingScore ? "Guardando..." : "Guardar Score"}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* 📊 Desglose de Retorno y Amortización Agregado del Cliente */}
-      {clientFinancialDistribution && clientFinancialDistribution.capitalTotal > 0 && (
-        <Card variant="simple" className="p-5 space-y-4">
-          <div>
-            <h3 className="font-black text-slate-800 text-sm tracking-tight leading-none">
-              📊 Distribución de Amortización Acumulada
-            </h3>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
-              Estado total de recuperación de capital, intereses y mora del cliente (excluye Alquileres)
-            </p>
-          </div>
-          
-          <div className="border-t border-slate-200/60 pt-3 grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* Capital */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 font-bold uppercase">Capital Recuperado</span>
-                <span className="text-emerald-700 font-black font-mono">
-                  {formatCurrency(clientFinancialDistribution.capitalAmortizado)} / {formatCurrency(clientFinancialDistribution.capitalTotal)} ({clientFinancialDistribution.capitalPct.toFixed(1)}%)
-                </span>
-              </div>
-              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                <div 
-                  className="h-full rounded-full bg-emerald-500 transition-all duration-505" 
-                  style={{ width: `${clientFinancialDistribution.capitalPct}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Interés */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 font-bold uppercase">Interés Cobrado</span>
-                <span className="text-indigo-700 font-black font-mono">
-                  {formatCurrency(clientFinancialDistribution.interesPagado)} / {formatCurrency(clientFinancialDistribution.interesTotal)} ({clientFinancialDistribution.interesPct.toFixed(1)}%)
-                </span>
-              </div>
-              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                <div 
-                  className="h-full rounded-full bg-indigo-500 transition-all duration-505" 
-                  style={{ width: `${clientFinancialDistribution.interesPct}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Mora */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 font-bold uppercase">Mora Cobrada</span>
-                <span className="text-amber-700 font-black font-mono">
-                  {formatCurrency(clientFinancialDistribution.moraPagado)} / {formatCurrency(clientFinancialDistribution.moraTotal)} ({clientFinancialDistribution.moraPct.toFixed(1)}%)
-                </span>
-              </div>
-              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                <div 
-                  className="h-full rounded-full bg-amber-500 transition-all duration-505" 
-                  style={{ width: `${clientFinancialDistribution.moraPct}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Details Grid (Loans & Interaction timeline) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Left/Middle Columns: Client Loans */}
         <div className="lg:col-span-2 space-y-6">
-          <Card variant="simple" className="space-y-4">
-            <div>
-              <h3 className="font-black text-slate-900 text-base tracking-tight leading-none">Cartera de Créditos</h3>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
-                Historial de financiamientos y saldos exigibles
-              </p>
-            </div>
-
-            <div className="border-t border-slate-200/80" />
-
-            {loadingLoans ? (
-              <div className="flex flex-col items-center justify-center py-16">
-                <Loader2 className="animate-spin text-indigo-650 mb-3" size={24} />
-                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Cargando deudas del prestatario...</p>
-              </div>
-            ) : loanError ? (
-              <div className="p-4 bg-rose-50 border border-rose-100 text-rose-700 rounded-2xl text-xs font-bold leading-normal">
-                {loanError}
-              </div>
-            ) : clientLoans.length === 0 ? (
-              <div className="text-center py-16 text-slate-500 text-xs md:text-sm font-semibold bg-slate-50/40 border border-dashed border-slate-200 rounded-3xl p-6 select-none">
-                El cliente no cuenta con deudas u operaciones en el sistema.
-              </div>
-            ) : (
-              <div className="w-full overflow-hidden border border-slate-200 bg-white rounded-2xl shadow-sm">
-                <table className="w-full border-collapse text-left">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Código</th>
-                      <th className="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Monto</th>
-                      <th className="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Frecuencia / Tasa</th>
-                      <th className="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Estado</th>
-                      <th className="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Ver</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-150">
-                    {clientLoans.map((loan) => {
-                      const isActivo = loan.estado === "activo";
-                      
-                      return (
-                        <tr key={loan.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="p-3 text-xs font-mono font-bold text-indigo-650">
-                            {loan.id.slice(0, 8).toUpperCase()}
-                          </td>
-                          <td className="p-3 text-xs font-mono font-extrabold text-slate-800">
-                            {formatCurrency(loan.monto_capital)}
-                          </td>
-                          <td className="p-3 text-xs font-semibold text-slate-600">
-                            {loan.tipo_prestamo === "Alquiler de Casa" ? (
-                              <span>Alquiler (Día {parseInt(loan.fecha_emision.split("-")[2])} c/mes)</span>
-                            ) : (
-                              <span>{loan.tipo_prestamo} ({loan.tasa_interes_porcentaje}%)</span>
-                            )}
-                          </td>
-                          <td className="p-3 text-xs">
-                            <Badge variant={isActivo ? "success" : "neutral"}>
-                              {isActivo ? "Activo" : "Pagado"}
-                            </Badge>
-                          </td>
-                          <td className="p-3 text-right">
-                            <Link
-                              to={`/prestamos/${loan.id}`}
-                              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition inline-flex items-center justify-center shrink-0 border border-slate-200 decoration-none cursor-pointer"
-                            >
-                              <ArrowUpRight size={13} />
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
-
-          {/* 🏠 SECCIÓN 5 — ALQUILERES DEL CLIENTE (Fase 7) */}
-          {clientAlquileres.length > 0 && (
-            <Card variant="simple" className="space-y-4">
-              <div>
-                <h3 className="font-black text-slate-900 text-base tracking-tight leading-none flex items-center gap-2">
-                  🏠 Contratos de Alquiler
-                </h3>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
-                  Contratos de arrendamiento activos e históricos del cliente
-                </p>
-              </div>
-
-              <div className="border-t border-slate-200/80" />
-
-              <div className="space-y-2">
-                {clientAlquileres.map((alq) => (
-                  <div
-                    key={alq.id}
-                    className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs flex items-center justify-between gap-3"
-                  >
-                    <div>
-                      <span className="font-extrabold text-slate-900 block">{alq.propiedad_direccion || "Propiedad sin dirección"}</span>
-                      <span className="text-slate-500 font-medium">
-                        Renta: S/ {(Number(alq.monto_renta_mensual) || 0).toFixed(2)}/mes • Día {alq.dia_pago_mensual || 1} c/mes
-                      </span>
-                    </div>
-
-                    <Badge variant={alq.estado === "activo" ? "success" : "neutral"}>
-                      {alq.estado === "activo" ? "Activo" : "Finalizado"}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
+          <ClienteCreditos loans={clientLoans} loading={loadingLoans} error={loanError} />
+          <ClienteAlquileres alquileres={clientAlquileres} />
         </div>
 
-        {/* Right Column: Interaction timeline Notes & Client Documents (Tarea 9.2.4) */}
         <div className="space-y-6">
-          <ClientNotes
-            cliente={cliente}
-            onUpdateClient={handleUpdateClient}
-          />
-
-          {/* 📄 SECCIÓN — DOCUMENTOS DEL CLIENTE (Fase 9) */}
-          <Card variant="simple" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-black text-slate-900 text-base tracking-tight leading-none flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-indigo-600" /> Documentos del Cliente
-                </h3>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
-                  DNI, Recibos y Contratos almacenados en Google Drive
-                </p>
-              </div>
-
-              {cliente?.drive_folder_id && (
-                <a
-                  href={`https://drive.google.com/drive/folders/${cliente.drive_folder_id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1"
-                  title="Abrir Carpeta en Google Drive"
-                >
-                  <FolderOpen className="w-3.5 h-3.5" /> Drive
-                </a>
-              )}
-            </div>
-
-            <div className="border-t border-slate-200/80" />
-
-            {/* Formulario rápido para subir documento */}
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
-              <span className="font-bold text-slate-700 block text-[11px]">
-                [+ Subir Nuevo Documento]
-              </span>
-
-              <div className="grid grid-cols-2 gap-2">
-                <select
-                  value={tipoDocInput}
-                  onChange={(e) => setTipoDocInput(e.target.value)}
-                  className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none"
-                >
-                  <option value="DNI">DNI / Documento Identidad</option>
-                  <option value="Recibo de Luz/Agua">Recibo de Luz / Agua</option>
-                  <option value="Contrato Firmado">Contrato Firmado</option>
-                  <option value="Garantía">Garantía / Titulo</option>
-                  <option value="Otro">Otro Documento</option>
-                </select>
-
-                <label className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer">
-                  {isUploadingDoc ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Subiendo...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-3.5 h-3.5" /> Seleccionar Archivo
-                    </>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={handleDocUpload}
-                    disabled={isUploadingDoc}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-            </div>
-
-            {/* Lista de Documentos del Cliente */}
-            {documentos.length === 0 ? (
-              <div className="p-6 text-center border border-dashed border-slate-200 rounded-xl text-xs text-slate-500 font-medium">
-                No hay documentos registrados para este cliente.
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {documentos.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="p-2.5 bg-white border border-slate-200 rounded-xl text-xs flex items-center justify-between gap-2 hover:border-indigo-300 transition-all"
-                  >
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
-                      <div className="truncate">
-                        <span className="font-bold text-slate-800 block truncate">{doc.nombre_archivo}</span>
-                        <span className="text-[10px] text-slate-400 font-medium">
-                          Tipo: {doc.tipo_documento} • {doc.fecha_subida ? doc.fecha_subida.split("T")[0] : ""}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      {resolveDocumentUrl(doc) && (
-                        <a
-                          href={resolveDocumentUrl(doc)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[10px] cursor-pointer"
-                        >
-                          Ver
-                        </a>
-                      )}
-                      <button
-                        onClick={() => handleDeleteDoc(doc.id)}
-                        className="p-1 text-slate-400 hover:text-red-600 rounded-lg transition-colors cursor-pointer"
-                        title="Eliminar Documento"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
+          <ClientNotes cliente={cliente} onUpdateClient={handleUpdateClient} />
+          <ClienteDocumentos clienteId={id} driveFolderId={cliente.drive_folder_id} />
         </div>
       </div>
     </div>
   );
 };
+
+export default ClienteDetallePage;

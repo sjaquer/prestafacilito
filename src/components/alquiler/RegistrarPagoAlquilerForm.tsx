@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { DollarSign, CheckCircle, AlertCircle, Upload, Home, X, Image as ImageIcon } from "lucide-react";
+import { DollarSign, CheckCircle, AlertCircle } from "lucide-react";
 import { Cliente, Alquiler } from "../../types";
 import { ClienteAutocomplete } from "../common/ClienteAutocomplete";
 import { ImagePasteDropzone } from "../common/ImagePasteDropzone";
-import { METODOS_PAGO_OPCIONES } from "../../constants/bancos";
+import { METODOS_PAGO } from "../../lib/constants";
 import { subirVoucher } from "../../lib/imageCompression";
 import { round2 } from "../../lib/loanLogic";
 
@@ -104,17 +104,6 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
     if (newFiles.length > 0) {
       setComprobanteFiles((prev) => [...prev, ...newFiles]);
     }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const addedFiles = Array.from(e.target.files);
-      setComprobanteFiles((prev) => [...prev, ...addedFiles]);
-    }
-  };
-
-  const removeFile = (index: number) => {
-    setComprobanteFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -318,7 +307,7 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
 
         {/* Panel de Desglose Matemático de Alquiler en Tiempo Real */}
         {desgloseAlquiler && (
-          <div className="rounded-2xl border border-emerald-150 bg-emerald-50/50 p-3.5 space-y-2 text-xs select-none">
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3.5 space-y-2 text-xs select-none">
             <div className="flex justify-between items-center border-b border-emerald-100 pb-2">
               <span className="text-[10px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-1.5">
                 🏠 Cobro de Alquiler — {desgloseAlquiler.mesNombre} {periodoAnio}
@@ -364,10 +353,8 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
             onChange={(e) => setMetodoPago(e.target.value)}
             className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white"
           >
-            {METODOS_PAGO_OPCIONES.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.nombre}
-              </option>
+            {METODOS_PAGO.map((m) => (
+              <option key={m} value={m}>{m}</option>
             ))}
           </select>
         </div>

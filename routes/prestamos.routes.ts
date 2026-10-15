@@ -502,38 +502,30 @@ prestamosRouter.get("/:id/ajustes", requireAuth, async (req: express.Request, re
   }
 });
 
+const TIPOS_AJUSTE = ["congelar_interes_temporal", "acuerdo_especial"];
+
 prestamosRouter.post("/:id/ajustes", requireAuth, async (req: AuthRequest, res: express.Response) => {
   try {
     const prestamoId = req.params.id;
-    const {
-      tipo,
-      monto_afectado,
-      monto_antes,
-      monto_despues,
-      cuota_numero,
-      fecha_inicio,
-      fecha_fin,
-      periodo_gracia_dias,
-      descripcion,
-      motivo
-    } = req.body;
+    const { tipo, cuota_numero, fecha_inicio, fecha_fin, descripcion, motivo } = req.body;
 
-    const username = req.user?.username || "sistema";
+    if (!TIPOS_AJUSTE.includes(tipo)) {
+      return res.status(400).json({ error: "Tipo de ajuste no válido" });
+    }
+    if (fecha_inicio && fecha_fin && fecha_fin < fecha_inicio) {
+      return res.status(400).json({ error: "La fecha fin no puede ser anterior a la fecha de inicio" });
+    }
 
     const { data: newAdj, error } = await supabase
       .from("ajustes_prestamo")
       .insert({
         prestamo_id: prestamoId,
         tipo,
-        monto_afectado: toNumber(monto_afectado),
-        monto_antes: toNumber(monto_antes),
-        monto_despues: toNumber(monto_despues),
-        cuota_numero: cuota_numero ? parseInt(cuota_numero) : null,
+        cuota_numero: cuota_numero ? parseInt(cuota_numero, 10) : null,
         fecha_inicio: fecha_inicio || new Date().toISOString().split("T")[0],
         fecha_fin: fecha_fin || null,
-        periodo_gracia_dias: periodo_gracia_dias ? parseInt(periodo_gracia_dias) : 0,
         descripcion: descripcion || "",
-        usuario: username,
+        usuario: req.user?.username || "sistema",
         motivo: motivo || ""
       })
       .select()
@@ -549,13 +541,18 @@ prestamosRouter.post("/:id/ajustes", requireAuth, async (req: AuthRequest, res: 
 
 prestamosRouter.patch("/:id/ajustes/:ajusteId", requireAuth, async (req: AuthRequest, res: express.Response) => {
   try {
-    const { ajusteId } = req.params;
+    const { id, ajusteId } = req.params;
     const { activo } = req.body;
+
+    if (typeof activo !== "boolean") {
+      return res.status(400).json({ error: "El campo 'activo' debe ser booleano" });
+    }
 
     const { data: updatedAdj, error } = await supabase
       .from("ajustes_prestamo")
       .update({ activo })
       .eq("id", ajusteId)
+      .eq("prestamo_id", id)
       .select()
       .single();
 

@@ -1,9 +1,9 @@
 import React from "react";
-import { MessageCircle, ArrowUpRight, Phone, MapPin, Edit3, Coins, Wallet, CheckCircle2, Paperclip, FileUp } from "lucide-react";
+import { MessageCircle, ArrowUpRight, Phone, Edit3, Wallet, CheckCircle2, FileUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Cliente } from "../../types";
 import { ScoreBadge } from "../ui/ScoreBadge";
-import { formatCurrency } from "../../lib/formatters";
+import { getSaludoPorHora } from "../../lib/formatters";
 
 interface ClientCardProps {
   cliente: Cliente;
@@ -17,7 +17,8 @@ export const ClientCard: React.FC<ClientCardProps> = ({ cliente, onEditClient, o
   const getWhatsAppLink = () => {
     const telSanitized = (cliente.telefono || "").replace(/\D/g, "");
     const telFinal = telSanitized.startsWith("51") ? telSanitized : `51${telSanitized}`;
-    const mensaje = `Hola ${cliente.nombre_completo}, le saludamos de PrestaFacilito. ¿En qué le podemos ayudar hoy?`;
+    const saludo = getSaludoPorHora();
+    const mensaje = `Hola, ${saludo.toLowerCase()}. Le escribo para coordinar sobre su cuenta.`;
     return `https://wa.me/${telFinal}?text=${encodeURIComponent(mensaje)}`;
   };
 

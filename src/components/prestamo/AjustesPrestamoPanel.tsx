@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { ShieldCheck, Plus, CheckCircle, AlertCircle, Trash2, FileText } from "lucide-react";
+import { ShieldCheck, Plus, CheckCircle, AlertCircle, Trash2 } from "lucide-react";
 import { AjustePrestamo } from "../../types";
+import { useFeedback } from "../ui/Feedback";
 
 interface AjustesPrestamoPanelProps {
   prestamoId: string;
@@ -15,10 +16,10 @@ export const AjustesPrestamoPanel: React.FC<AjustesPrestamoPanelProps> = ({
   totalCuotas,
   onAjusteActualizado
 }) => {
+  const { confirm } = useFeedback();
   const [tipoAjuste, setTipoAjuste] = useState<"congelar_interes_temporal" | "acuerdo_especial">("congelar_interes_temporal");
   const [cuotaNumero, setCuotaNumero] = useState<number>(1);
   const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split("T")[0]);
-  const [fechaFin, setFechaFin] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [motivo, setMotivo] = useState("");
 
@@ -32,23 +33,28 @@ export const AjustesPrestamoPanel: React.FC<AjustesPrestamoPanelProps> = ({
     setErrorMsg("");
     setSuccessMsg("");
 
+    if (tipoAjuste === "acuerdo_especial" && !descripcion.trim()) {
+      setErrorMsg("Describe el acuerdo especial antes de registrarlo");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const res = await fetch("/api/prestamos/ajustes", {
+      const res = await fetch(`/api/prestamos/${prestamoId}/ajustes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prestamo_id: prestamoId,
           tipo: tipoAjuste,
           cuota_numero: tipoAjuste === "congelar_interes_temporal" ? cuotaNumero : null,
           fecha_inicio: fechaInicio,
-          fecha_fin: fechaFin || null,
+          fecha_fin: null,
           descripcion,
           motivo
         })
       });
 
       if (!res.ok) {
-        const errData = await res.json();
+        const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || "No se pudo registrar el ajuste");
       }
 
@@ -64,18 +70,31 @@ export const AjustesPrestamoPanel: React.FC<AjustesPrestamoPanelProps> = ({
   };
 
   const handleDesactivarAjuste = async (ajusteId: string) => {
-    if (!window.confirm("¿Seguro que deseas desactivar este ajuste?")) return;
+    const ok = await confirm({
+      title: "Desactivar ajuste",
+      message: "¿Seguro que deseas desactivar este ajuste? Dejará de aplicarse al cálculo del préstamo.",
+      confirmLabel: "Desactivar",
+      danger: true,
+    });
+    if (!ok) return;
+    setErrorMsg("");
+    setSuccessMsg("");
 
     try {
-      const res = await fetch(`/api/prestamos/ajustes/${ajusteId}/desactivar`, {
-        method: "PUT"
+      const res = await fetch(`/api/prestamos/${prestamoId}/ajustes/${ajusteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activo: false })
       });
 
-      if (res.ok) {
-        onAjusteActualizado();
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "No se pudo desactivar el ajuste");
       }
-    } catch (err) {
-      console.error("Error al desactivar ajuste:", err);
+      setSuccessMsg("Ajuste desactivado");
+      onAjusteActualizado();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Error al desactivar el ajuste");
     }
   };
 
@@ -90,7 +109,7 @@ export const AjustesPrestamoPanel: React.FC<AjustesPrestamoPanelProps> = ({
           </div>
           <div>
             <h3 className="text-sm font-bold text-slate-800">Ajustes y Facilidades de Pago</h3>
-            <p className="text-xs text-slate-500">Modelos simplificados de la Fase 5</p>
+            <p className="text-xs text-slate-500">Congela intereses o registra acuerdos con el cliente</p>
           </div>
         </div>
       </div>

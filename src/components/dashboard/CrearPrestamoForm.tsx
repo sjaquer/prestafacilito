@@ -227,7 +227,7 @@ export const CrearPrestamoForm: React.FC<CrearPrestamoFormProps> = ({
 
             <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
               {preview.cuotas.map((c) => (
-                <div key={c.numero} className="flex justify-between items-center py-1 px-2 bg-white rounded border border-slate-150 text-[11px]">
+                <div key={c.numero} className="flex justify-between items-center py-1 px-2 bg-white rounded border border-slate-100 text-[11px]">
                   <span className="font-semibold text-slate-700">Cuota {c.numero}</span>
                   <span className="text-slate-500">Amort. S/{c.amortizacion.toFixed(2)} + Int. S/{c.interes.toFixed(2)}</span>
                   <span className="font-bold text-emerald-700">S/ {c.cuotaTotal.toFixed(2)}</span>

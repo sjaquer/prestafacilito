@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, User, Phone, MapPin, CreditCard, FileText, ChevronDown, ChevronUp, Save, ShieldCheck, Upload, Trash2 } from "lucide-react";
+import { X, User, CreditCard, FileText, ChevronDown, ChevronUp, Save, Upload, Trash2 } from "lucide-react";
 import { Cliente, TipoDocumento, TIPOS_DOCUMENTO_CONFIG, ACCEPT_DOCUMENTOS } from "../../types";
 
 interface ClientSlideOverFormProps {

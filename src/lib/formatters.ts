@@ -242,29 +242,32 @@ export function getSaludoPorHora(): string {
 }
 
 /**
- * Genera un mensaje de cobro o recordatorio predeterminado listo para WhatsApp.
+ * Genera un mensaje de cobro con información mínima listo para WhatsApp:
+ * - Solo saluda (ej: "Hola, buenos días.")
+ * - Indica que se comunica para coordinar el cobro del préstamo / alquiler
+ * - Indica si vence hoy o hace cuántos días venció
+ * - Sin monto mínimo, sin nombre directo, simple y directo.
  */
 export function generarMensajeCobroPredeterminado({
-  clienteNombre,
   tipoPrestamo,
-  monto,
   fechaVencimiento,
   estadoCuotaMes,
   cuotasAtrasadas,
+  diasAtraso,
 }: {
-  clienteNombre: string;
-  tipoPrestamo: string;
+  clienteNombre?: string;
+  tipoPrestamo?: string;
   remitenteRaw?: string | null;
-  monto: number;
-  fechaVencimiento: string;
+  monto?: number;
+  fechaVencimiento?: string;
   estadoCuotaMes?: string;
   cuotasAtrasadas?: number;
+  diasAtraso?: number;
 }): string {
-  const nombreNormalizado = normalizeClientName(clienteNombre);
   const saludo = getSaludoPorHora();
-  const esAlquiler = tipoPrestamo === "Alquiler de Casa";
-  const esMora = estadoCuotaMes && ["mora_mes", "mora_acumulada"].includes(estadoCuotaMes);
-  const formattedMonto = formatCurrency(monto);
+  const esAlquiler = tipoPrestamo === "Alquiler de Casa" || tipoPrestamo?.toLowerCase().includes("alquiler");
+  const asunto = esAlquiler ? "del alquiler" : "del préstamo";
+  const unidad = esAlquiler ? "su mensualidad" : "su cuota";
 
   let diffDays = 0;
   if (fechaVencimiento) {
@@ -276,27 +279,35 @@ export function generarMensajeCobroPredeterminado({
     diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
   }
 
-  const tipo = esAlquiler ? "mensualidad de alquiler" : "cuota";
+  // Días de atraso explícitos o calculados
+  const diasVencidos = diasAtraso !== undefined && diasAtraso > 0
+    ? diasAtraso
+    : (diffDays < 0 ? Math.abs(diffDays) : 0);
+
+  const esMora = (estadoCuotaMes && ["mora_mes", "mora_acumulada"].includes(estadoCuotaMes)) || diasVencidos > 0;
+
+  if (esMora && diasVencidos > 0) {
+    const diasTexto = diasVencidos === 1 ? "1 día" : `${diasVencidos} días`;
+    return `Hola, ${saludo.toLowerCase()}. Le escribo para coordinar el cobro ${asunto}. Le recuerdo que ${unidad} venció hace ${diasTexto}.`;
+  }
 
   if (esMora) {
-    const detalleMora = cuotasAtrasadas && cuotasAtrasadas > 1 
-      ? `(${cuotasAtrasadas} meses vencidos)` 
-      : `(vencida)`;
-    return `¡Hola! ${saludo} ${nombreNormalizado}. 😊 Quería recordarle amablemente que su ${tipo} de ${formattedMonto} está pendiente de pago ${detalleMora}. Le agradecería regularizarlo y enviarme el comprobante. ¡Muchas gracias!`;
+    return `Hola, ${saludo.toLowerCase()}. Le escribo para coordinar el cobro ${asunto}. Le recuerdo que ${unidad} se encuentra vencida.`;
   }
 
-  let tiempoVencimiento = "";
   if (diffDays === 0) {
-    tiempoVencimiento = "vence el día de hoy";
-  } else if (diffDays === 1) {
-    tiempoVencimiento = "vence el día de mañana";
-  } else if (diffDays < 0) {
-    tiempoVencimiento = "ya venció";
-  } else {
-    tiempoVencimiento = `vence el ${formatDateWithDay(fechaVencimiento)}`;
+    return `Hola, ${saludo.toLowerCase()}. Le escribo para coordinar el cobro ${asunto}. Le recuerdo que hoy vence ${unidad}.`;
   }
 
-  return `¡Hola! ${saludo} ${nombreNormalizado}. 😊 Quería recordarle amablemente que su ${tipo} de ${formattedMonto} está a punto de vencer (${tiempoVencimiento}). Quedo atento al envío del comprobante de pago. ¡Muchas gracias!`;
+  if (diffDays === 1) {
+    return `Hola, ${saludo.toLowerCase()}. Le escribo para coordinar el cobro ${asunto}. Le recuerdo que ${unidad} vence el día de mañana.`;
+  }
+
+  if (fechaVencimiento) {
+    return `Hola, ${saludo.toLowerCase()}. Le escribo para coordinar el cobro ${asunto}. Le recuerdo que ${unidad} vence el ${formatDateWithDay(fechaVencimiento)}.`;
+  }
+
+  return `Hola, ${saludo.toLowerCase()}. Le escribo para coordinar el cobro ${asunto}.`;
 }
 
 

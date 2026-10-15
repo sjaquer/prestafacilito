@@ -1,18 +1,16 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { 
-  ArrowLeft, Home, Calendar, DollarSign, CheckCircle2, Clock, 
-  AlertTriangle, RefreshCw, FileText, Check, ShieldAlert 
-} from "lucide-react";
+import { ArrowLeft, Home, DollarSign, CheckCircle2 } from "lucide-react";
+import { useFeedback } from "../components/ui/Feedback";
 
 export const AlquilerDetallePage: React.FC = () => {
+  const { notify, confirm } = useFeedback();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const [alquiler, setAlquiler] = useState<any>(null);
   const [cliente, setCliente] = useState<any>(null);
   const [pagos, setPagos] = useState<any[]>([]);
-  const [estadoCalculado, setEstadoCalculado] = useState<any>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -45,7 +43,6 @@ export const AlquilerDetallePage: React.FC = () => {
       setAlquiler(alquilerData);
       setCliente(data.cliente || null);
       setPagos(data.pagos || []);
-      setEstadoCalculado(data.estado || data.estado_calculado || null);
 
       if (alquilerData) {
         setMontoPago(String(alquilerData.monto_mensual || ""));
@@ -101,7 +98,7 @@ export const AlquilerDetallePage: React.FC = () => {
   };
 
   const handleFinalizarContrato = async () => {
-    if (!id || !window.confirm(`¿Confirmar que el contrato de alquiler de "${alquiler?.descripcion_inmueble}" ha finalizado?`)) {
+    if (!id || !await confirm({ title: "Finalizar contrato", message: `¿Confirmar que el contrato de alquiler de "${alquiler?.descripcion_inmueble}" ha finalizado?`, confirmLabel: "Finalizar" })) {
       return;
     }
 
@@ -114,7 +111,7 @@ export const AlquilerDetallePage: React.FC = () => {
       if (res.ok) {
         await fetchDetalle();
       } else {
-        alert("No se pudo finalizar el contrato.");
+        notify("No se pudo finalizar el contrato.");
       }
     } catch (err) {
       console.error("Error al finalizar contrato:", err);

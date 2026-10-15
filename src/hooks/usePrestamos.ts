@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Prestamo, AjustePrestamo, EstadoDeudaPrestamo, Amortizacion } from "../types";
+import { AjustePrestamo, Amortizacion } from "../types";
 
 export function usePrestamos() {
   const [loading, setLoading] = useState<boolean>(false);

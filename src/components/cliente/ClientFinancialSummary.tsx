@@ -1,8 +1,5 @@
 import React, { useMemo } from "react";
-import {
-  ShieldCheck, Shield, ShieldAlert, TrendingUp, DollarSign,
-  TrendingDown, CheckCircle2, Clock
-} from "lucide-react";
+import { TrendingUp, TrendingDown, CheckCircle2, Clock } from "lucide-react";
 import { Cliente } from "../../types";
 import { Card } from "../ui/Card";
 import { formatCurrency } from "../../lib/formatters";
@@ -24,42 +21,6 @@ export const ClientFinancialSummary: React.FC<ClientFinancialSummaryProps> = ({ 
     if (exigible <= 0) return 100;
     return Math.min(100, Math.round((amortizado / exigible) * 100));
   }, [exigible, amortizado]);
-
-  const assessment = useMemo(() => {
-    let level: "Excelente" | "Bajo" | "Medio" | "Alto";
-    let score = 100;
-    let color = "";
-    let bg = "";
-    let Icon = ShieldCheck;
-
-    if (activeLoans > 1 || outstanding > 1500) {
-      level = "Alto";
-      score = activeLoans > 2 ? 25 : 45;
-      color = "text-rose-400";
-      bg = "bg-rose-500/10 border-rose-500/20";
-      Icon = ShieldAlert;
-    } else if (activeLoans === 1 || outstanding > 0) {
-      level = "Medio";
-      score = 70;
-      color = "text-amber-400";
-      bg = "bg-amber-500/10 border-amber-500/20";
-      Icon = Shield;
-    } else if (totalLoans > 0) {
-      level = "Excelente";
-      score = 98;
-      color = "text-emerald-400";
-      bg = "bg-emerald-500/10 border-emerald-500/20";
-      Icon = ShieldCheck;
-    } else {
-      level = "Bajo";
-      score = 90;
-      color = "text-blue-400";
-      bg = "bg-blue-500/10 border-blue-500/20";
-      Icon = Shield;
-    }
-
-    return { level, score, color, bg, Icon };
-  }, [activeLoans, totalLoans, outstanding]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -93,7 +54,7 @@ export const ClientFinancialSummary: React.FC<ClientFinancialSummaryProps> = ({ 
       <Card variant="simple" className="flex flex-col justify-between p-5">
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-black text-slate-555 uppercase tracking-widest block">Saldo Pendiente</span>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Saldo Pendiente</span>
             <span className="text-2xl font-black text-rose-400 font-mono mt-1 block">
               {formatCurrency(outstanding)}
             </span>
@@ -113,8 +74,8 @@ export const ClientFinancialSummary: React.FC<ClientFinancialSummaryProps> = ({ 
       <Card variant="simple" className="flex flex-col justify-between p-5">
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-black text-slate-555 uppercase tracking-widest block">Total Liquidado</span>
-            <span className="text-2xl font-black text-emerald-450 font-mono mt-1 block">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Total Liquidado</span>
+            <span className="text-2xl font-black text-emerald-400 font-mono mt-1 block">
               {formatCurrency(amortizado)}
             </span>
           </div>
@@ -124,7 +85,7 @@ export const ClientFinancialSummary: React.FC<ClientFinancialSummaryProps> = ({ 
         </div>
 
         <div className="mt-4 flex items-center gap-1 text-[10px] font-black text-slate-550 uppercase tracking-wider select-none">
-          <CheckCircle2 size={11} className="text-emerald-450 shrink-0" />
+          <CheckCircle2 size={11} className="text-emerald-400 shrink-0" />
           <span>{historicalLoans} Crédito{historicalLoans !== 1 ? "s" : ""} Finalizado{historicalLoans !== 1 ? "s" : ""}</span>
         </div>
       </Card>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Home, RefreshCw, Building2 } from "lucide-react";
-import { Cliente, Alquiler } from "../types";
+import { Cliente } from "../types";
 import { CrearAlquilerForm } from "../components/alquiler/CrearAlquilerForm";
 import { RegistrarPagoAlquilerForm } from "../components/alquiler/RegistrarPagoAlquilerForm";
 import { AlquilerCard, AlquilerItemCalculado } from "../components/alquiler/AlquilerCard";

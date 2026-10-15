@@ -4,7 +4,7 @@ import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { ImagePasteDropzone } from "../common/ImagePasteDropzone";
 import { subirVoucher } from "../../lib/imageCompression";
-import { formatCurrency, formatDateShort } from "../../lib/formatters";
+import { formatCurrency, formatDateShort, parseVoucherUrls } from "../../lib/formatters";
 
 interface UploadVoucherModalProps {
   isOpen: boolean;
@@ -13,19 +13,6 @@ interface UploadVoucherModalProps {
   initialPago?: any | null;
   onUploaded: () => void;
 }
-
-const parseUrls = (field: string | null | undefined): string[] => {
-  if (!field) return [];
-  try {
-    if (field.startsWith("[")) {
-      const arr = JSON.parse(field);
-      return Array.isArray(arr) ? arr.filter(Boolean) : [field];
-    }
-  } catch {
-    // ignore
-  }
-  return [field];
-};
 
 export const UploadVoucherModal: React.FC<UploadVoucherModalProps> = ({
   isOpen,
@@ -74,8 +61,8 @@ export const UploadVoucherModal: React.FC<UploadVoucherModalProps> = ({
 
       if (urls.length === 0) throw new Error("No se pudo subir el comprobante a Google Drive.");
 
-      const prevUrls = parseUrls(selectedPago?.comprobante_url);
-      const prevIds = parseUrls(selectedPago?.voucher_drive_file_id);
+      const prevUrls = parseVoucherUrls(selectedPago?.comprobante_url);
+      const prevIds = parseVoucherUrls(selectedPago?.voucher_drive_file_id);
       const mergedUrls = [...prevUrls, ...urls];
       const mergedIds = [...prevIds, ...ids];
 

@@ -2,6 +2,7 @@ import React from "react";
 import { Home, MessageCircle, DollarSign, Calendar, AlertTriangle, Clock, CheckCircle2, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Alquiler } from "../../types";
+import { generarMensajeCobroPredeterminado } from "../../lib/formatters";
 
 export interface AlquilerItemCalculado extends Alquiler {
   cliente_nombre?: string;
@@ -29,7 +30,11 @@ export const AlquilerCard: React.FC<AlquilerCardProps> = ({
   const getWhatsAppLink = () => {
     const telSanitized = (alquiler.cliente_telefono || "").replace(/\D/g, "");
     const telFinal = telSanitized.startsWith("51") ? telSanitized : `51${telSanitized}`;
-    const mensaje = `Hola ${alquiler.cliente_nombre}, le saludamos de PrestaFacilito. Le recordamos el pago de su mensualidad de alquiler (${alquiler.descripcion_inmueble}) por el monto de S/ ${alquiler.monto_mensual.toFixed(2)}. Gracias.`;
+    const mensaje = generarMensajeCobroPredeterminado({
+      tipoPrestamo: "Alquiler de Casa",
+      diasAtraso: (alquiler.meses_atrasados || 0) > 0 ? (alquiler.meses_atrasados || 1) * 30 : 0,
+      estadoCuotaMes: (alquiler.meses_atrasados || 0) > 0 ? "mora_mes" : undefined
+    });
     return `https://wa.me/${telFinal}?text=${encodeURIComponent(mensaje)}`;
   };
 

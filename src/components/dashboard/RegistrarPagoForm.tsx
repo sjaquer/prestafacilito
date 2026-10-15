@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { DollarSign, CheckCircle, AlertCircle, Upload, ShieldCheck, X, Image as ImageIcon } from "lucide-react";
+import { DollarSign, CheckCircle, AlertCircle } from "lucide-react";
 import { Cliente, Prestamo } from "../../types";
 import { ClienteAutocomplete } from "../common/ClienteAutocomplete";
 import { ImagePasteDropzone } from "../common/ImagePasteDropzone";
-import { METODOS_PAGO_OPCIONES } from "../../constants/bancos";
+import { METODOS_PAGO } from "../../lib/constants";
 import { subirVoucher } from "../../lib/imageCompression";
 import { round2 } from "../../lib/loanLogic";
 
@@ -140,17 +140,6 @@ export const RegistrarPagoForm: React.FC<RegistrarPagoFormProps> = ({
     if (newFiles.length > 0) {
       setComprobanteFiles((prev) => [...prev, ...newFiles]);
     }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const addedFiles = Array.from(e.target.files);
-      setComprobanteFiles((prev) => [...prev, ...addedFiles]);
-    }
-  };
-
-  const removeFile = (index: number) => {
-    setComprobanteFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -330,7 +319,7 @@ export const RegistrarPagoForm: React.FC<RegistrarPagoFormProps> = ({
 
         {/* Panel de Desglose Matemático del Cobro en Tiempo Real */}
         {desgloseMatematico && (
-          <div className="rounded-2xl border border-blue-150 bg-blue-50/50 p-3.5 space-y-2.5 text-xs select-none">
+          <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-3.5 space-y-2.5 text-xs select-none">
             <div className="flex justify-between items-center border-b border-blue-100 pb-2">
               <span className="text-[10px] font-black text-blue-900 uppercase tracking-widest flex items-center gap-1.5">
                 📐 Desglose Matemático del Abono
@@ -413,10 +402,8 @@ export const RegistrarPagoForm: React.FC<RegistrarPagoFormProps> = ({
             onChange={(e) => setMetodoPago(e.target.value)}
             className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:bg-white"
           >
-            {METODOS_PAGO_OPCIONES.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.nombre}
-              </option>
+            {METODOS_PAGO.map((m) => (
+              <option key={m} value={m}>{m}</option>
             ))}
           </select>
         </div>

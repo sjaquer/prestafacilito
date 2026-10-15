@@ -15,6 +15,29 @@ import { DashboardBIPage } from "./pages/DashboardBIPage";
 import { Coins, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 
+const FullScreenLoader: React.FC<{ message: string }> = ({ message }) => (
+  <div
+    id="app-initial-loader"
+    className="min-h-screen bg-slate-50 flex flex-col items-center justify-center relative overflow-hidden"
+  >
+    <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-[85px] pointer-events-none" />
+    <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-violet-500/4 rounded-full blur-[80px] pointer-events-none" />
+
+    <motion.div
+      animate={{ y: [0, -8, 0] }}
+      transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+      className="w-14 h-14 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-indigo-500/10 relative z-10 select-none"
+    >
+      <Coins className="text-white" size={26} />
+    </motion.div>
+
+    <Loader2 className="animate-spin text-indigo-600/70 mb-4 relative z-10" size={22} />
+    <p className="text-[10px] font-black text-slate-500 tracking-[0.2em] uppercase relative z-10 select-none">
+      {message}
+    </p>
+  </div>
+);
+
 interface ProtectedRouteProps {
   children: React.ReactNode;
   authenticated: boolean | null;
@@ -23,31 +46,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, authenticated, loading }) => {
   if (loading) {
-    return (
-      <div
-        id="app-initial-loader"
-        className="min-h-screen bg-slate-50 flex flex-col items-center justify-center relative overflow-hidden"
-      >
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-[85px] pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-violet-500/4 rounded-full blur-[80px] pointer-events-none" />
-
-        <motion.div
-          animate={{ y: [0, -8, 0] }}
-          transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
-          className="w-14 h-14 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-indigo-500/10 relative z-10 select-none"
-        >
-          <Coins className="text-white" size={26} />
-        </motion.div>
-
-        <Loader2
-          className="animate-spin text-indigo-600/70 mb-4 relative z-10"
-          size={22}
-        />
-        <p className="text-[10px] font-black text-slate-500 tracking-[0.2em] uppercase relative z-10 select-none">
-          Iniciando Sesión...
-        </p>
-      </div>
-    );
+    return <FullScreenLoader message="Iniciando Sesión..." />;
   }
 
   if (!authenticated) {
@@ -60,33 +59,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, authenticated
 export default function App() {
   const { authenticated, user, loading, login, logout } = useAuth();
 
-  // If initially loading user credentials
   if (loading && authenticated === null) {
-    return (
-      <div
-        id="app-initial-loader"
-        className="min-h-screen bg-slate-50 flex flex-col items-center justify-center relative overflow-hidden"
-      >
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-[85px] pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-violet-500/4 rounded-full blur-[80px] pointer-events-none" />
-
-        <motion.div
-          animate={{ y: [0, -8, 0] }}
-          transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
-          className="w-14 h-14 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-indigo-500/10 relative z-10 select-none"
-        >
-          <Coins className="text-white" size={26} />
-        </motion.div>
-
-        <Loader2
-          className="animate-spin text-indigo-600/70 mb-4 relative z-10"
-          size={22}
-        />
-        <p className="text-[10px] font-black text-slate-500 tracking-[0.2em] uppercase relative z-10 select-none">
-          Cargando PrestaFacilito...
-        </p>
-      </div>
-    );
+    return <FullScreenLoader message="Cargando sistema..." />;
   }
 
   return (

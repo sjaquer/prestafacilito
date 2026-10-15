@@ -67,7 +67,7 @@ export const ReporteCobrosImagen: React.FC<ReporteCobrosImagenProps> = ({ items 
               P
             </div>
             <h1 style={{ margin: 0, fontSize: "24px", fontWeight: "900", color: "#0f172a" }}>
-              PrestaFacilito
+              Gestión de Cartera
             </h1>
           </div>
           <p style={{ margin: "4px 0 0 0", fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -253,7 +253,7 @@ export const ReporteCobrosImagen: React.FC<ReporteCobrosImagenProps> = ({ items 
 
       <div style={{ textAlign: "center", paddingTop: "8px", borderTop: "1px solid #e2e8f0" }}>
         <p style={{ margin: 0, fontSize: "10px", fontWeight: "700", color: "#94a3b8" }}>
-          PrestaFacilito v2.0 • Sistema de Gestión de Préstamos y Alquileres
+          Sistema de Gestión de Cartera y Cobranzas
         </p>
       </div>
     </div>

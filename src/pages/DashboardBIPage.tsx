@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { 
-  BarChart3, TrendingUp, DollarSign, Wallet, AlertTriangle, 
-  Users, CheckCircle2, RefreshCw, ArrowUpRight, Home, ShieldCheck 
-} from "lucide-react";
+import { BarChart3, TrendingUp, DollarSign, Wallet, AlertTriangle, CheckCircle2, RefreshCw, Home } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ScoreBadge } from "../components/ui/ScoreBadge";
 

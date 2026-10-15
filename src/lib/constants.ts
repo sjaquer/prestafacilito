@@ -31,7 +31,7 @@ export const BANCO_GRUPOS: BancoConfig[] = [
   {
     nombre: "BCP / Yape (Sebastián)",
     colorClass: "bg-blue-600",
-    borderClass: "border-blue-250",
+    borderClass: "border-blue-200",
     textClass: "text-blue-700",
     badgeClass: "bg-blue-50 text-blue-800 border border-blue-200",
     metodos: ["BCP / Yape (Sebastián)", "BCP", "Yape", "Transferencia BCP"],
@@ -39,7 +39,7 @@ export const BANCO_GRUPOS: BancoConfig[] = [
   {
     nombre: "BCP / Yape (Roberto)",
     colorClass: "bg-indigo-600",
-    borderClass: "border-indigo-250",
+    borderClass: "border-indigo-200",
     textClass: "text-indigo-700",
     badgeClass: "bg-indigo-50 text-indigo-800 border border-indigo-200",
     metodos: ["BCP / Yape (Roberto)"],
@@ -47,7 +47,7 @@ export const BANCO_GRUPOS: BancoConfig[] = [
   {
     nombre: "Interbank / Plin (Sebastián)",
     colorClass: "bg-emerald-600",
-    borderClass: "border-emerald-250",
+    borderClass: "border-emerald-200",
     textClass: "text-emerald-700",
     badgeClass: "bg-emerald-50 text-emerald-800 border border-emerald-200",
     metodos: ["Interbank / Plin (Sebastián)", "Interbank", "Plin", "Transferencia Interbank"],
@@ -55,7 +55,7 @@ export const BANCO_GRUPOS: BancoConfig[] = [
   {
     nombre: "Interbank / Plin (Roberto)",
     colorClass: "bg-teal-600",
-    borderClass: "border-teal-250",
+    borderClass: "border-teal-200",
     textClass: "text-teal-700",
     badgeClass: "bg-teal-50 text-teal-800 border border-teal-200",
     metodos: ["Interbank / Plin (Roberto)"],
@@ -63,7 +63,7 @@ export const BANCO_GRUPOS: BancoConfig[] = [
   {
     nombre: "BBVA (Roberto)",
     colorClass: "bg-sky-600",
-    borderClass: "border-sky-250",
+    borderClass: "border-sky-200",
     textClass: "text-sky-700",
     badgeClass: "bg-sky-50 text-sky-800 border border-sky-200",
     metodos: ["BBVA (Roberto)", "BBVA", "Transferencia BBVA"],
@@ -71,7 +71,7 @@ export const BANCO_GRUPOS: BancoConfig[] = [
   {
     nombre: "Scotiabank (Roberto)",
     colorClass: "bg-rose-600",
-    borderClass: "border-rose-250",
+    borderClass: "border-rose-200",
     textClass: "text-rose-700",
     badgeClass: "bg-rose-50 text-rose-800 border border-rose-200",
     metodos: ["Scotiabank (Roberto)", "Scotiabank", "Transferencia Scotiabank"],
@@ -79,7 +79,7 @@ export const BANCO_GRUPOS: BancoConfig[] = [
   {
     nombre: "Efectivo",
     colorClass: "bg-amber-600",
-    borderClass: "border-amber-250",
+    borderClass: "border-amber-200",
     textClass: "text-amber-700",
     badgeClass: "bg-amber-50 text-amber-800 border border-amber-200",
     metodos: ["Efectivo"],

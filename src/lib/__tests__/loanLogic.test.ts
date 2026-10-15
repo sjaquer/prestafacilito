@@ -161,3 +161,35 @@ describe("buildPaymentSchedule — Modelo de Crédito Abierto (Cuotas Infinitas)
     assert.equal(classifyPayment(2000, debtState), "Pago con excedente");
   });
 });
+
+describe("buildPaymentSchedule — Congelamiento de interés", () => {
+  const prestamo: Prestamo = {
+    id: "p-frz",
+    cliente_id: "c-frz",
+    monto_capital: 1000,
+    tasa_interes_porcentaje: 10,
+    fecha_emision: "2026-01-01",
+    fecha_vencimiento: "2026-01-15",
+    estado: "activo",
+    tipo_prestamo: "Personal",
+  };
+  const ajuste = {
+    id: "aj-1",
+    prestamo_id: "p-frz",
+    tipo: "congelar_interes_temporal" as const,
+    cuota_numero: 2,
+    fecha_inicio: "2026-01-01",
+    usuario: "test",
+    motivo: "",
+    fecha_registro: "2026-01-01",
+    activo: true,
+  };
+
+  it("Un ajuste desactivado no congela nada", () => {
+    const r = buildPaymentSchedule(prestamo, [], {
+      ajustes: [{ ...ajuste, activo: false }],
+      referenceDate: new Date("2026-04-15T00:00:00"),
+    });
+    assert.ok(r.cuotas.every((c) => !c.congelada));
+  });
+});

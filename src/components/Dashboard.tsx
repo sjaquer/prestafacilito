@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Wallet, TrendingUp, AlertCircle, Coins, RefreshCw, CalendarDays } from "lucide-react";
+import { Wallet, TrendingUp, Coins, RefreshCw, CalendarDays } from "lucide-react";
 import { Cliente, Prestamo } from "../types";
 import { CrearPrestamoForm } from "./dashboard/CrearPrestamoForm";
 import { RegistrarPagoForm } from "./dashboard/RegistrarPagoForm";

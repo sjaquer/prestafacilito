@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { 
-  LayoutDashboard, 
-  Users, 
-  Sparkles, 
-  Coins, 
+import {
+  LayoutDashboard,
+  Users,
+  Coins,
   LogOut,
   Briefcase,
-  Terminal,
   Cloud,
   CloudOff,
   FileText,
@@ -16,7 +14,7 @@ import {
   Database,
   FileSpreadsheet,
   Download,
-  CheckCircle2
+  CheckCircle2,
 } from "lucide-react";
 import { FontSizeControl } from "../components/common/FontSizeControl";
 
@@ -27,6 +25,7 @@ interface MainLayoutProps {
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
+  const { notify, confirm } = useFeedback();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -66,7 +65,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
       const a = document.createElement("a");
       a.href = url;
       const fecha = new Date().toISOString().split("T")[0];
-      a.download = `Backup_PrestaFacilito_${fecha}.xlsx`;
+      a.download = `Backup_Cartera_${fecha}.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -76,7 +75,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
       await fetchBackupStatus();
       setShowBackupMenu(false);
     } catch (err: any) {
-      alert("No se pudo descargar el backup en Excel: " + err.message);
+      notify("No se pudo descargar el backup en Excel: " + err.message);
     } finally {
       setIsDownloadingBackup(false);
     }
@@ -180,7 +179,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
               </div>
               <div className="hidden sm:block leading-none">
                 <span className="font-black text-slate-900 text-sm tracking-tight block">
-                  PrestaFacilito
+                  Gestión de Cartera
                 </span>
                 <span className="text-[10px] text-emerald-600 font-bold tracking-wider">
                   Panel Administrativo 🇵🇪
@@ -242,12 +241,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-450 animate-pulse" />
                   ) : driveConfigured ? (
                     <>
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-450 opacity-70" />
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70" />
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                     </>
                   ) : (
                     <>
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-450 opacity-70" />
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-70" />
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
                     </>
                   )}
@@ -258,8 +257,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
                 </span>
 
                 <button
-                  onClick={() => {
-                    if (window.confirm("¿Deseas volver a iniciar sesión con Google para conectar Drive?")) {
+                  onClick={async () => {
+                    if (await confirm({ title: "Conectar Google Drive", message: "¿Deseas volver a iniciar sesión con Google para conectar Drive?", confirmLabel: "Ir a Google" })) {
                       window.location.href = "/api/auth/google/login";
                     }
                   }}
@@ -436,12 +435,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <p className="text-[11px] text-slate-500 font-medium">
-            © 2026 PrestaFacilito · Panel de Administración de Cartera
+            © 2026 Panel de Administración de Cartera
           </p>
           <div className="flex items-center gap-2 text-[11px] text-slate-500 font-semibold">
             <span>Base de datos activa</span>
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-450 opacity-70" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
           </div>
@@ -453,3 +452,4 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
 
 // Necesitamos importar Outlet de react-router-dom
 import { Outlet } from "react-router-dom";
+import { useFeedback } from "../components/ui/Feedback";

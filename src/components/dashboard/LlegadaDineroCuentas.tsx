@@ -1,19 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import {
-  Landmark,
-  Wallet,
-  Calendar,
-  Filter,
-  ArrowDownLeft,
-  User,
-  CheckCircle2,
-  FileText,
-  Search,
-  Building2,
-  TrendingUp,
-  RefreshCw,
-  Eye
-} from "lucide-react";
+import { Landmark, Wallet, ArrowDownLeft, User, Search, Building2, TrendingUp, RefreshCw, Eye } from "lucide-react";
 import { BANCO_GRUPOS, getBancoForMetodo } from "../../lib/constants";
 import { formatCurrency, formatDateShort } from "../../lib/formatters";
 

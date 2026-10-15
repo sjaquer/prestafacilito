@@ -5,6 +5,7 @@ import { Cliente, TipoDocumento } from "../types";
 import { ClientList } from "../components/cliente/ClientList";
 import { ClientSlideOverForm } from "../components/cliente/ClientSlideOverForm";
 import { UploadDocumentoModal } from "../components/cliente/UploadDocumentoModal";
+import { useFeedback } from "../components/ui/Feedback";
 
 
 const fileToBase64 = (file: File): Promise<string> =>
@@ -20,6 +21,7 @@ const fileToBase64 = (file: File): Promise<string> =>
   });
 
 export const ClientesPage: React.FC = () => {
+  const { notify } = useFeedback();
   const { clientes, loading, createCliente, updateCliente, uploadClienteDocument, refetch } = useClientes();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [clienteToEdit, setClienteToEdit] = useState<Cliente | null>(null);
@@ -46,7 +48,7 @@ export const ClientesPage: React.FC = () => {
         refetch();
         return true;
       } else {
-        alert(res.error || "No se pudo actualizar el cliente.");
+        notify(res.error || "No se pudo actualizar el cliente.");
         return false;
       }
     } else {
@@ -56,7 +58,7 @@ export const ClientesPage: React.FC = () => {
         refetch();
         return true;
       } else {
-        alert(res.error || "No se pudo crear el cliente.");
+        notify(res.error || "No se pudo crear el cliente.");
         return false;
       }
     }

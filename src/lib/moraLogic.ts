@@ -1,4 +1,4 @@
-import { buildPaymentSchedule, round2, toNumber } from "./loanLogic.js";
+import { buildPaymentSchedule, round2 } from "./loanLogic.js";
 import { Prestamo, Amortizacion } from "../types.js";
 
 export type EstadoCuotaMes = "al_dia" | "pendiente_mes" | "mora_mes" | "mora_acumulada" | "sin_cuotas";

@@ -83,10 +83,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
               className="mx-auto w-14 h-14 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center mb-3 shadow-sm overflow-hidden shrink-0"
             >
-              <img src="/brand_logo_icon.png" alt="PrestaFacilito" className="w-full h-full object-cover" />
+              <img src="/brand_logo_icon.png" alt="Logo" className="w-full h-full object-cover" />
             </motion.div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              PrestaFacilito
+              Gestión de Cartera
             </h1>
             <p className="text-slate-500 text-[10px] sm:text-xs mt-1.5 font-bold uppercase tracking-wider">
               Sistema Cerrado · Control Operacional 🇵🇪
@@ -287,7 +287,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
           <div id="login-footer" className="text-center mt-6 pt-5 border-t border-slate-200 select-none">
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-              Acceso Restringido PrestaFacilito 🇵🇪
+              Acceso Restringido · Panel Administrativo 🇵🇪
             </p>
           </div>
         </div>

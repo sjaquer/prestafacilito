@@ -3,6 +3,8 @@ import { MessageCircle, FileText, DollarSign, Calendar, AlertTriangle, Clock, Ch
 import { useNavigate } from "react-router-dom";
 import { toPng } from "html-to-image";
 import { ReporteCobrosImagen } from "./ReporteCobrosImagen";
+import { generarMensajeCobroPredeterminado } from "../../lib/formatters";
+import { useFeedback } from "../ui/Feedback";
 
 export interface DeudorMesItem {
   prestamo_id: string;
@@ -42,6 +44,7 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
   onSelectDeudorParaPago,
   isLoading = false
 }) => {
+  const { notify } = useFeedback();
   const navigate = useNavigate();
   const [filterTerm, setFilterTerm] = useState("");
   const [filterState, setFilterState] = useState<"todos" | "atrasado" | "pendiente" | "pagado" | "estancado">("todos");
@@ -122,11 +125,11 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
         ]);
         setCopiedSuccess(true);
       } else {
-        alert("Tu navegador no permite copiar imágenes al portapapeles. Usa el botón 'Descargar Imagen PNG'.");
+        notify("Tu navegador no permite copiar imágenes al portapapeles. Usa el botón 'Descargar Imagen PNG'.");
       }
     } catch (err: any) {
       console.error("Error al copiar imagen:", err);
-      alert("No se pudo copiar automáticamente. Usa el botón 'Descargar Imagen PNG'.");
+      notify("No se pudo copiar automáticamente. Usa el botón 'Descargar Imagen PNG'.");
     }
   };
 
@@ -134,14 +137,12 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
     const telSanitized = (deudor.cliente_telefono || "").replace(/\D/g, "");
     const telFinal = telSanitized.startsWith("51") ? telSanitized : `51${telSanitized}`;
 
-    let mensaje = "";
-    if (deudor.es_alquiler) {
-      mensaje = `Hola ${deudor.cliente_nombre}, le saludamos de PrestaFacilito. Le recordamos la cuota de su alquiler (${deudor.descripcion_inmueble}) por S/ ${deudor.cuota_actual.toFixed(2)}. Gracias.`;
-    } else if (deudor.estado_pago_mes === "atrasado") {
-      mensaje = `Hola ${deudor.cliente_nombre}, te saludamos de PrestaFacilito. Te recordamos la cuota pendiente de S/ ${deudor.cuota_actual.toFixed(2)} de tu préstamo. Por favor coordinar el pago a la brevedad. Gracias.`;
-    } else {
-      mensaje = `Hola ${deudor.cliente_nombre}, le saludamos de PrestaFacilito. Le recordamos que su próxima cuota de S/ ${deudor.cuota_actual.toFixed(2)} vence el ${deudor.dia_vencimiento_mes}. ¡Gracias por su preferencia!`;
-    }
+    const mensaje = generarMensajeCobroPredeterminado({
+      tipoPrestamo: deudor.es_alquiler ? "Alquiler de Casa" : "Préstamo",
+      diasAtraso: deudor.dias_atraso,
+      fechaVencimiento: deudor.fecha_vencimiento || deudor.dia_vencimiento_mes,
+      estadoCuotaMes: deudor.estado_pago_mes === "atrasado" ? "mora_mes" : undefined
+    });
 
     return `https://wa.me/${telFinal}?text=${encodeURIComponent(mensaje)}`;
   };
@@ -499,7 +500,7 @@ export const DeudoresMesList: React.FC<DeudoresMesListProps> = ({
                 {generatedDataUrl && (
                   <a
                     href={generatedDataUrl}
-                    download={`Reporte_Cobros_PrestaFacilito_${new Date().toISOString().split("T")[0]}.png`}
+                    download={`Reporte_Cobros_${new Date().toISOString().split("T")[0]}.png`}
                     className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
                   >
                     <Download className="w-4 h-4 text-slate-600" /> Descargar PNG

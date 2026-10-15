@@ -1,12 +1,9 @@
 import React, { useState, useMemo } from "react";
-import {
-  MessageSquare, Phone, MapPin, Calendar, Clock, Plus, Trash2,
-  AlertCircle, Loader2, Sparkles, Smile
-} from "lucide-react";
+import { MessageSquare, Phone, MapPin, Clock, Plus, Trash2, AlertCircle, Loader2, Sparkles, Smile } from "lucide-react";
 import { Cliente } from "../../types";
 import { Card } from "../ui/Card";
-import { Button } from "../ui/Button";
 import { formatDate } from "../../lib/formatters";
+import { useFeedback } from "../ui/Feedback";
 
 interface NoteItem {
   id: string;
@@ -22,12 +19,13 @@ interface ClientNotesProps {
 
 const TYPE_CONFIG = {
   llamada: { label: "Llamada", color: "text-blue-700 bg-blue-50 border-blue-200", icon: Phone },
-  visita: { label: "Visita", color: "text-amber-700 bg-amber-50 border-amber-250/80", icon: MapPin },
+  visita: { label: "Visita", color: "text-amber-700 bg-amber-50 border-amber-200/80", icon: MapPin },
   whatsapp: { label: "WhatsApp", color: "text-emerald-700 bg-emerald-50 border-emerald-200", icon: MessageSquare },
   otra: { label: "Nota Libre", color: "text-slate-600 bg-slate-50 border-slate-200", icon: Sparkles }
 };
 
 export const ClientNotes: React.FC<ClientNotesProps> = ({ cliente, onUpdateClient }) => {
+  const { confirm } = useFeedback();
   const [newNoteText, setNewNoteText] = useState("");
   const [newNoteType, setNewNoteType] = useState<"llamada" | "visita" | "whatsapp" | "otra">("otra");
   const [saving, setSaving] = useState(false);
@@ -97,7 +95,7 @@ export const ClientNotes: React.FC<ClientNotesProps> = ({ cliente, onUpdateClien
   };
 
   const handleDeleteNote = async (noteId: string) => {
-    if (!confirm("¿Estás seguro de eliminar esta nota de seguimiento?")) return;
+    if (!await confirm({ title: "Eliminar nota", message: "¿Estás seguro de eliminar esta nota de seguimiento?", confirmLabel: "Eliminar", danger: true })) return;
 
     setSaving(true);
     setError("");
@@ -157,7 +155,7 @@ export const ClientNotes: React.FC<ClientNotesProps> = ({ cliente, onUpdateClien
               value={newNoteText}
               onChange={(e) => setNewNoteText(e.target.value)}
               placeholder="Ej. Se acordó que pagará el viernes por la tarde..."
-              className="w-full glass-input rounded-xl px-4 py-2.5 text-xs font-semibold border-slate-200 focus:border-indigo-500 pr-12 text-slate-850 bg-white"
+              className="w-full glass-input rounded-xl px-4 py-2.5 text-xs font-semibold border-slate-200 focus:border-indigo-500 pr-12 text-slate-800 bg-white"
               disabled={saving}
               required
               autoComplete="off"
