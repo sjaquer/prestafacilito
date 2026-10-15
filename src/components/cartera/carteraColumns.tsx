@@ -5,7 +5,7 @@ import { Badge } from "../ui/Badge";
 import { ColumnDef } from "../ui/DataTable";
 import { formatCurrency, formatDateWithDay, round2 } from "../../lib/formatters";
 import { EstadoMoraCliente } from "../../lib/moraLogic";
-import { ESTADO_CUOTA_BADGE, daysUntil, getEstadoCuotaLabel, getIndicatorColor, isEnMora } from "./carteraUtils";
+import { ESTADO_CUOTA_BADGE, daysUntil, getEstadoCuotaLabel, getIndicatorColor, isEnMora, esLiquidado } from "./carteraUtils";
 
 interface ColumnsDeps {
   moraById: Map<string, EstadoMoraCliente>;
@@ -79,7 +79,7 @@ export const buildCarteraColumns = ({ moraById, today, getWhatsAppLink, onEdit }
   {
     header: "Plazo Restante",
     cell: (loan) => {
-      if (loan.estado === "pagado") {
+      if (esLiquidado(loan)) {
         return <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Liquidado</span>;
       }
       const mora = moraById.get(loan.id);
@@ -108,7 +108,7 @@ export const buildCarteraColumns = ({ moraById, today, getWhatsAppLink, onEdit }
   {
     header: "Estado cuota",
     cell: (loan) => {
-      if (loan.estado === "pagado") {
+      if (esLiquidado(loan)) {
         return <span className="badge text-[8px] font-black border bg-slate-100 text-slate-700 border-slate-200">Pagado</span>;
       }
       const mora = moraById.get(loan.id);
@@ -126,7 +126,7 @@ export const buildCarteraColumns = ({ moraById, today, getWhatsAppLink, onEdit }
       const waLink = getWhatsAppLink(loan);
       return (
         <div className="flex items-center justify-end gap-2 shrink-0">
-          {loan.estado === "activo" && waLink && (
+          {!esLiquidado(loan) && waLink && (
             <a
               href={waLink}
               target="_blank"
@@ -188,7 +188,7 @@ export const CarteraExpandedRow: React.FC<{ loan: any; today: Date }> = ({ loan,
         </div>
       </div>
 
-      {loan.estado === "activo" && (
+      {!esLiquidado(loan) && (
         <div className="flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 animate-ping" />
           <div>

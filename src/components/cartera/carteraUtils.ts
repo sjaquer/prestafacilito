@@ -1,21 +1,36 @@
 import { EstadoMoraCliente } from "../../lib/moraLogic";
+import { hoyISO } from "../../lib/fechas";
+import { clasificarCobro, GrupoCobro } from "../../lib/cobranza";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export const ESTADO_FILTROS = [
+/** Grupo de un préstamo en la cartera: los mismos de Inicio, más "liquidado". */
+export type GrupoCartera = GrupoCobro | "liquidado";
+
+export const ESTADO_FILTROS: { value: "todos" | GrupoCartera; label: string }[] = [
   { value: "todos", label: "Todos" },
-  { value: "al_dia", label: "Al día" },
-  { value: "pendiente_mes", label: "Por vencer" },
-  { value: "mora_mes", label: "Por cobrar" },
-  { value: "mora_acumulada", label: "Cuentas pend." },
-  { value: "pagado", label: "Pagados" },
-] as const;
+  { value: "vencido", label: "Vencidos" },
+  { value: "hoy", label: "Hoy" },
+  { value: "semana", label: "7 días" },
+  { value: "despues", label: "Después" },
+  { value: "liquidado", label: "Pagados" },
+];
 
 export const estadoFiltroClass = (value: string, active: boolean) => {
   if (!active) return "text-slate-500 hover:text-slate-700";
-  if (value === "mora_mes" || value === "mora_acumulada") return "bg-rose-600 text-white shadow-md";
-  if (value === "pagado") return "bg-slate-700 text-white";
-  return "bg-indigo-650 text-white shadow-md shadow-indigo-650/10";
+  if (value === "vencido") return "bg-rose-600 text-white shadow-md";
+  if (value === "hoy") return "bg-amber-500 text-white shadow-md";
+  if (value === "liquidado") return "bg-slate-700 text-white";
+  return "bg-slate-900 text-white shadow-md";
+};
+
+export const esLiquidado = (p: any) => p.estado === "pagado" || p.estado === "liquidado";
+
+/** Clasifica un préstamo con la misma regla que la pantalla de Inicio. */
+export const grupoCartera = (p: any, mora: EstadoMoraCliente | undefined): GrupoCartera => {
+  if (esLiquidado(p) || mora?.estadoCuotaMes === "al_dia") return "liquidado";
+  if (!mora) return "despues";
+  return clasificarCobro({ fechaProxima: mora.fechaCuotaActual, atrasadas: mora.cuotasAtrasadas });
 };
 
 export interface CarteraFilters {
@@ -107,21 +122,7 @@ export const filterLoans = (
       if (!clientMatch && !typeMatch) return false;
     }
 
-    if (f.estado !== "todos") {
-      if (f.estado === "pagado") {
-        if (p.estado !== "pagado") return false;
-      } else {
-        const mora = moraById.get(p.id);
-        if (p.estado !== "activo" || !mora) return false;
-        if (f.estado === "mora") {
-          if (!isEnMora(mora)) return false;
-        } else if (f.estado === "activo") {
-          if (!["al_dia", "pendiente_mes"].includes(mora.estadoCuotaMes)) return false;
-        } else if (mora.estadoCuotaMes !== f.estado) {
-          return false;
-        }
-      }
-    }
+    if (f.estado !== "todos" && grupoCartera(p, moraById.get(p.id)) !== f.estado) return false;
 
     if (f.tipo !== "todos" && p.tipo_prestamo !== f.tipo) return false;
 
@@ -167,7 +168,7 @@ export const exportCarteraCsv = (loans: any[], today: Date) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `cartera_${new Date().toISOString().split("T")[0]}.csv`;
+  link.download = `cartera_${hoyISO()}.csv`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

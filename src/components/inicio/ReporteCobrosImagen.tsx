@@ -1,8 +1,8 @@
 import React from "react";
-import { DeudorMesItem } from "./DeudoresMesList";
+import { ItemCobro } from "./tipos";
 
 interface ReporteCobrosImagenProps {
-  items: DeudorMesItem[];
+  items: ItemCobro[];
 }
 
 export const ReporteCobrosImagen: React.FC<ReporteCobrosImagenProps> = ({ items }) => {
@@ -16,12 +16,12 @@ export const ReporteCobrosImagen: React.FC<ReporteCobrosImagenProps> = ({ items 
 
   // Totales
   const totalAtrasado = items
-    .filter((d) => d.estado_pago_mes === "atrasado")
-    .reduce((sum, d) => sum + d.cuota_actual, 0);
+    .filter((d) => d.grupo === "vencido")
+    .reduce((sum, d) => sum + d.montoACobrar, 0);
 
   const totalPendienteSemana = items
-    .filter((d) => d.estado_pago_mes === "pendiente")
-    .reduce((sum, d) => sum + d.cuota_actual, 0);
+    .filter((d) => d.grupo !== "vencido")
+    .reduce((sum, d) => sum + d.montoACobrar, 0);
 
   const totalGeneral = totalAtrasado + totalPendienteSemana;
 
@@ -117,7 +117,7 @@ export const ReporteCobrosImagen: React.FC<ReporteCobrosImagenProps> = ({ items 
         </thead>
         <tbody>
           {items.map((item, index) => {
-            const isAtrasado = item.estado_pago_mes === "atrasado";
+            const isAtrasado = item.grupo === "vencido";
             const dayNum = item.dia_vencimiento_mes
               ? parseInt(item.dia_vencimiento_mes.split("-")[2] || item.dia_vencimiento_mes, 10)
               : 5;
@@ -158,7 +158,7 @@ export const ReporteCobrosImagen: React.FC<ReporteCobrosImagenProps> = ({ items 
                   📅 Día {dayNum}
                   {isAtrasado ? (
                     <span style={{ display: "block", fontSize: "10px", fontWeight: "900", color: "#dc2626", marginTop: "2px" }}>
-                      ⚠️ Atrasado ({item.dias_atraso || 1}d)
+                      ⚠️ Atrasado ({item.dias !== null && item.dias < 0 ? Math.abs(item.dias) : item.dias_atraso || 1}d)
                     </span>
                   ) : item.dias_restantes !== undefined && item.dias_restantes > 0 ? (
                     <span style={{ display: "block", fontSize: "10px", fontWeight: "800", color: "#b45309", marginTop: "2px" }}>
@@ -167,7 +167,7 @@ export const ReporteCobrosImagen: React.FC<ReporteCobrosImagenProps> = ({ items 
                   ) : null}
                 </td>
                 <td style={{ padding: "10px 12px", fontWeight: "900", color: "#0f172a", fontSize: "14px", textAlign: "right" }}>
-                  S/ {item.cuota_actual.toFixed(2)}
+                  S/ {item.montoACobrar.toFixed(2)}
                 </td>
                 <td style={{ padding: "10px 12px", textAlign: "center" }}>
                   {isAtrasado ? (

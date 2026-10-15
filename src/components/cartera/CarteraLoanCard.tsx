@@ -11,6 +11,7 @@ import {
   getEstadoCuotaLabel,
   getIndicatorColor,
   isEnMora,
+  esLiquidado,
 } from "./carteraUtils";
 
 interface CarteraLoanCardProps {
@@ -24,7 +25,7 @@ interface CarteraLoanCardProps {
 const badgeBase = "text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5";
 
 const PlazoBadge: React.FC<{ loan: any; mora?: EstadoMoraCliente; today: Date }> = ({ loan, mora, today }) => {
-  if (loan.estado === "pagado") {
+  if (esLiquidado(loan)) {
     return <Badge variant="neutral" className={`${badgeBase} bg-slate-100 text-slate-500`}>Liquidado</Badge>;
   }
   if (!mora || !mora.fechaCuotaActual) return null;
@@ -40,8 +41,8 @@ const PlazoBadge: React.FC<{ loan: any; mora?: EstadoMoraCliente; today: Date }>
 /** Tarjeta deslizable de un préstamo para la vista móvil de la cartera. */
 export const CarteraLoanCard: React.FC<CarteraLoanCardProps> = ({ loan, mora, today, waLink, onEdit }) => {
   const navigate = useNavigate();
-  const isPagado = loan.estado === "pagado";
-  const canCobrar = loan.estado === "activo" && !!waLink;
+  const isPagado = esLiquidado(loan);
+  const canCobrar = !esLiquidado(loan) && !!waLink;
 
   const indicatorColor = isPagado ? "bg-slate-300" : getIndicatorColor(mora, today);
   const statusBadgeColor = isPagado

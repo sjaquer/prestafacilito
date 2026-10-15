@@ -3,8 +3,11 @@ import { PlusCircle, Calculator, CheckCircle, AlertCircle } from "lucide-react";
 import { Cliente, Prestamo } from "../../types";
 import { ClienteAutocomplete } from "../common/ClienteAutocomplete";
 import { usePreviewCuotas } from "../../hooks/usePreviewCuotas";
+import { hoyISO } from "../../lib/fechas";
 
 interface CrearPrestamoFormProps {
+  /** Sin tarjeta ni título (para usar dentro de un modal). */
+  bare?: boolean;
   clientes: Cliente[];
   onPrestamoCreado: (nuevoPrestamo: Prestamo) => void;
   onClienteCreado?: (nuevoCliente: Cliente) => void;
@@ -13,13 +16,14 @@ interface CrearPrestamoFormProps {
 export const CrearPrestamoForm: React.FC<CrearPrestamoFormProps> = ({
   clientes,
   onPrestamoCreado,
-  onClienteCreado
+  onClienteCreado,
+  bare = false,
 }) => {
   const [clienteId, setClienteId] = useState("");
   const [montoCapital, setMontoCapital] = useState("");
   const [tasaInteres, setTasaInteres] = useState("10");
   const [numeroCuotas, setNumeroCuotas] = useState("3");
-  const [fechaEmision, setFechaEmision] = useState(new Date().toISOString().split("T")[0]);
+  const [fechaEmision, setFechaEmision] = useState(hoyISO());
   const [tipoPrestamo, setTipoPrestamo] = useState("Personal");
   const [notas, setNotas] = useState("");
 
@@ -82,7 +86,8 @@ export const CrearPrestamoForm: React.FC<CrearPrestamoFormProps> = ({
   };
 
   return (
-    <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4">
+    <div className={bare ? "space-y-4" : "bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4"}>
+      {!bare && (
       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
@@ -90,10 +95,11 @@ export const CrearPrestamoForm: React.FC<CrearPrestamoFormProps> = ({
           </div>
           <div>
             <h2 className="text-base font-bold text-slate-800">Crear Nuevo Préstamo</h2>
-            <p className="text-xs text-slate-500">Sección A — Registro directo y reactivo</p>
+            <p className="text-xs text-slate-500">Registra el préstamo y su cronograma</p>
           </div>
         </div>
       </div>
+      )}
 
       {errorMsg && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs text-red-700 font-medium">

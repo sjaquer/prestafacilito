@@ -3,6 +3,7 @@ import { ImagePasteDropzone } from "../common/ImagePasteDropzone";
 import { METODOS_PAGO } from "../../lib/constants";
 import { subirVoucher } from "../../lib/imageCompression";
 import { MESES } from "./alquilerUtils";
+import { hoyISO } from "../../lib/fechas";
 
 interface PagoMensualidadFormProps {
   alquilerId: string;
@@ -21,7 +22,7 @@ export const PagoMensualidadForm: React.FC<PagoMensualidadFormProps> = ({ alquil
   const [monto, setMonto] = useState(sugerencia.monto > 0 ? String(sugerencia.monto) : "");
   const [mes, setMes] = useState(sugerencia.mes);
   const [anio, setAnio] = useState(sugerencia.anio);
-  const [fechaPago, setFechaPago] = useState(new Date().toISOString().split("T")[0]);
+  const [fechaPago, setFechaPago] = useState(hoyISO());
   const [metodo, setMetodo] = useState("Efectivo");
   const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);

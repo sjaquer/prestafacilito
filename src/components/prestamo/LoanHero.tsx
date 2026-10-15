@@ -133,6 +133,24 @@ export const LoanHero: React.FC<LoanHeroProps> = ({
         </div>
       )}
 
+      {/* Explicación en palabras simples */}
+      {!isLiquidado && (
+        <p className="mx-5 mt-4 p-3 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-xs text-indigo-950 leading-relaxed">
+          {pagoMinimo > 0.009 ? (
+            <>
+              Para quedar al día paga <b className="font-mono">{formatCurrency(pagoMinimo)}</b>. Lo que pague por encima baja el
+              capital de <b className="font-mono">{formatCurrency(capitalPendiente)}</b>.
+            </>
+          ) : (
+            <>
+              Está al día. Cualquier pago ahora baja directo el capital de{" "}
+              <b className="font-mono">{formatCurrency(capitalPendiente)}</b>.
+            </>
+          )}{" "}
+          Con <b className="font-mono">{formatCurrency(pagoMinimo + capitalPendiente)}</b> liquida el préstamo.
+        </p>
+      )}
+
       {/* Avance del capital */}
       <div className="px-5 py-4 space-y-2">
         <div className="flex justify-between text-[11px] font-bold">

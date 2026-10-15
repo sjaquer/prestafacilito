@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Plus, CheckCircle, AlertCircle, Trash2 } from "lucide-react";
 import { AjustePrestamo } from "../../types";
 import { useFeedback } from "../ui/Feedback";
+import { hoyISO } from "../../lib/fechas";
 
 interface AjustesPrestamoPanelProps {
   prestamoId: string;
@@ -19,7 +20,7 @@ export const AjustesPrestamoPanel: React.FC<AjustesPrestamoPanelProps> = ({
   const { confirm } = useFeedback();
   const [tipoAjuste, setTipoAjuste] = useState<"congelar_interes_temporal" | "acuerdo_especial">("congelar_interes_temporal");
   const [cuotaNumero, setCuotaNumero] = useState<number>(1);
-  const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split("T")[0]);
+  const [fechaInicio, setFechaInicio] = useState(hoyISO());
   const [descripcion, setDescripcion] = useState("");
   const [motivo, setMotivo] = useState("");
 

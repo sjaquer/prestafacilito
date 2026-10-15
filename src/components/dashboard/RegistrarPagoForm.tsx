@@ -6,8 +6,11 @@ import { ImagePasteDropzone } from "../common/ImagePasteDropzone";
 import { METODOS_PAGO } from "../../lib/constants";
 import { subirVoucher } from "../../lib/imageCompression";
 import { round2 } from "../../lib/loanLogic";
+import { hoyISO } from "../../lib/fechas";
 
 interface RegistrarPagoFormProps {
+  /** Sin tarjeta ni título (para usar dentro de un modal). */
+  bare?: boolean;
   clientes: Cliente[];
   prestamosActivos: Prestamo[];
   selectedPrestamoIdFromParent?: string;
@@ -18,12 +21,13 @@ export const RegistrarPagoForm: React.FC<RegistrarPagoFormProps> = ({
   clientes,
   prestamosActivos,
   selectedPrestamoIdFromParent,
-  onPagoRegistrado
+  onPagoRegistrado,
+  bare = false,
 }) => {
   const [clienteId, setClienteId] = useState("");
   const [prestamoId, setPrestamoId] = useState("");
   const [monto, setMonto] = useState("");
-  const [fechaPago, setFechaPago] = useState(new Date().toISOString().split("T")[0]);
+  const [fechaPago, setFechaPago] = useState(hoyISO());
   const [metodoPago, setMetodoPago] = useState("Efectivo");
   const [comprobanteFiles, setComprobanteFiles] = useState<File[]>([]);
 
@@ -225,9 +229,10 @@ export const RegistrarPagoForm: React.FC<RegistrarPagoFormProps> = ({
   return (
     <div 
       onPaste={handlePaste}
-      className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4 tab-focus-none outline-none"
+      className={`${bare ? "" : "bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm"} space-y-4 tab-focus-none outline-none`}
       tabIndex={0}
     >
+      {!bare && (
       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
@@ -239,6 +244,7 @@ export const RegistrarPagoForm: React.FC<RegistrarPagoFormProps> = ({
           </div>
         </div>
       </div>
+      )}
 
       {errorMsg && (
         <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl flex items-center gap-2">

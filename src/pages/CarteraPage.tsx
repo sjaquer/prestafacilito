@@ -4,7 +4,7 @@ import { ArrowUpRight, FileDown, Briefcase } from "lucide-react";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { DataTable } from "../components/ui/DataTable";
-import { generarMensajeCobroPredeterminado } from "../lib/formatters";
+import { linkCobroWhatsApp } from "../lib/cobranza";
 import { useClientes } from "../hooks/useClientes";
 import { usePagos } from "../hooks/usePagos";
 import { calcularEstadoMora, EstadoMoraCliente } from "../lib/moraLogic";
@@ -16,8 +16,9 @@ import { buildCarteraColumns, CarteraExpandedRow } from "../components/cartera/c
 import {
   CarteraFilters,
   EMPTY_FILTERS,
-  daysUntil,
+  esLiquidado,
   exportCarteraCsv,
+  grupoCartera,
   filterLoans,
 } from "../components/cartera/carteraUtils";
 
@@ -67,18 +68,16 @@ export const CarteraPage: React.FC = () => {
 
   const getWhatsAppLink = useCallback(
     (loan: any) => {
-      const phone = clientesById.get(loan.cliente_id)?.telefono?.replace(/\D/g, "").trim();
       const mora = moraById.get(loan.id);
-      if (!phone || !mora) return null;
-
-      const text = generarMensajeCobroPredeterminado({
-        tipoPrestamo: loan.tipo_prestamo,
+      if (!mora || esLiquidado(loan)) return null;
+      const vencido = grupoCartera(loan, mora) === "vencido";
+      return linkCobroWhatsApp(clientesById.get(loan.cliente_id)?.telefono, {
+        esAlquiler: loan.tipo_prestamo === "Alquiler de Casa",
         fechaVencimiento: mora.fechaCuotaActual,
         diasAtraso: mora.diasAtraso,
-        estadoCuotaMes: mora.estadoCuotaMes,
-        cuotasAtrasadas: mora.cuotasAtrasadas,
+        atrasado: vencido,
+        monto: vencido ? mora.montoTotalAtrasado : mora.montoCuotaActual,
       });
-      return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
     },
     [clientesById, moraById]
   );
@@ -89,18 +88,33 @@ export const CarteraPage: React.FC = () => {
   );
 
   const portfolioKPIs = useMemo(() => {
-    const totalColocado = prestamos.reduce((sum, p) => sum + (parseFloat(p.monto_capital) || 0), 0);
-    const activasCount = prestamos.filter((p) => p.estado === "activo").length;
-    const enMoraCount = prestamos.filter((p) => p.estado === "activo" && daysUntil(p.fecha_vencimiento, today) < 0).length;
-    const totalExigible = prestamos.reduce((sum, p) => {
-      const cap = parseFloat(p.monto_capital) || 0;
-      const rate = parseFloat(p.tasa_interes_porcentaje) || 0;
-      return sum + cap * (1 + rate / 100);
-    }, 0);
-    return { totalColocado, activasCount, enMoraCount, totalExigible };
-  }, [prestamos, today]);
+    const vigentes = prestamos.filter((p) => !esLiquidado(p));
+    let capitalPendiente = 0;
+    let vencidosCount = 0;
+    let montoVencido = 0;
+    let hoyCount = 0;
+    for (const p of vigentes) {
+      const mora = moraById.get(p.id);
+      capitalPendiente += mora ? Math.max(0, mora.saldoPendiente - mora.moraAcumulada) : parseFloat(p.monto_capital) || 0;
+      const grupo = grupoCartera(p, mora);
+      if (grupo === "vencido") {
+        vencidosCount++;
+        montoVencido += mora?.montoTotalAtrasado || 0;
+      } else if (grupo === "hoy") hoyCount++;
+    }
+    return { capitalPendiente, activasCount: vigentes.length, vencidosCount, montoVencido, hoyCount };
+  }, [prestamos, moraById]);
 
-  const filteredLoans = useMemo(() => filterLoans(prestamos, moraById, filters), [prestamos, moraById, filters]);
+  // Más urgente primero: vencidos, hoy, 7 días, después y al final los pagados
+  const filteredLoans = useMemo(() => {
+    const prioridad = { vencido: 0, hoy: 1, semana: 2, despues: 3, al_dia: 4, liquidado: 5 } as const;
+    const fecha = (p: any) => moraById.get(p.id)?.fechaCuotaActual || "9999";
+    return filterLoans(prestamos, moraById, filters).sort(
+      (a, b) =>
+        prioridad[grupoCartera(a, moraById.get(a.id))] - prioridad[grupoCartera(b, moraById.get(b.id))] ||
+        fecha(a).localeCompare(fecha(b))
+    );
+  }, [prestamos, moraById, filters]);
 
   const columns = useMemo(
     () => buildCarteraColumns({ moraById, today, getWhatsAppLink, onEdit: setEditingLoan }),
@@ -119,7 +133,7 @@ export const CarteraPage: React.FC = () => {
             <span>Cartera de Deudas</span>
           </h1>
           <p className="text-[11px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-1.5">
-            Gestión ejecutiva, búsqueda multinivel, filtros avanzados y auditoría de créditos
+            Todos los préstamos, ordenados por urgencia de cobro
           </p>
         </div>
 
@@ -144,7 +158,7 @@ export const CarteraPage: React.FC = () => {
         </div>
       </div>
 
-      <CarteraKPIs {...portfolioKPIs} />
+      <CarteraKPIs {...portfolioKPIs} onFiltrar={(estado) => setFilters((f) => ({ ...f, estado }))} />
 
       {/* TABLA PRINCIPAL Y FILTROS */}
       <Card variant="simple" className="flex flex-col">

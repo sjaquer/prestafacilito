@@ -8,6 +8,9 @@ import { calcularEstadoMora } from "../src/lib/moraLogic.js";
 const router = express.Router();
 
 // Endpoint optimizado para el Centro de Control / Inicio
+/** Fecha de hoy (YYYY-MM-DD) en hora de Lima, independiente de la zona horaria del servidor. */
+const hoyLima = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Lima" }).format(new Date());
+
 router.get("/home", requireAuth, async (req: express.Request, res: express.Response) => {
   try {
     const referenceDate = req.query.fecha ? new Date(String(req.query.fecha)) : new Date();
@@ -16,7 +19,8 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
     const currentMonth = now.getMonth();
 
     const [pRes, aRes, cRes, ajRes, alqRes, pagosAlqRes] = await Promise.all([
-      supabase.from("prestamos").select("*").eq("estado", "activo"),
+      // Incluye estancados: son los que más urge cobrar
+      supabase.from("prestamos").select("*").in("estado", ["activo", "estancado"]),
       supabase.from("amortizaciones").select("*"),
       supabase.from("clientes").select("*"),
       supabase.from("ajustes_prestamo").select("*").eq("activo", true),
@@ -36,19 +40,17 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
     const alquileres = alqRes.data || [];
     const pagosAlquiler = pagosAlqRes.data || [];
 
-    // Calcular cobros efectuados en el mes actual
-    const cobradoPrestamos = amortizaciones
-      .filter(a => {
-        const d = normalizeDate(a.fecha_pago);
-        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-      })
-      .reduce((sum, a) => sum + toNumber(a.monto), 0);
-
-    const cobradoAlquileres = pagosAlquiler
-      .filter(p => p.periodo_anio === currentYear && p.periodo_mes === (currentMonth + 1))
-      .reduce((sum, p) => sum + toNumber(p.monto), 0);
-
-    const totalCobradoEsteMes = round2(cobradoPrestamos + cobradoAlquileres);
+    // Dinero recibido (por fecha de pago) hoy y en el mes, préstamos + alquileres, en hora de Lima
+    const hoy = hoyLima();
+    const mesActualStr = hoy.slice(0, 7);
+    const todosLosCobros = [...amortizaciones, ...pagosAlquiler].map((p) => ({
+      fecha: String(p.fecha_pago || "").slice(0, 10),
+      monto: toNumber(p.monto),
+    }));
+    const totalCobradoEsteMes = round2(
+      todosLosCobros.filter((p) => p.fecha.startsWith(mesActualStr)).reduce((sum, p) => sum + p.monto, 0)
+    );
+    const totalCobradoHoy = round2(todosLosCobros.filter((p) => p.fecha === hoy).reduce((sum, p) => sum + p.monto, 0));
 
     const deudoresDelMes: any[] = [];
     let prestamosAtrasadosCount = 0;
@@ -102,6 +104,9 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
         cuotas_debiendo: estadoMora.cuotasAtrasadas,
         estado_pago_mes: estadoPagoMes,
         saldo_pendiente: estadoMora.saldoPendiente,
+        monto_atrasado: estadoMora.montoTotalAtrasado,
+        mora_acumulada: estadoMora.moraAcumulada,
+        ultimo_pago_fecha: estadoMora.ultimoPagoFecha || null,
         dias_atraso: estadoMora.diasAtraso
       });
     }
@@ -153,6 +158,11 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
         cuotas_debiendo: mesesAtrasados,
         estado_pago_mes: estadoPagoMes,
         saldo_pendiente: estadoAlq.totalPendiente,
+        monto_atrasado: round2(
+          estadoAlq.mesesGenerados.filter((m) => m.diasVencidos > 0).reduce((sum, m) => sum + m.saldoPendiente, 0)
+        ),
+        mora_acumulada: 0,
+        ultimo_pago_fecha: pagosDelAlquiler.reduce((max: string | null, p) => (!max || p.fecha_pago > max ? p.fecha_pago : max), null),
         dias_atraso: mesSig ? mesSig.diasVencidos : 0
       });
     }
@@ -173,6 +183,7 @@ router.get("/home", requireAuth, async (req: express.Request, res: express.Respo
         totalActivoCount: prestamos.length,
         totalCapitalEnCirculacion,
         totalCobradoEsteMes,
+        totalCobradoHoy,
         prestamosAtrasadosCount
       }
     });
@@ -270,6 +281,7 @@ router.get("/llegada-cuentas", requireAuth, async (req: express.Request, res: ex
         cliente_nombre: cl?.nombre_completo || "Cliente Desconocido",
         cliente_apodo: cl?.apodo || "",
         tipo_operacion: "prestamo",
+        ref_id: a.prestamo_id,
         detalle: `Abono Préstamo (${pr?.tipo_prestamo || 'General'})`,
         comprobante_url: a.comprobante_url
       });
@@ -286,6 +298,7 @@ router.get("/llegada-cuentas", requireAuth, async (req: express.Request, res: ex
         cliente_nombre: cl?.nombre_completo || "Inquilino Desconocido",
         cliente_apodo: cl?.apodo || "",
         tipo_operacion: "alquiler",
+        ref_id: pa.alquiler_id,
         detalle: `Renta (${alq?.descripcion_inmueble || 'Alquiler'})`,
         comprobante_url: pa.comprobante_url
       });

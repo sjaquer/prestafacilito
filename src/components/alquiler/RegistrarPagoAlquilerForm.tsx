@@ -6,6 +6,7 @@ import { ImagePasteDropzone } from "../common/ImagePasteDropzone";
 import { METODOS_PAGO } from "../../lib/constants";
 import { subirVoucher } from "../../lib/imageCompression";
 import { round2 } from "../../lib/loanLogic";
+import { hoyISO } from "../../lib/fechas";
 
 interface RegistrarPagoAlquilerFormProps {
   clientes: Cliente[];
@@ -30,7 +31,7 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
   const [periodoMes, setPeriodoMes] = useState<number>(new Date().getMonth() + 1);
   const [periodoAnio, setPeriodoAnio] = useState<number>(new Date().getFullYear());
   const [monto, setMonto] = useState("");
-  const [fechaPago, setFechaPago] = useState(new Date().toISOString().split("T")[0]);
+  const [fechaPago, setFechaPago] = useState(hoyISO());
   const [metodoPago, setMetodoPago] = useState("Efectivo");
   const [comprobanteFiles, setComprobanteFiles] = useState<File[]>([]);
 

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ClienteAutocomplete } from "../common/ClienteAutocomplete";
 import { useClientes } from "../../hooks/useClientes";
 import { useFeedback } from "../ui/Feedback";
+import { hoyISO } from "../../lib/fechas";
 
 interface EditarAlquilerFormProps {
   alquiler: any;
@@ -80,7 +81,7 @@ export const EditarAlquilerForm: React.FC<EditarAlquilerFormProps> = ({ alquiler
       danger: true,
     });
     if (ok) {
-      const hoy = new Date().toISOString().split("T")[0];
+      const hoy = hoyISO();
       guardar({ estado: "finalizado", fecha_fin: fechaFin || hoy }, "Contrato finalizado");
     }
   };

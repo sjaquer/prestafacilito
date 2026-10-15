@@ -248,11 +248,17 @@ export function getSaludoPorHora(): string {
  * - Indica si vence hoy o hace cuántos días venció
  * - Sin monto mínimo, sin nombre directo, simple y directo.
  */
-export function generarMensajeCobroPredeterminado({
+export function generarMensajeCobroPredeterminado(opciones: Parameters<typeof mensajeCobroBase>[0]): string {
+  const base = mensajeCobroBase(opciones);
+  return opciones.monto && opciones.monto > 0.009
+    ? `${base} El monto a pagar es ${formatCurrency(opciones.monto)}.`
+    : base;
+}
+
+function mensajeCobroBase({
   tipoPrestamo,
   fechaVencimiento,
   estadoCuotaMes,
-  cuotasAtrasadas,
   diasAtraso,
 }: {
   clienteNombre?: string;

@@ -3,7 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import { MainLayout } from "./layouts/MainLayout";
 import { LoginPage } from "./pages/LoginPage";
-import { DashboardPage } from "./pages/DashboardPage";
+import { InicioPage } from "./pages/InicioPage";
+import { CuentasPage } from "./pages/CuentasPage";
 import { ClientesPage } from "./pages/ClientesPage";
 import { ClienteDetallePage } from "./pages/ClienteDetallePage";
 import { PrestamoDetallePage } from "./pages/PrestamoDetallePage";
@@ -87,7 +88,7 @@ export default function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<DashboardPage />} />
+          <Route index element={<InicioPage />} />
           <Route path="bi" element={<DashboardBIPage />} />
           <Route path="cartera" element={<CarteraPage />} />
           <Route path="alquileres" element={<AlquileresPage />} />
@@ -98,6 +99,7 @@ export default function App() {
           <Route path="reportes" element={<Navigate to="/" replace />} />
           <Route path="bitacora" element={<Navigate to="/" replace />} />
           <Route path="vouchers" element={<VouchersPage />} />
+          <Route path="cuentas" element={<CuentasPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

@@ -3,6 +3,7 @@ import { ImagePasteDropzone } from "../common/ImagePasteDropzone";
 import { METODOS_PAGO } from "../../lib/constants";
 import { subirVoucher } from "../../lib/imageCompression";
 import { round2 } from "../../lib/loanLogic";
+import { hoyISO } from "../../lib/fechas";
 
 interface RegistrarPagoPrestamoFormProps {
   prestamoId: string;
@@ -60,12 +61,20 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
   onError,
 }) => {
   const [montoPago, setMontoPago] = useState("");
-  const [fechaPago, setFechaPago] = useState(new Date().toISOString().split("T")[0]);
+  const [fechaPago, setFechaPago] = useState(hoyISO());
   const [metodoPago, setMetodoPago] = useState("Efectivo");
   const [comprobanteFiles, setComprobanteFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const desglose = useDesglose(montoPago, prestamo, resumen, deuda);
+
+  // Montos de referencia (mismos valores que usa el desglose)
+  const capital = round2(resumen?.capitalRestante ?? prestamo?.monto_capital ?? 0);
+  const minimo = round2((deuda?.moraAcumulada ?? 0) + (deuda?.interesPendiente ?? 0));
+  const atajos = [
+    { label: "Pago mínimo", detalle: "interés + mora", monto: minimo },
+    { label: "Liquidar todo", detalle: "deja el saldo en 0", monto: round2(minimo + capital) },
+  ].filter((a) => a.monto > 0.009);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,9 +134,31 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
             placeholder="Ej: 300.00"
             value={montoPago}
             onChange={(e) => setMontoPago(e.target.value)}
-            className={`${inputClass} text-sm font-bold`}
+            className={`${inputClass} text-base font-bold font-mono`}
             required
           />
+          {atajos.length > 0 && (
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              {atajos.map((a) => {
+                const activo = Number(montoPago) === a.monto;
+                return (
+                  <button
+                    key={a.label}
+                    type="button"
+                    onClick={() => setMontoPago(String(a.monto))}
+                    aria-pressed={activo}
+                    className={`rounded-xl border px-3 py-2 text-left transition ${
+                      activo ? "border-emerald-400 bg-emerald-50" : "border-slate-200 bg-white hover:bg-slate-50"
+                    }`}
+                  >
+                    <span className="block text-[10px] font-bold text-slate-500">{a.label}</span>
+                    <span className="block text-sm font-black font-mono text-slate-900">S/ {a.monto.toFixed(2)}</span>
+                    <span className="block text-[10px] text-slate-400">{a.detalle}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {desglose && (
