@@ -3,19 +3,15 @@ import {
   CheckCircle2,
   AlertTriangle,
   Clock,
-  Calendar,
-  ArrowRight,
-  ShieldCheck,
+  ChevronDown,
   FileText,
   Paperclip,
-  X,
   Loader2,
-  Edit3,
-  Check,
+  Snowflake,
+  Info,
 } from "lucide-react";
-import { comprimirImagen } from "../../lib/imageCompression";
-import { resolveVoucherUrl } from "../../lib/formatters";
-import { VoucherLightbox } from "../common/VoucherLightbox";
+import { subirVoucher } from "../../lib/imageCompression";
+import { formatCurrency, formatDate, resolveVoucherUrl } from "../../lib/formatters";
 import { useFeedback } from "../ui/Feedback";
 
 export interface TimelinePagoItem {
@@ -46,356 +42,211 @@ export interface TimelineMesItem {
 
 interface TimelineDetallePrestamoProps {
   timeline: TimelineMesItem[];
-  onVerVoucher?: (url: string) => void;
+  onVerVoucher: (url: string) => void;
   onVoucherAdjuntado?: () => void;
-  onEditarFechaPago?: (pagoId: string, nuevaFecha: string) => Promise<void>;
 }
+
+const ESTADO_UI: Record<
+  TimelineMesItem["estado"],
+  { label: string; dot: string; pill: string; Icon: React.ElementType }
+> = {
+  Saldada: { label: "Pagado", dot: "bg-emerald-500", pill: "bg-emerald-100 text-emerald-800", Icon: CheckCircle2 },
+  Parcial: { label: "Parcial", dot: "bg-amber-500", pill: "bg-amber-100 text-amber-800", Icon: AlertTriangle },
+  PagoIncompleto: { label: "Incompleto", dot: "bg-amber-500", pill: "bg-amber-100 text-amber-800", Icon: AlertTriangle },
+  SinPago: { label: "Sin pago", dot: "bg-rose-500", pill: "bg-rose-100 text-rose-800", Icon: AlertTriangle },
+  Vencida: { label: "Vencida", dot: "bg-rose-500", pill: "bg-rose-100 text-rose-800", Icon: AlertTriangle },
+  Pendiente: { label: "Por vencer", dot: "bg-slate-300", pill: "bg-slate-100 text-slate-700", Icon: Clock },
+};
+
+const Dato: React.FC<{ label: string; value: string; className?: string }> = ({ label, value, className = "text-slate-800" }) => (
+  <div>
+    <span className="text-[10px] text-slate-400 block font-semibold">{label}</span>
+    <span className={`font-bold font-mono ${className}`}>{value}</span>
+  </div>
+);
 
 export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = ({
   timeline,
   onVerVoucher,
   onVoucherAdjuntado,
-  onEditarFechaPago
 }) => {
-  const { notify, confirm } = useFeedback();
+  const { notify } = useFeedback();
   const [uploadingPagoId, setUploadingPagoId] = useState<string | null>(null);
-  const [activeVoucherUrl, setActiveVoucherUrl] = useState<string | null>(null);
+  // Los meses ya pagados empiezan plegados; los pendientes o con problemas, abiertos
+  const [abiertos, setAbiertos] = useState<Set<number>>(
+    () => new Set(timeline.filter((m) => m.estado !== "Saldada").map((m) => m.numero))
+  );
 
-  // Estado para la edición rápida de fecha de abono
-  const [editingPagoId, setEditingPagoId] = useState<string | null>(null);
-  const [tempFechaPago, setTempFechaPago] = useState<string>("");
-  const [isSavingFecha, setIsSavingFecha] = useState<boolean>(false);
-
-  const startEditFecha = (pago: TimelinePagoItem) => {
-    setEditingPagoId(pago.id);
-    setTempFechaPago(pago.fecha ? pago.fecha.split("T")[0] : "");
-  };
-
-  const cancelEditFecha = () => {
-    setEditingPagoId(null);
-    setTempFechaPago("");
-  };
-
-  const handleConfirmSaveFecha = async (pago: TimelinePagoItem) => {
-    if (!tempFechaPago || tempFechaPago === (pago.fecha ? pago.fecha.split("T")[0] : "")) {
-      setEditingPagoId(null);
-      return;
-    }
-
-    const ok = await confirm({
-      title: "Cambiar fecha del abono",
-      message: `¿Confirmas cambiar la fecha de este abono de S/ ${pago.monto.toFixed(2)} al ${tempFechaPago}?\n\nEsto recalculará automáticamente los intereses, mora y saldos del préstamo.`,
-      confirmLabel: "Cambiar fecha",
+  const toggle = (numero: number) =>
+    setAbiertos((prev) => {
+      const next = new Set(prev);
+      next.has(numero) ? next.delete(numero) : next.add(numero);
+      return next;
     });
-    if (!ok) {
-      return;
-    }
-
-    if (onEditarFechaPago) {
-      setIsSavingFecha(true);
-      try {
-        await onEditarFechaPago(pago.id, tempFechaPago);
-        setEditingPagoId(null);
-      } catch {
-        // El componente padre ya muestra el error; se mantiene el modo edición para reintentar
-      } finally {
-        setIsSavingFecha(false);
-      }
-    }
-  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, pagoId: string) => {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
 
     setUploadingPagoId(pagoId);
-
     try {
-      // Compresión de imagen en el cliente (Tarea 9.2.3)
-      const compressedDataUrl = await comprimirImagen(file, 1024, 0.7);
-      const base64Data = compressedDataUrl.replace(/^data:image\/\w+;base64,/, "");
-
-      const uploadRes = await fetch("/api/upload-voucher", {
+      const { url, driveFileId } = await subirVoucher(file);
+      const res = await fetch(`/api/amortizaciones/${pagoId}/voucher`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fileName: `Voucher_Pago_${pagoId.slice(0, 8)}_${file.name}`,
-          mimeType: file.type || "image/jpeg",
-          base64Data
-        })
+        body: JSON.stringify({ comprobante_url: url, voucher_drive_file_id: driveFileId }),
       });
-
-      if (!uploadRes.ok) {
-        throw new Error("No se pudo subir la imagen del comprobante");
-      }
-
-      const uploadData = await uploadRes.json();
-      const comprobanteUrl = uploadData.publicUrl || uploadData.directUrl;
-      const driveFileId = uploadData.driveFileId;
-
-      // Guardar en la BD
-      await fetch(`/api/amortizaciones/${pagoId}/voucher`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          comprobante_url: comprobanteUrl,
-          voucher_drive_file_id: driveFileId
-        })
-      });
-
-      if (onVoucherAdjuntado) {
-        onVoucherAdjuntado();
-      }
+      if (!res.ok) throw new Error("El archivo se subió pero no se pudo vincular al pago");
+      notify("Comprobante adjuntado", "success");
+      onVoucherAdjuntado?.();
     } catch (err: any) {
-      notify("Error al subir el comprobante: " + err.message);
+      notify("Error al subir el comprobante: " + (err.message || "Error desconocido"));
     } finally {
       setUploadingPagoId(null);
+      input.value = "";
     }
   };
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-          Cronograma de Amortización — Vista Cronológica
-        </h3>
-        <span className="text-xs text-slate-500 font-medium">Modelo Francés Adaptativo</span>
-      </div>
+  if (timeline.length === 0) {
+    return <p className="text-xs text-slate-500 py-4 text-center">Aún no hay meses generados para este préstamo.</p>;
+  }
 
-      <div className="space-y-4">
+  return (
+    <div className="space-y-3">
+      <p className="text-[11px] text-slate-500 leading-relaxed flex gap-1.5 bg-slate-50 border border-slate-200/70 rounded-xl p-2.5">
+        <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-slate-400" />
+        <span>
+          Cada mes se cobra interés sobre el capital pendiente. Cada abono cubre primero la mora, luego el interés del
+          mes, y el resto reduce el capital.
+        </span>
+      </p>
+
+      <ol className="relative space-y-2">
         {timeline.map((mes) => {
-          const isSaldada = mes.estado === "Saldada";
-          const isVencida = mes.estado === "Vencida";
-          const isPendiente = mes.estado === "Pendiente";
-          const isPagoIncompleto = mes.estado === "PagoIncompleto";
-          const isSinPago = mes.estado === "SinPago";
+          const ui = ESTADO_UI[mes.estado] || ESTADO_UI.Pendiente;
+          const abierto = abiertos.has(mes.numero);
+          const etiquetaEstado = mes.estado === "Vencida" && mes.diasVencidos > 0 ? `Vencida ${mes.diasVencidos}d` : ui.label;
 
           return (
-            <div
-              key={mes.numero}
-              className={`p-4 rounded-2xl border-l-4 border transition-all space-y-3 ${
-                isSaldada
-                  ? "border-l-emerald-500 border-slate-200 bg-emerald-50/20"
-                  : isPagoIncompleto
-                  ? "border-l-amber-500 border-amber-200 bg-amber-50/20"
-                  : isSinPago || isVencida
-                  ? "border-l-red-500 border-red-200 bg-red-50/30"
-                  : "border-l-slate-400 border-slate-200 bg-slate-50/40"
-              }`}
-            >
-              {/* Encabezado del Período */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/60 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-slate-900">
-                    PERÍODO {mes.numero}
+            <li key={mes.numero} className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggle(mes.numero)}
+                aria-expanded={abierto}
+                className="w-full flex items-center gap-3 px-3.5 py-3 text-left bg-transparent border-none cursor-pointer hover:bg-slate-50 transition-colors"
+              >
+                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${ui.dot}`} />
+                <span className="flex-1 min-w-0">
+                  <span className="flex items-center gap-1.5 text-sm font-extrabold text-slate-900">
+                    Mes {mes.numero}
+                    {mes.congelada && <Snowflake className="w-3.5 h-3.5 text-sky-500" aria-label="Interés congelado" />}
                   </span>
-                  <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" /> Período: {mes.fechaVencimiento}
+                  <span className="block text-[11px] text-slate-500 font-semibold">Vence {formatDate(mes.fechaVencimiento)}</span>
+                </span>
+                <span className="text-right shrink-0">
+                  <span className="block text-xs font-black font-mono text-slate-800">
+                    {formatCurrency(mes.totalPagado)}
+                    <span className="text-slate-400 font-bold"> / {formatCurrency(mes.cuotaEsperada)}</span>
                   </span>
+                  <span className={`inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-black ${ui.pill}`}>
+                    {etiquetaEstado}
+                  </span>
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${abierto ? "rotate-180" : ""}`} />
+              </button>
+
+              {abierto && (
+                <div className="px-3.5 pb-3.5 space-y-3 border-t border-slate-100 pt-3">
                   {mes.congelada && (
-                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-md flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3" /> Interés Congelado
-                    </span>
+                    <p className="text-[11px] font-bold text-sky-700 bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
+                      <Snowflake className="w-3.5 h-3.5" /> Interés congelado este mes: no se cobra interés.
+                    </p>
                   )}
-                </div>
 
-                {/* Badge de Estado */}
-                <div>
-                  {isSaldada && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-bold">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> SALDADA
-                    </span>
-                  )}
-                  {isPagoIncompleto && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-bold">
-                      <AlertTriangle className="w-3.5 h-3.5" /> PAGO INCOMPLETO
-                    </span>
-                  )}
-                  {isSinPago && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-red-100 text-red-800 border border-red-200 rounded-lg text-xs font-bold">
-                      <AlertTriangle className="w-3.5 h-3.5" /> SIN PAGO
-                    </span>
-                  )}
-                  {isVencida && !isSinPago && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-red-100 text-red-800 border border-red-200 rounded-lg text-xs font-bold">
-                      <AlertTriangle className="w-3.5 h-3.5" /> VENCIDA ({mes.diasVencidos}d)
-                    </span>
-                  )}
-                  {isPendiente && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold">
-                      <Clock className="w-3.5 h-3.5" /> PENDIENTE
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Fila de Datos del Período */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 bg-white border border-slate-200/70 rounded-xl text-xs">
-                <div>
-                  <span className="text-[10px] text-slate-400 block font-medium">Capital Inicio</span>
-                  <span className="font-semibold text-slate-800">S/ {mes.capitalInicioMes.toFixed(2)}</span>
-                </div>
-
-                <div>
-                  <span className="text-[10px] text-slate-400 block font-medium">Interés del Período</span>
-                  <span className="font-semibold text-amber-600">S/ {mes.interesMes.toFixed(2)}</span>
-                </div>
-
-                <div>
-                  <span className="text-[10px] text-slate-400 block font-medium">Capital Reducido</span>
-                  <span className="font-semibold text-emerald-600">S/ {mes.amortizacionCapital.toFixed(2)}</span>
-                </div>
-
-                <div>
-                  <span className="text-[10px] text-slate-400 block font-medium">Mínimo Exigible</span>
-                  <span className="font-bold text-slate-900">S/ {mes.cuotaEsperada.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {/* Desglose Explícito de Pagos Recibidos en este Mes */}
-              {mes.pagosRecibidos && mes.pagosRecibidos.length > 0 ? (
-                <div className="space-y-2 pt-1">
-                  <span className="text-[11px] font-bold text-slate-700 block">
-                    Pagos Registrados para esta Cuota:
-                  </span>
-                  <div className="space-y-1.5">
-                    {mes.pagosRecibidos.map((pago) => (
-                      <div
-                        key={pago.id}
-                        className="p-2.5 bg-emerald-50/60 border border-emerald-200/80 rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-                      >
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-emerald-800">✅ S/ {pago.monto.toFixed(2)}</span>
-                          
-                          {editingPagoId === pago.id ? (
-                            <div className="inline-flex items-center gap-1 bg-white p-1 rounded-lg border border-indigo-300 shadow-xs">
-                              <input
-                                type="date"
-                                value={tempFechaPago}
-                                onChange={(e) => setTempFechaPago(e.target.value)}
-                                disabled={isSavingFecha}
-                                className="px-1.5 py-0.5 text-xs font-semibold text-slate-800 border border-slate-200 rounded outline-none focus:border-indigo-500"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => handleConfirmSaveFecha(pago)}
-                                disabled={isSavingFecha}
-                                title="Guardar fecha"
-                                className="p-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs transition-colors flex items-center justify-center disabled:opacity-50"
-                              >
-                                {isSavingFecha ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={cancelEditFecha}
-                                disabled={isSavingFecha}
-                                title="Cancelar"
-                                className="p-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-xs transition-colors"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="inline-flex items-center gap-1">
-                              <span className="text-slate-600 font-medium">({pago.fecha})</span>
-                              {onEditarFechaPago && (
-                                <button
-                                  type="button"
-                                  onClick={() => startEditFecha(pago)}
-                                  title="Editar fecha de este abono"
-                                  className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          )}
-
-                          <span className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[10px] font-semibold text-slate-600">
-                            {pago.metodo_pago}
-                          </span>
-                        </div>
-
-                        {/* Desglose Explícito de Interés vs Capital y Voucher */}
-                        <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-700">
-                          <span className="text-amber-700">
-                            Interés: <span className="font-bold">S/ {pago.aplicadoInteres.toFixed(2)}</span>
-                          </span>
-                          <span className="text-emerald-700">
-                            Capital: <span className="font-bold">S/ {pago.aplicadoCapital.toFixed(2)}</span>
-                          </span>
-
-                          {/* Visor / Subida de Comprobante (Tarea 9.2.1) */}
-                          {pago.comprobante_url ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const resolved = resolveVoucherUrl(pago.comprobante_url);
-                                if (onVerVoucher) {
-                                  onVerVoucher(resolved);
-                                } else {
-                                  setActiveVoucherUrl(resolved);
-                                }
-                              }}
-                              className="px-2 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer"
-                            >
-                              <FileText className="w-3 h-3" /> Ver Comprobante
-                            </button>
-                          ) : (
-                            <label className="px-2 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer">
-                              {uploadingPagoId === pago.id ? (
-                                <>
-                                  <Loader2 className="w-3 h-3 animate-spin text-indigo-600" />
-                                  <span>Subiendo...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Paperclip className="w-3 h-3 text-slate-400" />
-                                  <span>[+ Adjuntar voucher]</span>
-                                </>
-                              )}
-                              <input
-                                type="file"
-                                accept="image/*,application/pdf"
-                                capture="environment"
-                                onChange={(e) => handleFileChange(e, pago.id)}
-                                className="hidden"
-                                disabled={uploadingPagoId === pago.id}
-                              />
-                            </label>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                    <Dato label="Capital al inicio" value={formatCurrency(mes.capitalInicioMes)} />
+                    <Dato label="Interés del mes" value={formatCurrency(mes.interesMes)} className="text-amber-600" />
+                    <Dato label="Mínimo del mes" value={formatCurrency(mes.cuotaEsperada)} className="text-slate-900" />
+                    <Dato label="Abonado a capital" value={formatCurrency(mes.amortizacionCapital)} className="text-emerald-600" />
                   </div>
-                </div>
-              ) : (
-                <div className="p-2.5 bg-slate-100/50 border border-dashed border-slate-200 rounded-xl text-xs text-slate-500 flex items-center gap-2">
-                  <Clock className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Sin pagos registrados en esta cuota.</span>
+
+                  {mes.pagosRecibidos?.length > 0 ? (
+                    <ul className="space-y-1.5">
+                      {mes.pagosRecibidos.map((pago) => (
+                        <li
+                          key={pago.id}
+                          className="p-2.5 bg-emerald-50/60 border border-emerald-200/80 rounded-xl text-xs space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-black text-emerald-800 font-mono">{formatCurrency(pago.monto)}</span>
+                            <span className="text-[11px] text-slate-600 font-semibold truncate">
+                              {formatDate(pago.fecha)} · {pago.metodo_pago}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="text-[11px] font-semibold text-slate-600">
+                              Interés <b className="text-amber-700">{formatCurrency(pago.aplicadoInteres)}</b> · Capital{" "}
+                              <b className="text-emerald-700">{formatCurrency(pago.aplicadoCapital)}</b>
+                            </span>
+                            {pago.comprobante_url ? (
+                              <button
+                                type="button"
+                                onClick={() => onVerVoucher(resolveVoucherUrl(pago.comprobante_url))}
+                                className="px-2 py-1 bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                              >
+                                <FileText className="w-3 h-3" /> Comprobante
+                              </button>
+                            ) : (
+                              <label
+                                className={`px-2 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-[10px] font-bold flex items-center gap-1 ${
+                                  uploadingPagoId === pago.id ? "cursor-wait opacity-70" : "cursor-pointer"
+                                }`}
+                              >
+                                {uploadingPagoId === pago.id ? (
+                                  <>
+                                    <Loader2 className="w-3 h-3 animate-spin text-indigo-600" /> Subiendo...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Paperclip className="w-3 h-3 text-slate-400" /> Adjuntar
+                                  </>
+                                )}
+                                <input
+                                  type="file"
+                                  accept="image/*,application/pdf"
+                                  onChange={(e) => handleFileChange(e, pago.id)}
+                                  className="hidden"
+                                  disabled={uploadingPagoId === pago.id}
+                                />
+                              </label>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="p-2.5 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-xs text-slate-500 flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" /> Sin pagos en este mes.
+                    </p>
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-[11px] font-semibold text-slate-600">
+                    <span>
+                      Capital tras este mes: <b className="text-slate-900 font-mono">{formatCurrency(mes.capitalRestante)}</b>
+                    </span>
+                    {mes.saldoPendienteCuota > 0 && (
+                      <span className="text-amber-700 font-bold">
+                        Faltan {formatCurrency(mes.saldoPendienteCuota)} para cubrir el mes
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
-
-              {/* Fila de Cierre del Mes */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-200/60 text-xs font-medium text-slate-700">
-                <div className="flex items-center gap-1.5">
-                  <span>Capital Restante tras esta cuota:</span>
-                  <span className="font-bold text-slate-900">S/ {mes.capitalRestante.toFixed(2)}</span>
-                </div>
-
-                {mes.saldoPendienteCuota > 0 && (
-                  <div className="text-amber-700 font-semibold flex items-center gap-1">
-                    <ArrowRight className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Faltan S/ {mes.saldoPendienteCuota.toFixed(2)} para completar la cuota</span>
-                  </div>
-                )}
-              </div>
-            </div>
+            </li>
           );
         })}
-      </div>
-
-      <VoucherLightbox url={activeVoucherUrl} onClose={() => setActiveVoucherUrl(null)} />
+      </ol>
     </div>
   );
 };

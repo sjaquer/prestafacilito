@@ -124,7 +124,27 @@ router.post("/", requireAuth, async (req: AuthRequest, res: express.Response) =>
 router.put("/:id", requireAuth, async (req: AuthRequest, res: express.Response) => {
   try {
     const { id } = req.params;
-    const { monto_mensual, descripcion_inmueble, fecha_inicio, fecha_fin, estado, notas } = req.body;
+    const { monto_mensual, descripcion_inmueble, fecha_inicio, fecha_fin, estado, notas, cliente_id } = req.body;
+
+    if (monto_mensual !== undefined && !(parseFloat(monto_mensual) > 0)) {
+      res.status(400).json({ error: "El monto mensual debe ser mayor a 0" });
+      return;
+    }
+    if (estado !== undefined && !["activo", "finalizado"].includes(estado)) {
+      res.status(400).json({ error: "Estado de alquiler no válido" });
+      return;
+    }
+    if (fecha_inicio && fecha_fin && fecha_fin < fecha_inicio) {
+      res.status(400).json({ error: "La fecha de fin no puede ser anterior al inicio" });
+      return;
+    }
+    if (cliente_id !== undefined) {
+      const { data: cli } = await supabase.from("clientes").select("id").eq("id", cliente_id).maybeSingle();
+      if (!cli) {
+        res.status(400).json({ error: "El cliente indicado no existe" });
+        return;
+      }
+    }
 
     const updateData: any = {};
     if (monto_mensual !== undefined) updateData.monto_mensual = parseFloat(monto_mensual);
@@ -133,6 +153,7 @@ router.put("/:id", requireAuth, async (req: AuthRequest, res: express.Response) 
     if (fecha_fin !== undefined) updateData.fecha_fin = fecha_fin;
     if (estado !== undefined) updateData.estado = estado;
     if (notas !== undefined) updateData.notas = notas;
+    if (cliente_id !== undefined) updateData.cliente_id = cliente_id;
 
     const { data, error } = await supabase
       .from("alquileres")
@@ -184,15 +205,58 @@ router.post("/:id/pagos", requireAuth, async (req: AuthRequest, res: express.Res
   }
 });
 
+// Editar pago de alquiler
+router.put("/:id/pagos/:pagoId", requireAuth, async (req: AuthRequest, res: express.Response) => {
+  try {
+    const { id, pagoId } = req.params;
+    const { monto, fecha_pago, periodo_mes, periodo_anio, metodo_pago } = req.body;
+
+    const updateData: any = {};
+    if (monto !== undefined) {
+      if (!(parseFloat(monto) > 0)) {
+        res.status(400).json({ error: "El monto debe ser mayor a 0" });
+        return;
+      }
+      updateData.monto = parseFloat(monto);
+    }
+    if (fecha_pago !== undefined) updateData.fecha_pago = fecha_pago;
+    if (periodo_mes !== undefined) {
+      const mes = parseInt(periodo_mes, 10);
+      if (!(mes >= 1 && mes <= 12)) {
+        res.status(400).json({ error: "Mes de periodo no válido" });
+        return;
+      }
+      updateData.periodo_mes = mes;
+    }
+    if (periodo_anio !== undefined) updateData.periodo_anio = parseInt(periodo_anio, 10);
+    if (metodo_pago !== undefined) updateData.metodo_pago = metodo_pago;
+
+    const { data, error } = await supabase
+      .from("pagos_alquiler")
+      .update(updateData)
+      .eq("id", pagoId)
+      .eq("alquiler_id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err: any) {
+    console.error("Error al editar pago de alquiler:", err);
+    res.status(500).json({ error: "Error al editar pago de alquiler", detail: err.message });
+  }
+});
+
 // Eliminar pago de alquiler
 router.delete("/:id/pagos/:pagoId", requireAuth, async (req: AuthRequest, res: express.Response) => {
   try {
-    const { pagoId } = req.params;
+    const { id, pagoId } = req.params;
 
     const { error } = await supabase
       .from("pagos_alquiler")
       .delete()
-      .eq("id", pagoId);
+      .eq("id", pagoId)
+      .eq("alquiler_id", id);
 
     if (error) throw error;
     res.json({ message: "Pago de alquiler eliminado correctamente" });

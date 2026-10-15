@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from "react";
-import { DollarSign } from "lucide-react";
 import { ImagePasteDropzone } from "../common/ImagePasteDropzone";
 import { METODOS_PAGO } from "../../lib/constants";
 import { subirVoucher } from "../../lib/imageCompression";
@@ -15,7 +14,7 @@ interface RegistrarPagoPrestamoFormProps {
 }
 
 const inputClass =
-  "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all";
+  "w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all";
 
 /** Vista previa (solo informativa) de cómo se distribuye el abono: mora → interés → capital. */
 const useDesglose = (montoPago: string, prestamo: any, resumen: any, deuda: any) =>
@@ -115,24 +114,14 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
   };
 
   return (
-    <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4">
-      <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-        <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
-          <DollarSign className="w-5 h-5" />
-        </div>
-        <div>
-          <h3 className="text-sm font-bold text-slate-800">Registrar Nuevo Pago</h3>
-          <p className="text-xs text-slate-500">Abono directo a esta cuenta</p>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit} className="space-y-3 pt-2">
         <div>
           <label className="text-xs font-semibold text-slate-700 block mb-1">Monto del Abono (S/) *</label>
           <input
             type="number"
             step="0.01"
             min="0.1"
+            inputMode="decimal"
             placeholder="Ej: 300.00"
             value={montoPago}
             onChange={(e) => setMontoPago(e.target.value)}
@@ -206,7 +195,7 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-semibold text-slate-700 block mb-1">Fecha de Pago</label>
             <input type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} className={inputClass} required />
@@ -228,11 +217,10 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {isSubmitting ? "Guardando Pago..." : "Guardar Pago y Actualizar"}
         </button>
       </form>
-    </div>
   );
 };

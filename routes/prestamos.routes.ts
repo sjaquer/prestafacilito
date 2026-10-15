@@ -252,7 +252,18 @@ prestamosRouter.get("/:id", requireAuth, async (req: express.Request, res: expre
 prestamosRouter.put("/:id", requireAuth, async (req: AuthRequest, res: express.Response) => {
   try {
     const prestamoId = req.params.id;
-    const { fecha_emision, fecha_vencimiento, monto_capital, tasa_interes_porcentaje, notas } = req.body;
+    const { fecha_emision, fecha_vencimiento, monto_capital, tasa_interes_porcentaje, notas, tipo_prestamo, cliente_id } = req.body;
+
+    if (monto_capital !== undefined && !(toNumber(monto_capital) > 0)) {
+      return res.status(400).json({ error: "El capital debe ser mayor a 0" });
+    }
+    if (tasa_interes_porcentaje !== undefined && toNumber(tasa_interes_porcentaje) < 0) {
+      return res.status(400).json({ error: "La tasa no puede ser negativa" });
+    }
+    if (cliente_id !== undefined) {
+      const { data: cli } = await supabase.from("clientes").select("id").eq("id", cliente_id).maybeSingle();
+      if (!cli) return res.status(400).json({ error: "El cliente indicado no existe" });
+    }
 
     const updatePayload: any = {};
     if (fecha_emision !== undefined) updatePayload.fecha_emision = fecha_emision;
@@ -260,6 +271,8 @@ prestamosRouter.put("/:id", requireAuth, async (req: AuthRequest, res: express.R
     if (monto_capital !== undefined) updatePayload.monto_capital = toNumber(monto_capital);
     if (tasa_interes_porcentaje !== undefined) updatePayload.tasa_interes_porcentaje = toNumber(tasa_interes_porcentaje);
     if (notas !== undefined) updatePayload.notas = notas;
+    if (tipo_prestamo !== undefined && String(tipo_prestamo).trim()) updatePayload.tipo_prestamo = String(tipo_prestamo).trim();
+    if (cliente_id !== undefined) updatePayload.cliente_id = cliente_id;
 
     const { data: updated, error } = await supabase
       .from("prestamos")

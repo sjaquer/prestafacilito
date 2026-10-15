@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ShieldCheck, Plus, CheckCircle, AlertCircle, Trash2 } from "lucide-react";
+import { Plus, CheckCircle, AlertCircle, Trash2 } from "lucide-react";
 import { AjustePrestamo } from "../../types";
 import { useFeedback } from "../ui/Feedback";
 
@@ -101,18 +101,8 @@ export const AjustesPrestamoPanel: React.FC<AjustesPrestamoPanelProps> = ({
   const activos = ajustes.filter((a) => a.activo);
 
   return (
-    <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2">
-          <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-800">Ajustes y Facilidades de Pago</h3>
-            <p className="text-xs text-slate-500">Congela intereses o registra acuerdos con el cliente</p>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-4 pt-2">
+      <p className="text-[11px] text-slate-500">Congela el interés de una cuota o registra un acuerdo especial con el cliente.</p>
 
       {errorMsg && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs text-red-700 font-medium">
