@@ -82,11 +82,17 @@ export const InicioPage: React.FC = () => {
       despues: { n: 0, monto: 0 },
       estancado: { n: 0, monto: 0 },
     };
+    let hoyExtra = 0;
     for (const it of items) {
       c[it.grupo].n++;
-      c[it.grupo].monto += it.montoACobrar;
+      // Atrasados: solo lo vencido. Si además hoy vence otra cuota, esa parte suma en "Cobrar hoy".
+      c[it.grupo].monto += it.venceHoyTambien ? it.atrasado : it.montoACobrar;
+      if (it.venceHoyTambien) {
+        c.hoy.monto += it.montoACobrar - it.atrasado;
+        hoyExtra++;
+      }
     }
-    return c;
+    return { ...c, hoyExtra };
   }, [items]);
 
   // Por defecto se abre el grupo más urgente que tenga algo
@@ -156,8 +162,8 @@ export const InicioPage: React.FC = () => {
         <Kpi
           label="Cobrar hoy"
           valor={formatCurrency(conteo.hoy.monto)}
-          detalle={`${conteo.hoy.n} cliente${conteo.hoy.n === 1 ? "" : "s"}`}
-          tono={conteo.hoy.n ? "text-amber-600" : "text-slate-900"}
+          detalle={`${conteo.hoy.n + conteo.hoyExtra} cliente${conteo.hoy.n + conteo.hoyExtra === 1 ? "" : "s"}${conteo.hoyExtra ? ` (${conteo.hoyExtra} también atrasado${conteo.hoyExtra > 1 ? "s" : ""})` : ""}`}
+          tono={conteo.hoy.n + conteo.hoyExtra ? "text-amber-600" : "text-slate-900"}
           onClick={() => setFiltro("hoy")}
         />
         <Kpi label="Cobrado hoy" valor={formatCurrency(resumen.totalCobradoHoy)} tono="text-emerald-600" onClick={() => navigate("/cuentas")} />

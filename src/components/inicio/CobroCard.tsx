@@ -18,7 +18,8 @@ function textoCuando(item: ItemCobro) {
   if (item.grupo === "atrasado" || item.grupo === "estancado") {
     const n = item.cuotas_atrasadas || 1;
     const unidad = item.es_alquiler ? "mes" : "cuota";
-    return `${n} ${unidad}${n > 1 ? "s" : ""} sin pagar`;
+    const texto = `${n} ${unidad}${n > 1 ? "s" : ""} sin pagar`;
+    return item.venceHoyTambien ? `${texto} · hoy vence otra` : texto;
   }
   const fecha = item.proximo_cobro ? `${textoRelativo(item.dias)} · ${formatFechaCorta(item.proximo_cobro)}` : "Sin fecha";
   return item.sinCobro && item.congelado ? `${fecha} · interés congelado` : fecha;
@@ -89,13 +90,19 @@ export const CobroCard: React.FC<CobroCardProps> = ({ item, onCobrar }) => {
               <Celda label="Interés/mes" valor={item.congelado ? "Congelado" : formatSoles(item.interes_mes)} />
             </>
           )}
-          <Celda label={esAtraso ? "Atrasado" : "A cobrar"} valor={formatSoles(item.montoACobrar)} destacado />
+          <Celda
+            label={item.venceHoyTambien ? "Al día hoy" : esAtraso ? "Atrasado" : "A cobrar"}
+            valor={formatSoles(item.montoACobrar)}
+            destacado
+          />
         </div>
       </Link>
 
       <div className="flex items-center gap-2 px-3.5 pb-3">
         <span className="flex-1 text-[10px] text-slate-500 font-semibold truncate">
-          {esAtraso && item.debe_desde ? `Debe desde ${formatFechaCorta(item.debe_desde)}` : ""}
+          {esAtraso && item.debe_desde
+            ? `${item.venceHoyTambien ? `Atrasado ${formatSoles(item.atrasado)} desde` : "Debe desde"} ${formatFechaCorta(item.debe_desde)}`
+            : ""}
           {esAtraso && item.debe_desde ? " · " : ""}
           {item.ultimo_pago_fecha ? `Último pago ${formatFechaCorta(item.ultimo_pago_fecha)}` : "Sin pagos"}
         </span>

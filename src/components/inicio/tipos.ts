@@ -39,6 +39,8 @@ export interface ItemCobro extends ItemCobroApi {
   montoACobrar: number;
   /** No hay nada que cobrar en la próxima fecha (ej. cuota con interés congelado). */
   sinCobro: boolean;
+  /** Tiene algo atrasado y además hoy le vence otra cuota: se cobra todo para dejarlo al día. */
+  venceHoyTambien: boolean;
 }
 
 export function prepararItems(items: ItemCobroApi[], hoy = new Date()): ItemCobro[] {
@@ -48,8 +50,12 @@ export function prepararItems(items: ItemCobroApi[], hoy = new Date()): ItemCobr
     // Sin nada que cobrar en la próxima fecha (ej. interés congelado): va al final, pero se rotula "Sin cobro"
     const sinCobro = !atrasadas && it.monto_proximo <= 0.009;
     if (sinCobro) grupo = "despues";
-    const montoACobrar = grupo === "atrasado" || grupo === "estancado" ? it.atrasado : it.monto_proximo;
-    return { ...it, grupo, dias: diasHasta(it.proximo_cobro, hoy), montoACobrar, sinCobro };
+    const dias = diasHasta(it.proximo_cobro, hoy);
+    const esAtraso = grupo === "atrasado" || grupo === "estancado";
+    // Si además hoy vence otra cuota, lo que hay que cobrar hoy es lo atrasado + la de hoy (monto_proximo ya lo suma)
+    const venceHoyTambien = esAtraso && dias === 0 && it.monto_proximo > it.atrasado + 0.009;
+    const montoACobrar = venceHoyTambien ? it.monto_proximo : esAtraso ? it.atrasado : it.monto_proximo;
+    return { ...it, grupo, dias, montoACobrar, sinCobro, venceHoyTambien };
   });
 }
 
