@@ -1,7 +1,8 @@
 import express from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { esRutaValida, rutaComprobante, urlDeRuta } from "../src/lib/archivos.js";
-import { ArchivoInvalidoError, decodificarArchivo, descargarArchivo, subirArchivo } from "../services/storage.js";
+import { ArchivoInvalidoError, decodificarArchivo } from "../services/storage.js";
+import { guardarArchivo, leerArchivo } from "../services/almacen.js";
 import { aplicarMigracion, listarPendientes, TablaMigrable } from "../services/migracion.js";
 
 /** Comprobantes y documentos en Supabase Storage (se monta en /api). */
@@ -21,8 +22,9 @@ router.post("/upload-voucher", requireAuth, async (req: express.Request, res: ex
   try {
     const buffer = decodificarArchivo(base64Data, mimeType);
     const ruta = rutaComprobante(fileName, mimeType);
-    await subirArchivo(ruta, buffer, mimeType);
-    res.json({ success: true, publicUrl: urlDeRuta(ruta), ruta });
+    // Storage (carga rápida) + Drive (respaldo) a la vez
+    const donde = await guardarArchivo({ ruta, buffer, mimeType });
+    res.json({ success: true, publicUrl: urlDeRuta(ruta), ruta, ...donde });
   } catch (err: any) {
     if (err instanceof ArchivoInvalidoError) {
       res.status(400).json({ error: err.message });
@@ -63,7 +65,7 @@ router.post("/archivos-migracion", requireAuth, async (req: express.Request, res
   }
 });
 
-/** Sirve un archivo de Storage solo a usuarios con sesión. */
+/** Sirve un archivo (de Storage, o de Drive si Storage falla) solo a usuarios con sesión. */
 router.get("/archivos/*", requireAuth, async (req: express.Request, res: express.Response) => {
   const ruta = String((req.params as Record<string, string>)[0] || "");
   if (!esRutaValida(ruta)) {
@@ -72,12 +74,13 @@ router.get("/archivos/*", requireAuth, async (req: express.Request, res: express
   }
 
   try {
-    const archivo = await descargarArchivo(ruta);
+    const archivo = await leerArchivo(ruta);
     if (!archivo) {
       res.status(404).send("Archivo no encontrado.");
       return;
     }
     res.setHeader("Content-Type", archivo.contentType);
+    res.setHeader("X-Origen-Archivo", archivo.origen);
     // Cada ruta es única y su contenido nunca cambia (un archivo nuevo = ruta nueva): el navegador
     // la guarda un año y no la vuelve a pedir. "private": ningún proxy/CDN intermedio la guarda.
     res.setHeader("Cache-Control", "private, max-age=31536000, immutable");

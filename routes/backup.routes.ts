@@ -3,6 +3,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { requireCron } from "../middleware/cron.js";
 import { generarExcelRespaldo } from "../services/excel-respaldo.js";
 import { ejecutarRespaldo, obtenerEstadoRespaldo } from "../services/respaldo.js";
+import { restaurarStorage } from "../services/almacen.js";
 
 const router = express.Router();
 
@@ -19,19 +20,23 @@ router.get("/status", requireAuth, async (_req: express.Request, res: express.Re
 // POST /api/backup/ejecutar — "Respaldar ahora". Si quedan archivos, la app vuelve a llamar.
 router.post("/ejecutar", requireAuth, async (_req: express.Request, res: express.Response) => {
   try {
-    res.json(await ejecutarRespaldo({ forzar: true }));
+    const respaldo = await ejecutarRespaldo({ forzar: true });
+    // Lo que quedó solo en Drive (Storage caído) vuelve a Storage
+    const restauracion = await restaurarStorage(15_000).catch((err) => ({ restaurados: 0, pendientes: 0, errores: [err.message] }));
+    res.json({ ...respaldo, restauracion });
   } catch (err: any) {
     console.error("Error al ejecutar respaldo:", err);
     res.status(500).json({ error: err.message || "No se pudo completar el respaldo" });
   }
 });
 
-// GET /api/backup/cron — Vercel Cron diario; solo actúa si el respaldo está vencido o a medias
+// GET /api/backup/cron — Vercel Cron diario: respaldo si está vencido o a medias, y restauración Drive → Storage
 router.get("/cron", requireCron, async (_req: express.Request, res: express.Response) => {
   try {
     const r = await ejecutarRespaldo();
-    console.log("[Cron respaldo]", { ...r, errores: r.errores.length });
-    res.json({ success: true, ...r });
+    const restauracion = await restaurarStorage(15_000).catch((err) => ({ restaurados: 0, pendientes: 0, errores: [err.message] }));
+    console.log("[Cron respaldo]", { ...r, errores: r.errores.length, restauracion });
+    res.json({ success: true, ...r, restauracion });
   } catch (err: any) {
     console.error("[Cron respaldo] Error:", err);
     res.status(500).json({ success: false, detail: err.message });

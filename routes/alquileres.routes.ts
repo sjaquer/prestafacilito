@@ -1,6 +1,7 @@
 import express from "express";
 import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { supabase } from "../src/lib/supabase.js";
+import { todas } from "../services/consultas.js";
 import { buildAlquilerSchedule } from "../src/lib/alquilerLogic.js";
 import { programarSync } from "../services/google-calendar.js";
 
@@ -10,9 +11,9 @@ const router = express.Router();
 router.get("/", requireAuth, async (req: express.Request, res: express.Response) => {
   try {
     const [aRes, cRes, pRes] = await Promise.all([
-      supabase.from("alquileres").select("*").order("fecha_registro", { ascending: false }),
-      supabase.from("clientes").select("id, nombre_completo, apodo, telefono"),
-      supabase.from("pagos_alquiler").select("*")
+      todas(() => supabase.from("alquileres").select("*").order("fecha_registro", { ascending: false })),
+      todas(() => supabase.from("clientes").select("id, nombre_completo, apodo, telefono")),
+      todas(() => supabase.from("pagos_alquiler").select("*"))
     ]);
 
     if (aRes.error) throw aRes.error;

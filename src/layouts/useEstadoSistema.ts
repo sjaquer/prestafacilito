@@ -9,6 +9,8 @@ interface BackupStatus {
   /** Hay un respaldo empezado al que le faltan archivos por copiar. */
   en_curso: boolean;
   drive_configurado: boolean;
+  /** "solo_drive": Storage desactivado, las fotos se guardan y leen desde Drive. */
+  modo_archivos?: "normal" | "solo_drive";
 }
 
 interface ResultadoRespaldo {

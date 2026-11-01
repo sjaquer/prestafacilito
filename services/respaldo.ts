@@ -4,15 +4,9 @@ import { rutaDeUrl } from "../src/lib/archivos.js";
 import { descargarArchivo } from "./storage.js";
 import { generarExcelRespaldo } from "./excel-respaldo.js";
 import { traerTodasLasPaginas } from "./consultas.js";
-import {
-  buscarOCrearCarpeta,
-  getClientesFolderId,
-  getDriveFolderId,
-  getRespaldosFolderId,
-  isDriveConfigured,
-  nombreCarpetaCliente,
-  subirArchivoDrive,
-} from "./google-drive.js";
+import { isDriveConfigured, subirArchivoDrive } from "./google-drive.js";
+import { carpetaCliente, carpetaComprobantesMes, carpetaExcel } from "./carpetas-drive.js";
+import { modoArchivos } from "./almacen.js";
 
 /**
  * Respaldo semanal a Google Drive.
@@ -31,10 +25,6 @@ import {
 export const DIAS_ENTRE_RESPALDOS = 7;
 const TIEMPO_POR_DEFECTO_MS = 40_000;
 
-const CARPETA_EXCEL = "PrestaFacilito - Respaldos Excel";
-const CARPETA_COMPROBANTES = "PrestaFacilito - Comprobantes";
-const CARPETA_CLIENTES = "PrestaFacilito - Documentos de Clientes";
-
 interface Configuracion {
   ultima_fecha_backup: string | null;
   respaldo_iniciado_en: string | null;
@@ -46,6 +36,8 @@ export interface EstadoRespaldo {
   requiere_backup: boolean;
   en_curso: boolean;
   drive_configurado: boolean;
+  /** "solo_drive" si Storage está desactivado (ARCHIVOS_MODO). */
+  modo_archivos: "normal" | "solo_drive";
 }
 
 export interface ResultadoRespaldo {
@@ -96,6 +88,7 @@ export async function obtenerEstadoRespaldo(): Promise<EstadoRespaldo> {
     requiere_backup: dias === null || dias >= DIAS_ENTRE_RESPALDOS,
     en_curso: !!config.respaldo_iniciado_en,
     drive_configurado: isDriveConfigured(),
+    modo_archivos: modoArchivos(),
   };
 }
 
@@ -185,35 +178,8 @@ async function rutasYaRespaldadas(): Promise<Set<string>> {
   return new Set(filas.map((r) => r.ruta));
 }
 
-/** Resuelve (y recuerda durante la ejecución) los IDs de las carpetas de Drive. */
-function crearResolutorDeCarpetas() {
-  const cache = new Map<string, Promise<string>>();
-  const recordar = (clave: string, crear: () => Promise<string>) => {
-    if (!cache.has(clave)) cache.set(clave, crear());
-    return cache.get(clave)!;
-  };
-
-  const raizComprobantes = () =>
-    recordar("raiz:comprobantes", async () => getDriveFolderId() || buscarOCrearCarpeta(CARPETA_COMPROBANTES));
-  const raizClientes = () =>
-    recordar("raiz:clientes", async () => getClientesFolderId() || buscarOCrearCarpeta(CARPETA_CLIENTES));
-
-  return {
-    excel: () => recordar("raiz:excel", async () => getRespaldosFolderId() || buscarOCrearCarpeta(CARPETA_EXCEL)),
-
-    async para(destino: ArchivoARespaldar["destino"]): Promise<string> {
-      if (destino.tipo === "comprobante") {
-        return recordar(`mes:${destino.mes}`, async () => buscarOCrearCarpeta(destino.mes, await raizComprobantes()));
-      }
-      if (destino.carpeta) return destino.carpeta;
-      return recordar(`cliente:${destino.clienteId}`, async () => {
-        const id = await buscarOCrearCarpeta(nombreCarpetaCliente(destino.nombreCliente), await raizClientes());
-        await supabase.from("clientes").update({ drive_folder_id: id }).eq("id", destino.clienteId);
-        return id;
-      });
-    },
-  };
-}
+const carpetaDestino = (d: ArchivoARespaldar["destino"]) =>
+  d.tipo === "comprobante" ? carpetaComprobantesMes(d.mes) : carpetaCliente(d.clienteId, { nombre: d.nombreCliente, carpeta: d.carpeta });
 
 /**
  * Ejecuta (o continúa) el respaldo. Sin `forzar`, no hace nada si el último respaldo
@@ -243,8 +209,6 @@ export async function ejecutarRespaldo(opciones: { forzar?: boolean; tiempoMaxim
     throw new Error("Google Drive no está conectado: no se puede hacer el respaldo. Conéctalo desde el menú Sistema.");
   }
 
-  const carpetas = crearResolutorDeCarpetas();
-
   // 1. Excel: una vez por ciclo
   if (!config.respaldo_iniciado_en) {
     const excel = await generarExcelRespaldo();
@@ -255,15 +219,16 @@ export async function ejecutarRespaldo(opciones: { forzar?: boolean; tiempoMaxim
       `Respaldo PrestaFacilito ${fecha} ${hora}.xlsx`,
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       excel,
-      await carpetas.excel()
+      await carpetaExcel()
     );
     await guardarConfiguracion({ respaldo_iniciado_en: ahora.toISOString() });
     resultado.excel_subido = true;
   }
 
-  // 2. Archivos nuevos
+  // 2. Archivos nuevos (normalmente ya se copiaron a Drive al subirlos; aquí quedan los que fallaron)
   const [archivos, hechos] = await Promise.all([listarArchivos(), rutasYaRespaldadas()]);
-  const pendientes = archivos.filter((a) => !hechos.has(a.ruta));
+  // En modo solo_drive no se lee de Storage (está caído o desactivado)
+  const pendientes = modoArchivos() === "normal" ? archivos.filter((a) => !hechos.has(a.ruta)) : [];
 
   for (const archivo of pendientes) {
     if (Date.now() > limite) break;
@@ -271,16 +236,16 @@ export async function ejecutarRespaldo(opciones: { forzar?: boolean; tiempoMaxim
       const contenido = await descargarArchivo(archivo.ruta);
       if (!contenido) {
         // Referenciado en la BD pero inexistente en Storage: se anota para no reintentar cada semana
-        await supabase.from("respaldos_archivos").upsert({ ruta: archivo.ruta, drive_file_id: null, nota: "No existe en Storage" });
+        await supabase.from("respaldos_archivos").upsert({ ruta: archivo.ruta, drive_file_id: null, en_storage: false, nota: "No existe en Storage" });
         resultado.errores.push(`No existe en Storage: ${archivo.ruta}`);
         resultado.fallidos++;
         continue;
       }
-      const folderId = await carpetas.para(archivo.destino);
+      const folderId = await carpetaDestino(archivo.destino);
       const subido = await subirArchivoDrive(archivo.nombre, contenido.contentType, contenido.buffer, folderId);
       const { error } = await supabase
         .from("respaldos_archivos")
-        .upsert({ ruta: archivo.ruta, drive_file_id: subido.fileId, nota: "" });
+        .upsert({ ruta: archivo.ruta, drive_file_id: subido.fileId, en_storage: true, nota: "" });
       if (error) throw new Error(`copiado a Drive pero no registrado: ${error.message}`);
       resultado.copiados++;
     } catch (err: any) {

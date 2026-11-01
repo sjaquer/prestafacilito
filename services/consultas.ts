@@ -16,3 +16,17 @@ export async function traerTodasLasPaginas<T>(consulta: Pagina<T>, descripcion: 
     if (!data || data.length < PAGINA) return filas;
   }
 }
+
+/**
+ * Igual que una consulta de Supabase (`{ data, error }`), pero trae TODAS las filas por páginas.
+ * `armar` debe devolver una consulta nueva cada vez (sin `.range()`); se le agrega orden por `id`
+ * como desempate para que las páginas no se salten ni repitan filas.
+ */
+export async function todas<T = any>(armar: () => any): Promise<{ data: T[]; error: { message: string } | null }> {
+  try {
+    const data = await traerTodasLasPaginas<T>((desde, hasta) => armar().order("id", { ascending: true }).range(desde, hasta), "la consulta");
+    return { data, error: null };
+  } catch (err: any) {
+    return { data: [], error: { message: err.message } };
+  }
+}

@@ -2,24 +2,34 @@
 
 Estado al 2026-10-31. Lo marcado **[tú]** requiere acceso a Supabase, Vercel o Google y no se puede hacer desde el código.
 
-## 1. Activar Storage y la seguridad de los datos (en este orden)
+## 1. Activar Storage, la copia en Drive y la seguridad (en este orden)
 
-1. **[tú]** Supabase → Project Settings → API → copiar la clave **service_role**.
-2. **[tú]** Poner esa clave en `SUPABASE_KEY` del `.env` local y de Vercel (Production). Borrar de Vercel/`.env` las variables que no usa el código: `SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
-3. **[tú]** En Vercel: definir `CRON_SECRET` (largo y aleatorio) y, si se quiere carpeta propia para el Excel, `GOOGLE_DRIVE_RESPALDOS_FOLDER_ID`.
-4. **[tú]** Desplegar y comprobar en los logs de arranque: `[DB] Conectado con rol service_role`.
-5. **[tú]** SQL Editor: ejecutar `supabase/migrations/20261031_storage_y_respaldos.sql` (bucket privado, columnas y tabla de respaldos).
-6. **[tú]** SQL Editor: ejecutar `supabase/migrations/20261015_enable_rls.sql` (RLS en todas las tablas).
-7. **[tú]** Probar en la app: subir un comprobante, verlo, y pulsar **Sistema → Respaldar ahora en Drive**.
-8. **[tú]** Migrar las fotos antiguas: en la app, **Sistema → "Migrar fotos a Storage"** (aparece solo si quedan fotos en Drive). El navegador descarga cada foto de Drive, la comprime con el mismo compresor de la app (vouchers en escala de grises WebP, ~20–120 KB) y la sube. No cerrar la app mientras avanza; si algo falla, se puede volver a pulsar y solo procesa lo que falta.
+Cómo queda: **Drive = fuente de confianza** (toda foto se copia ahí al subirla) · **Supabase Storage = carga rápida**. Si Storage falla, la app sirve la foto desde Drive sola; con `ARCHIVOS_MODO="solo_drive"` funciona entera sin Storage, y al volver a `normal` el cron copia de vuelta a Storage lo que quedó solo en Drive.
+
+1. **[tú]** Reiniciar Claude Code en el proyecto, aprobar el MCP `supabase` y autenticarlo (`/mcp` → supabase → Authenticate). Con eso, Claude puede ejecutar los SQL de los pasos 5 y 6.
+2. **[tú]** Supabase → Project Settings → API Keys → copiar la clave **service_role** (secret). Pegarla en `.env.local` (`SUPABASE_KEY="..."`, quitando el `#`) y en Vercel (Production). El MCP no puede leer claves secretas.
+3. **[tú]** En Vercel, agregar `CRON_SECRET` (el mismo valor que ya quedó en `.env.local`) y `ARCHIVOS_MODO=normal`. Borrar de Vercel/`.env` las variables sin uso: `SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+4. **[tú]** Desplegar y comprobar en los logs: `[DB] Conectado con rol service_role`.
+5. SQL: `supabase/migrations/20261031_storage_y_respaldos.sql` (bucket privado, columnas, tabla `respaldos_archivos` con `en_storage`).
+6. SQL: `supabase/migrations/20261015_enable_rls.sql` (RLS en todas las tablas).
+7. **[tú]** Probar: subir un comprobante (debe quedar en Storage y en la carpeta del mes en Drive) y pulsar **Sistema → Respaldar ahora en Drive**.
+8. **[tú]** **Sistema → "Migrar fotos a Storage"**: copia a Storage, ya comprimidas, las ~96 fotos que hoy están solo en Drive. El original queda en Drive en calidad completa.
 9. **[tú]** Rotar la clave anon (Settings → API): estuvo en uso con acceso total.
+10. Local: para probar Drive desde tu equipo, **Sistema → Reconectar**; el token se guarda solo en `.env.local`.
 
-Hasta el paso 5, subir comprobantes o documentos falla ("Bucket not found"): desplegar el código y aplicar la migración el mismo día.
+Hasta el paso 5, subir comprobantes en producción falla ("Bucket not found"): desplegar el código y aplicar el SQL el mismo día.
+
+### Ahorro de espacio y egress (ya aplicado)
+- Fotos comprimidas en el navegador antes de subir (vouchers en grises WebP, ~20–120 KB).
+- Una sola subida desde el celular; el servidor escribe Storage y Drive en paralelo con el mismo contenido: el respaldo no vuelve a descargar de Storage.
+- Cada foto se guarda 1 año en el navegador (`immutable`): se descarga una vez por equipo.
+- Drive solo se lee si Storage falla o para restaurar.
+- Al borrar un documento de cliente se libera de Storage (la copia en Drive queda).
 
 ## 2. Google
 
 - **[tú]** Si la app de OAuth en Google Cloud está en modo **Testing**, el refresh token caduca a los 7 días y el respaldo semanal fallará siempre. Pasarla a **In production** (Google Auth Platform → Audience → Publish app).
-- El callback de OAuth escribe el token en `.env` (local) o lo imprime en los logs (Vercel). Mejor guardarlo en la base de datos para que "Reconectar" funcione sin redesplegar.
+- El callback de OAuth escribe el token en `.env.local` (local) o lo imprime en los logs (Vercel). Mejor guardarlo en la base de datos para que "Reconectar" funcione sin redesplegar.
 
 ## 3. Revisión de cálculos (2026-10-31) — solo revisado, nada modificado
 
@@ -60,11 +70,12 @@ Verificado con los datos reales (25 préstamos con estado `activo` en la BD, 114
 
 ## 4. Deuda técnica restante
 
-- **Límite de 1000 filas de Supabase**: `dashboard`, `bi`, `prestamos` (listado, amortizaciones) y `clientes/:id/score` piden tablas completas sin paginar. Hoy hay ~114 pagos, pero al pasar de 1000 los totales saldrían cortados sin aviso. El score además trae los pagos de todos los clientes en vez de filtrar por sus préstamos. (Solo cambia qué filas se leen, no los cálculos.) El respaldo y el Excel ya paginan.
-- **Subidas grandes**: Vercel limita el cuerpo de la petición a 4.5 MB y los archivos van en base64. Los documentos subidos desde el formulario de cliente no se comprimen; un PDF de más de ~3 MB fallará. Solución: URLs firmadas de subida directa a Storage.
-- **Archivos huérfanos**: al quitar un comprobante de un pago o borrar el pago, el archivo queda en Storage (su copia en Drive se conserva a propósito).
-- **Después de migrar las fotos**: eliminar los proxies `/api/vouchers/proxy` y `/api/documentos/proxy`, y las columnas `voucher_drive_file_id`, `documentos_cliente.drive_file_id` y `drive_url`.
-- **Bundle de 715 KB**: dividir por página con `import()` dinámico.
-- **CSP** permite `'unsafe-eval'` en producción (solo lo necesita Vite en desarrollo).
+Resuelto el 2026-10-31: consultas por páginas (sin límite de 1000 filas; se verificó que todos los endpoints devuelven exactamente lo mismo), `'unsafe-eval'` solo en desarrollo, carga por página (paquete principal de 715 a 508 KB) y token de Google en memoria (antes se pedía uno por llamada).
+
+- **Score del cliente** (`clientes/:id/score`): trae los pagos de todos los clientes en vez de filtrar por sus préstamos. Es lógica de score: pendiente de aprobación.
+- **Subidas grandes**: Vercel limita el cuerpo a 4.5 MB (base64). Las fotos ya llegan comprimidas; un PDF de más de ~3 MB fallará. Solución: URLs firmadas de subida directa a Storage.
+- **Comprobantes huérfanos**: al quitar un comprobante de un pago o borrar el pago, el archivo sigue en Storage (la copia en Drive se conserva a propósito). Los documentos de cliente ya se liberan.
+- **Después de migrar las fotos**: se pueden eliminar las columnas `voucher_drive_file_id`, `documentos_cliente.drive_file_id` y `drive_url` (los proxies de Drive se quedan: son el respaldo de lectura).
+- **Paquete principal** aún de 508 KB: `motion` y `html-to-image` podrían cargarse solo cuando se usan.
 - **Tipos `any`** en varios componentes y rutas.
 - **Usuarios en variables de entorno** (`PIN_*`): no hay alta/baja sin redesplegar ni registro de quién hizo cada cambio.

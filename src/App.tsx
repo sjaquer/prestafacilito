@@ -1,18 +1,30 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import { MainLayout } from "./layouts/MainLayout";
 import { LoginPage } from "./pages/LoginPage";
 import { InicioPage } from "./pages/InicioPage";
-import { CuentasPage } from "./pages/CuentasPage";
-import { ClientesPage } from "./pages/ClientesPage";
-import { ClienteDetallePage } from "./pages/ClienteDetallePage";
-import { PrestamoDetallePage } from "./pages/PrestamoDetallePage";
-import { CarteraPage } from "./pages/CarteraPage";
-import { VouchersPage } from "./pages/VouchersPage";
-import { AlquileresPage } from "./pages/AlquileresPage";
-import { AlquilerDetallePage } from "./pages/AlquilerDetallePage";
-import { DashboardBIPage } from "./pages/DashboardBIPage";
+
+// Inicio va en el paquete principal (es la primera pantalla); el resto se descarga al abrirlo
+const CuentasPage = lazy(() => import("./pages/CuentasPage").then((m) => ({ default: m.CuentasPage })));
+const ClientesPage = lazy(() => import("./pages/ClientesPage").then((m) => ({ default: m.ClientesPage })));
+const ClienteDetallePage = lazy(() => import("./pages/ClienteDetallePage").then((m) => ({ default: m.ClienteDetallePage })));
+const PrestamoDetallePage = lazy(() => import("./pages/PrestamoDetallePage").then((m) => ({ default: m.PrestamoDetallePage })));
+const CarteraPage = lazy(() => import("./pages/CarteraPage").then((m) => ({ default: m.CarteraPage })));
+const VouchersPage = lazy(() => import("./pages/VouchersPage").then((m) => ({ default: m.VouchersPage })));
+const AlquileresPage = lazy(() => import("./pages/AlquileresPage").then((m) => ({ default: m.AlquileresPage })));
+const AlquilerDetallePage = lazy(() => import("./pages/AlquilerDetallePage").then((m) => ({ default: m.AlquilerDetallePage })));
+const DashboardBIPage = lazy(() => import("./pages/DashboardBIPage").then((m) => ({ default: m.DashboardBIPage })));
+
+/** Mientras se descarga una página: mismo esqueleto gris que usan las listas. */
+const CargandoPagina: React.FC = () => (
+  <div className="space-y-3 max-w-4xl mx-auto" aria-busy aria-label="Cargando">
+    <div className="h-8 w-40 bg-slate-200/70 rounded-xl animate-pulse" />
+    <div className="h-24 bg-white border border-slate-200 rounded-2xl animate-pulse" />
+    <div className="h-24 bg-white border border-slate-200 rounded-2xl animate-pulse" />
+  </div>
+);
+const conCarga = (el: React.ReactNode) => <Suspense fallback={<CargandoPagina />}>{el}</Suspense>;
 import { Coins, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -86,17 +98,17 @@ export default function App() {
           }
         >
           <Route index element={<InicioPage />} />
-          <Route path="bi" element={<DashboardBIPage />} />
-          <Route path="cartera" element={<CarteraPage />} />
-          <Route path="alquileres" element={<AlquileresPage />} />
-          <Route path="alquileres/:id" element={<AlquilerDetallePage />} />
-          <Route path="clientes" element={<ClientesPage />} />
-          <Route path="clientes/:id" element={<ClienteDetallePage />} />
-          <Route path="prestamos/:id" element={<PrestamoDetallePage />} />
+          <Route path="bi" element={conCarga(<DashboardBIPage />)} />
+          <Route path="cartera" element={conCarga(<CarteraPage />)} />
+          <Route path="alquileres" element={conCarga(<AlquileresPage />)} />
+          <Route path="alquileres/:id" element={conCarga(<AlquilerDetallePage />)} />
+          <Route path="clientes" element={conCarga(<ClientesPage />)} />
+          <Route path="clientes/:id" element={conCarga(<ClienteDetallePage />)} />
+          <Route path="prestamos/:id" element={conCarga(<PrestamoDetallePage />)} />
           <Route path="reportes" element={<Navigate to="/" replace />} />
           <Route path="bitacora" element={<Navigate to="/" replace />} />
-          <Route path="vouchers" element={<VouchersPage />} />
-          <Route path="cuentas" element={<CuentasPage />} />
+          <Route path="vouchers" element={conCarga(<VouchersPage />)} />
+          <Route path="cuentas" element={conCarga(<CuentasPage />)} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

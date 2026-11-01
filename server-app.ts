@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./helpers/env.js";
 import express from "express";
 import cookieParser from "cookie-parser";
 import { getJwtSecret } from "./helpers/jwt.js";
@@ -44,7 +44,8 @@ app.use((req, res, next) => {
   res.setHeader(
     "Content-Security-Policy",
     "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+    // 'unsafe-eval' solo lo necesita Vite en desarrollo
+    `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'"}; ` +
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
     "font-src 'self' data: https://fonts.gstatic.com; " +
     "img-src 'self' data: blob: https://*.googleusercontent.com https://*.googleapis.com; " +

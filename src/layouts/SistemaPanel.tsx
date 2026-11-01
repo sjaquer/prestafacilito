@@ -104,6 +104,13 @@ export const SistemaPanel: React.FC<Props> = ({ driveOk, backup, backupError, de
         </button>
       </div>
 
+      {backup?.modo_archivos === "solo_drive" && (
+        <p className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-[11px] font-semibold text-amber-800">
+          Modo <b>solo Drive</b>: Supabase Storage está desactivado (ARCHIVOS_MODO). Las fotos se guardan y se leen desde Drive;
+          al volver al modo normal se copian solas a Storage.
+        </p>
+      )}
+
       {/* Migración única de fotos de Drive (desaparece al terminar) */}
       <MigracionFotos />
 

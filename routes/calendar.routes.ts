@@ -100,16 +100,19 @@ router.get("/auth/google/callback", requireAuth, async (req: express.Request, re
     let envWriteStatus = "No se pudo escribir en el archivo .env automáticamente.";
     let envWriteSuccess = false;
     try {
-      const envPath = path.join(process.cwd(), ".env");
+      // Local: se guarda en .env.local (tiene prioridad sobre .env). En Vercel el disco es de solo lectura.
+      const envLocal = path.join(process.cwd(), ".env.local");
+      const envPath = fs.existsSync(envLocal) ? envLocal : path.join(process.cwd(), ".env");
       if (fs.existsSync(envPath)) {
         let envContent = fs.readFileSync(envPath, "utf8");
-        if (envContent.includes("GOOGLE_REFRESH_TOKEN=")) {
-          envContent = envContent.replace(/GOOGLE_REFRESH_TOKEN=.*/, `GOOGLE_REFRESH_TOKEN=${refreshToken}`);
+        // Reemplaza la línea activa o la comentada ("# GOOGLE_REFRESH_TOKEN=...")
+        if (/^#?\s*GOOGLE_REFRESH_TOKEN=.*$/m.test(envContent)) {
+          envContent = envContent.replace(/^#?\s*GOOGLE_REFRESH_TOKEN=.*$/m, `GOOGLE_REFRESH_TOKEN="${refreshToken}"`);
         } else {
-          envContent += `\nGOOGLE_REFRESH_TOKEN=${refreshToken}`;
+          envContent += `\nGOOGLE_REFRESH_TOKEN="${refreshToken}"\n`;
         }
         fs.writeFileSync(envPath, envContent, "utf8");
-        envWriteStatus = "¡Guardado automáticamente en tu archivo <code>.env</code>!";
+        envWriteStatus = `¡Guardado automáticamente en <code>${path.basename(envPath)}</code>!`;
         envWriteSuccess = true;
       }
       process.env.GOOGLE_REFRESH_TOKEN = refreshToken;

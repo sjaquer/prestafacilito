@@ -1,6 +1,7 @@
 import express from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { supabase } from "../src/lib/supabase.js";
+import { todas } from "../services/consultas.js";
 import { buildPaymentSchedule, toNumber, round2 } from "../src/lib/loanLogic.js";
 
 const router = express.Router();
@@ -9,11 +10,11 @@ const router = express.Router();
 router.get("/resumen", requireAuth, async (_req: express.Request, res: express.Response) => {
   try {
     const [prestamosRes, amortRes, alquileresRes, pagosAlqRes, clientesRes] = await Promise.all([
-      supabase.from("prestamos").select("*"),
-      supabase.from("amortizaciones").select("*"),
-      supabase.from("alquileres").select("*"),
-      supabase.from("pagos_alquiler").select("*"),
-      supabase.from("resumen_financiero_clientes").select("*")
+      todas(() => supabase.from("prestamos").select("*")),
+      todas(() => supabase.from("amortizaciones").select("*")),
+      todas(() => supabase.from("alquileres").select("*")),
+      todas(() => supabase.from("pagos_alquiler").select("*")),
+      todas(() => supabase.from("resumen_financiero_clientes").select("*"))
     ]);
 
     if (prestamosRes.error) throw prestamosRes.error;

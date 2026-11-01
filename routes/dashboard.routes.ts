@@ -1,6 +1,7 @@
 import express from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { supabase } from "../src/lib/supabase.js";
+import { todas } from "../services/consultas.js";
 import { buildPaymentSchedule, toNumber, round2 } from "../src/lib/loanLogic.js";
 import { proximoCobroAlquiler, proximoCobroPrestamo } from "../src/lib/proximoCobro.js";
 import { buildAlquilerSchedule } from "../src/lib/alquilerLogic.js";
@@ -22,13 +23,13 @@ router.get("/home", requireAuth, async (_req: express.Request, res: express.Resp
     const referencia = new Date(`${hoy}T12:00:00`);
 
     const [pRes, aRes, cRes, ajRes, alqRes, pagosAlqRes] = await Promise.all([
-      supabase.from("prestamos").select("*").in("estado", ["activo", "estancado"]),
-      supabase.from("amortizaciones").select("*"),
+      todas(() => supabase.from("prestamos").select("*").in("estado", ["activo", "estancado"])),
+      todas(() => supabase.from("amortizaciones").select("*")),
       // La vista trae el score calculado (la tabla clientes no tiene columna de score)
-      supabase.from("resumen_financiero_clientes").select("*"),
-      supabase.from("ajustes_prestamo").select("*").eq("activo", true),
-      supabase.from("alquileres").select("*").eq("estado", "activo"),
-      supabase.from("pagos_alquiler").select("*"),
+      todas(() => supabase.from("resumen_financiero_clientes").select("*")),
+      todas(() => supabase.from("ajustes_prestamo").select("*").eq("activo", true)),
+      todas(() => supabase.from("alquileres").select("*").eq("estado", "activo")),
+      todas(() => supabase.from("pagos_alquiler").select("*")),
     ]);
     for (const r of [pRes, aRes, cRes, ajRes, alqRes, pagosAlqRes]) if (r.error) throw r.error;
 
@@ -122,10 +123,10 @@ router.get("/home", requireAuth, async (_req: express.Request, res: express.Resp
 router.get("/", requireAuth, async (req: express.Request, res: express.Response) => {
   try {
     const [pRes, aRes, cRes, ajRes] = await Promise.all([
-      supabase.from("prestamos").select("*"),
-      supabase.from("amortizaciones").select("*"),
-      supabase.from("clientes").select("*"),
-      supabase.from("ajustes_prestamo").select("*").eq("activo", true)
+      todas(() => supabase.from("prestamos").select("*")),
+      todas(() => supabase.from("amortizaciones").select("*")),
+      todas(() => supabase.from("clientes").select("*")),
+      todas(() => supabase.from("ajustes_prestamo").select("*").eq("activo", true))
     ]);
 
     if (pRes.error) throw pRes.error;
@@ -177,11 +178,11 @@ router.get("/", requireAuth, async (req: express.Request, res: express.Response)
 router.get("/llegada-cuentas", requireAuth, async (req: express.Request, res: express.Response) => {
   try {
     const [aRes, paRes, pRes, alqRes, cRes] = await Promise.all([
-      supabase.from("amortizaciones").select("*").order("fecha_pago", { ascending: false }),
-      supabase.from("pagos_alquiler").select("*").order("fecha_pago", { ascending: false }),
-      supabase.from("prestamos").select("id, cliente_id, tipo_prestamo"),
-      supabase.from("alquileres").select("id, cliente_id, descripcion_inmueble"),
-      supabase.from("clientes").select("id, nombre_completo, apodo")
+      todas(() => supabase.from("amortizaciones").select("*").order("fecha_pago", { ascending: false })),
+      todas(() => supabase.from("pagos_alquiler").select("*").order("fecha_pago", { ascending: false })),
+      todas(() => supabase.from("prestamos").select("id, cliente_id, tipo_prestamo")),
+      todas(() => supabase.from("alquileres").select("id, cliente_id, descripcion_inmueble")),
+      todas(() => supabase.from("clientes").select("id, nombre_completo, apodo"))
     ]);
 
     if (aRes.error) throw aRes.error;

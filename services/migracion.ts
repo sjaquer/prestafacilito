@@ -117,5 +117,6 @@ export async function aplicarMigracion(p: {
 
 /** El original en Drive cuenta como copia de seguridad: el respaldo semanal no lo vuelve a subir. */
 async function registrarRespaldo(ruta: string, driveId: string) {
-  await supabase.from("respaldos_archivos").upsert({ ruta, drive_file_id: driveId, nota: "Original en Drive (migrado)" });
+  // en_storage: la copia comprimida ya está en Storage; Drive conserva el original en calidad completa
+  await supabase.from("respaldos_archivos").upsert({ ruta, drive_file_id: driveId, en_storage: true, nota: "Original en Drive (migrado)" });
 }

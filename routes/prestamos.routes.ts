@@ -1,6 +1,7 @@
 import express from "express";
 import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { supabase } from "../src/lib/supabase.js";
+import { todas } from "../services/consultas.js";
 import { buildPaymentSchedule, classifyPayment, toNumber, round2 } from "../src/lib/loanLogic.js";
 import { programarSync } from "../services/google-calendar.js";
 
@@ -51,9 +52,9 @@ prestamosRouter.post("/", requireAuth, async (req: AuthRequest, res: express.Res
 prestamosRouter.get("/", requireAuth, async (req: express.Request, res: express.Response) => {
   try {
     const [pRes, cRes, ajRes] = await Promise.all([
-      supabase.from("prestamos").select("*"),
-      supabase.from("clientes").select("*"),
-      supabase.from("ajustes_prestamo").select("*").eq("activo", true)
+      todas(() => supabase.from("prestamos").select("*")),
+      todas(() => supabase.from("clientes").select("*")),
+      todas(() => supabase.from("ajustes_prestamo").select("*").eq("activo", true))
     ]);
 
     if (pRes.error) throw pRes.error;
@@ -497,9 +498,9 @@ prestamosRouter.patch("/:id/ajustes/:ajusteId", requireAuth, async (req: AuthReq
 amortizacionesRouter.get("/", requireAuth, async (req: express.Request, res: express.Response) => {
   try {
     const [aRes, pRes, cRes] = await Promise.all([
-      supabase.from("amortizaciones").select("*").order("fecha_pago", { ascending: false }),
-      supabase.from("prestamos").select("*"),
-      supabase.from("clientes").select("*")
+      todas(() => supabase.from("amortizaciones").select("*").order("fecha_pago", { ascending: false })),
+      todas(() => supabase.from("prestamos").select("*")),
+      todas(() => supabase.from("clientes").select("*"))
     ]);
     if (aRes.error) throw aRes.error;
     if (pRes.error) throw pRes.error;

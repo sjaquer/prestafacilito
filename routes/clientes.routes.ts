@@ -1,9 +1,11 @@
 import express from "express";
 import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { supabase } from "../src/lib/supabase.js";
+import { todas } from "../services/consultas.js";
 import { estandarizarTelefono } from "../helpers/telefono.js";
 import { rutaDocumentoCliente } from "../src/lib/archivos.js";
-import { ArchivoInvalidoError, decodificarArchivo, eliminarArchivo, subirArchivo } from "../services/storage.js";
+import { ArchivoInvalidoError, decodificarArchivo, eliminarArchivo } from "../services/storage.js";
+import { guardarArchivo, quitarDeStorage } from "../services/almacen.js";
 
 import { calcularScoreCliente } from "../src/lib/scoreLogic.js";
 
@@ -12,10 +14,9 @@ const router = express.Router();
 // Listar todos los clientes
 router.get("/", requireAuth, async (req: express.Request, res: express.Response) => {
   try {
-    const { data, error } = await supabase
-      .from("resumen_financiero_clientes")
-      .select("*")
-      .order("nombre_completo", { ascending: true });
+    const { data, error } = await todas(() =>
+      supabase.from("resumen_financiero_clientes").select("*").order("nombre_completo", { ascending: true })
+    );
 
     if (error) throw error;
     res.json(data || []);
@@ -153,7 +154,7 @@ router.post("/:id/documentos", requireAuth, async (req: AuthRequest, res: expres
 
     const ruta = rutaDocumentoCliente(clienteId, fileName, tipo);
     try {
-      await subirArchivo(ruta, buffer, tipo);
+      await guardarArchivo({ ruta, buffer, mimeType: tipo, destino: { tipo: "cliente", clienteId } });
     } catch (uploadErr: any) {
       res.status(502).json({ error: 'No se pudo guardar el documento.', detail: uploadErr.message });
       return;
@@ -185,7 +186,7 @@ router.post("/:id/documentos", requireAuth, async (req: AuthRequest, res: expres
   }
 });
 
-// Eliminar documento de cliente (la copia en Drive, si existe, se conserva como respaldo)
+// Eliminar documento de cliente: sale de Storage; la copia en Drive se conserva como respaldo
 router.delete("/:id/documentos/:docId", requireAuth, async (req: AuthRequest, res: express.Response) => {
   try {
     const { id: clienteId, docId } = req.params;
@@ -199,7 +200,7 @@ router.delete("/:id/documentos/:docId", requireAuth, async (req: AuthRequest, re
 
     if (error) throw error;
     if (doc?.storage_path) {
-      await eliminarArchivo(doc.storage_path).catch((err) =>
+      await quitarDeStorage(doc.storage_path).catch((err) =>
         console.warn('Documento eliminado de la BD, pero no de Storage:', err.message)
       );
     }
@@ -217,7 +218,7 @@ router.get("/:id/score", requireAuth, async (req: express.Request, res: express.
 
     const [prestamosRes, amortRes, scoreRes] = await Promise.all([
       supabase.from("prestamos").select("*").eq("cliente_id", clienteId),
-      supabase.from("amortizaciones").select("*"),
+      todas(() => supabase.from("amortizaciones").select("*")),
       supabase.from("score_clientes").select("*").eq("cliente_id", clienteId).maybeSingle()
     ]);
 

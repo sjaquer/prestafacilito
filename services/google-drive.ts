@@ -30,13 +30,18 @@ export function isDriveConfigured(): boolean {
   return !!getGoogleClientId() && !!getGoogleClientSecret() && !!getGoogleRefreshToken();
 }
 
+/** Token de acceso en memoria hasta poco antes de vencer (cada uno dura ~1 h): evita pedir uno por llamada. */
+let tokenEnCache: { token: string; vence: number } | null = null;
+
 export async function getGoogleDriveAccessToken() {
+  if (tokenEnCache && tokenEnCache.vence > Date.now()) return tokenEnCache.token;
+
   const clientId = getGoogleClientId();
   const clientSecret = getGoogleClientSecret();
   const refreshToken = getGoogleRefreshToken();
 
   if (!clientId || !clientSecret || !refreshToken) {
-    throw new Error("Faltan credenciales de Google OAuth 2.0. Revisa GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y GOOGLE_REFRESH_TOKEN en el archivo .env o en Vercel.");
+    throw new Error("Faltan credenciales de Google OAuth 2.0. Revisa GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y GOOGLE_REFRESH_TOKEN en .env.local o en Vercel.");
   }
 
   try {
@@ -48,8 +53,11 @@ export async function getGoogleDriveAccessToken() {
       throw new Error("No se pudo obtener un access token de Google. Revisa si tu GOOGLE_REFRESH_TOKEN es válido.");
     }
 
+    const expira = oauth2Client.credentials.expiry_date || Date.now() + 50 * 60_000;
+    tokenEnCache = { token: response.token, vence: expira - 5 * 60_000 };
     return response.token;
   } catch (err: any) {
+    tokenEnCache = null;
     if (err.message && err.message.includes("invalid_grant")) {
       throw new Error("El token de Google expiró o fue revocado (invalid_grant). Pulsa 'Reconectar' en el menú de Sistema para volver a vincular la cuenta de Google.");
     }

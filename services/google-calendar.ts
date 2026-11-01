@@ -12,6 +12,7 @@
  *  - registros de pagos recibidos (eso vive en la sección Cuentas).
  */
 import { supabase } from "../src/lib/supabase.js";
+import { todas } from "./consultas.js";
 import { CUOTAS_ESTANCADO, EventoDeseado, eventoAlquiler, eventoPrestamo, hoyLima, sumarDias } from "./calendario-eventos.js";
 import {
   getGoogleDriveAccessToken,
@@ -84,16 +85,17 @@ async function eventosDeseados(ref?: string): Promise<EventoDeseado[]> {
   const resultado: EventoDeseado[] = [];
 
   if (!tipo || tipo === "prestamo") {
-    let q = supabase.from("prestamos").select("*").in("estado", ["activo", "estancado"]);
-    if (id) q = q.eq("id", id);
-    const { data: prestamos, error } = await q;
+    const { data: prestamos, error } = await todas(() => {
+      const q = supabase.from("prestamos").select("*").in("estado", ["activo", "estancado"]);
+      return id ? q.eq("id", id) : q;
+    });
     if (error) throw error;
     if (prestamos?.length) {
       const ids = prestamos.map((p) => p.id);
       const [aRes, ajRes, cRes] = await Promise.all([
-        supabase.from("amortizaciones").select("*").in("prestamo_id", ids),
-        supabase.from("ajustes_prestamo").select("*").in("prestamo_id", ids),
-        supabase.from("clientes").select("id, nombre_completo, telefono").in("id", [...new Set(prestamos.map((p) => p.cliente_id))]),
+        todas(() => supabase.from("amortizaciones").select("*").in("prestamo_id", ids)),
+        todas(() => supabase.from("ajustes_prestamo").select("*").in("prestamo_id", ids)),
+        todas(() => supabase.from("clientes").select("id, nombre_completo, telefono").in("id", [...new Set(prestamos.map((p) => p.cliente_id))])),
       ]);
       for (const p of prestamos) {
         const ev = eventoPrestamo(
@@ -109,15 +111,16 @@ async function eventosDeseados(ref?: string): Promise<EventoDeseado[]> {
   }
 
   if (!tipo || tipo === "alquiler") {
-    let q = supabase.from("alquileres").select("*").eq("estado", "activo");
-    if (id) q = q.eq("id", id);
-    const { data: alquileres, error } = await q;
+    const { data: alquileres, error } = await todas(() => {
+      const q = supabase.from("alquileres").select("*").eq("estado", "activo");
+      return id ? q.eq("id", id) : q;
+    });
     if (error) throw error;
     if (alquileres?.length) {
       const ids = alquileres.map((a) => a.id);
       const [pRes, cRes] = await Promise.all([
-        supabase.from("pagos_alquiler").select("*").in("alquiler_id", ids),
-        supabase.from("clientes").select("id, nombre_completo, telefono").in("id", [...new Set(alquileres.map((a) => a.cliente_id))]),
+        todas(() => supabase.from("pagos_alquiler").select("*").in("alquiler_id", ids)),
+        todas(() => supabase.from("clientes").select("id, nombre_completo, telefono").in("id", [...new Set(alquileres.map((a) => a.cliente_id))])),
       ]);
       for (const a of alquileres) {
         const ev = eventoAlquiler(a, cRes.data?.find((c) => c.id === a.cliente_id), (pRes.data || []).filter((p) => p.alquiler_id === a.id), hoy);

@@ -26,14 +26,17 @@ COMMENT ON COLUMN public.documentos_cliente.storage_path IS 'Ruta del archivo en
 ALTER TABLE public.configuracion_sistema ADD COLUMN IF NOT EXISTS respaldo_iniciado_en TIMESTAMPTZ;
 COMMENT ON COLUMN public.configuracion_sistema.ultima_fecha_backup IS 'Último respaldo COMPLETO en Google Drive (Excel + archivos).';
 
--- 4. Qué archivos de Storage ya tienen copia en Drive (para subir solo lo nuevo cada semana).
+-- 4. Dónde está cada archivo: copia en Drive (fuente de confianza) y si está en Storage (carga rápida).
 CREATE TABLE IF NOT EXISTS public.respaldos_archivos (
   ruta TEXT PRIMARY KEY,
   drive_file_id TEXT,
+  en_storage BOOLEAN NOT NULL DEFAULT true,
   nota TEXT DEFAULT '',
   respaldado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-COMMENT ON TABLE public.respaldos_archivos IS 'Archivos de Storage copiados a Google Drive. drive_file_id NULL = no se pudo copiar (ver nota).';
+ALTER TABLE public.respaldos_archivos ADD COLUMN IF NOT EXISTS en_storage BOOLEAN NOT NULL DEFAULT true;
+COMMENT ON TABLE public.respaldos_archivos IS 'Ubicación de cada archivo. drive_file_id: copia en Drive (NULL = aún sin copia). en_storage = false: solo en Drive (se restaura a Storage automáticamente).';
+CREATE INDEX IF NOT EXISTS respaldos_archivos_solo_drive_idx ON public.respaldos_archivos (ruta) WHERE en_storage = false;
 
 -- 5. Misma protección que el resto de tablas (por si 20261015_enable_rls.sql ya se ejecutó antes).
 ALTER TABLE public.respaldos_archivos ENABLE ROW LEVEL SECURITY;
