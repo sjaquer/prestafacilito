@@ -68,7 +68,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           <span className="mx-auto w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-600/20">
             <Coins className="text-white" size={26} />
           </span>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">PrestaFácil</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">PrestaFacilito</h1>
           <p className="text-sm text-slate-500 font-semibold">¿Quién ingresa?</p>
         </div>
 

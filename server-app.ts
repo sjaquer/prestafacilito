@@ -33,9 +33,14 @@ app.use((req, res, next) => {
   res.setHeader("X-Frame-Options", process.env.NODE_ENV === "production" ? "DENY" : "SAMEORIGIN");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "no-referrer");
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  res.setHeader("Pragma", "no-cache");
-  res.setHeader("Expires", "0");
+  // Datos de la API (montos, deudas, cálculos): nunca en caché, siempre recién calculados.
+  // Las rutas de archivos (/api/archivos/...) lo reemplazan por una caché larga: su contenido no cambia.
+  // El resto (código, íconos) lo decide quien sirve los archivos estáticos (Vite, server.ts o Vercel).
+  if (req.path.startsWith("/api/")) {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+  }
   res.setHeader(
     "Content-Security-Policy",
     "default-src 'self'; " +

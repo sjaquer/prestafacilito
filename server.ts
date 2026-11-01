@@ -24,8 +24,19 @@ async function startServer() {
   } else {
     console.log("📦 Starting production server serving static files...");
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
+    // Código con hash en el nombre (assets/index-abc123.js): se guarda un año, nunca cambia.
+    // index.html: siempre se revalida, para tomar la versión nueva tras cada despliegue.
+    app.use(
+      express.static(distPath, {
+        index: false,
+        setHeaders: (res, filePath) => {
+          const esAsset = filePath.includes(`${path.sep}assets${path.sep}`);
+          res.setHeader("Cache-Control", esAsset ? "public, max-age=31536000, immutable" : "public, max-age=86400");
+        },
+      })
+    );
+    app.get("*", (_req, res) => {
+      res.setHeader("Cache-Control", "no-cache");
       res.sendFile(path.join(distPath, "index.html"));
     });
   }

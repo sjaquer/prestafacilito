@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { FileText, FolderOpen, Loader2, Trash2, Upload } from "lucide-react";
 import { Card } from "../ui/Card";
 import { useFeedback } from "../ui/Feedback";
-import { comprimirImagen } from "../../lib/imageCompression";
+import { comprimirImagen, partesDataUrl } from "../../lib/imageCompression";
 import { resolveDocumentUrl } from "../../lib/formatters";
 import { DocumentoCliente } from "../../types";
 
@@ -46,9 +46,8 @@ export const ClienteDocumentos: React.FC<ClienteDocumentosProps> = ({ clienteId,
 
     setIsUploading(true);
     try {
-      const dataUrl = await comprimirImagen(file, 1024, 0.7);
-      // Las imágenes se re-codifican como JPEG al comprimirse; el mimeType debe coincidir con el contenido
-      const mimeType = dataUrl.match(/^data:([^;]+);/)?.[1] || file.type || "application/octet-stream";
+      // El tipo real (WebP/JPEG tras comprimir, o el original si es PDF) va en el data URL
+      const { mimeType, base64Data } = partesDataUrl(await comprimirImagen(file, "documento"));
 
       const res = await fetch(`/api/clientes/${clienteId}/documentos`, {
         method: "POST",
@@ -57,7 +56,7 @@ export const ClienteDocumentos: React.FC<ClienteDocumentosProps> = ({ clienteId,
           tipo_documento: tipoDoc,
           fileName: file.name,
           mimeType,
-          base64Data: dataUrl.replace(/^data:[^;]+;base64,/, ""),
+          base64Data,
         }),
       });
 

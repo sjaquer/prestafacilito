@@ -27,7 +27,7 @@ const Miniatura: React.FC<{ urls: string[]; onPreview: (url: string) => void }> 
       {noEsImagen ? (
         <FileText className="w-6 h-6 text-indigo-400" />
       ) : (
-        <img src={url} alt="" loading="lazy" className="h-full w-full object-cover" onError={() => setNoEsImagen(true)} />
+        <img src={url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" onError={() => setNoEsImagen(true)} />
       )}
       {urls.length > 1 && (
         <span className="absolute bottom-1 right-1 px-1.5 rounded-md bg-slate-900/75 text-white text-[10px] font-black">+{urls.length - 1}</span>

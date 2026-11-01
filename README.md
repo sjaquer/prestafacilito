@@ -18,6 +18,7 @@ pagos con comprobantes, calendario de cobros y cuentas donde llega el dinero.
 
 - Vercel Cron llama a `/api/backup/cron` todos los días; solo actúa si el último respaldo completo tiene 7 días o más (o quedó a medias).
 - Sube el Excel a la carpeta de respaldos y copia a Drive las fotos que aún no tienen copia (registro en `respaldos_archivos`).
+- Fotos antiguas de Drive: se migran una vez desde **Sistema → Migrar fotos a Storage** (se comprimen en el navegador).
 - Si falla o Google se desconecta, la app muestra el recordatorio (punto rojo en el menú y panel **Sistema**) con el botón **Respaldar ahora en Drive**.
 - Carpetas en Drive: `GOOGLE_DRIVE_FOLDER_ID` (comprobantes, por mes), `GOOGLE_DRIVE_CLIENTES_FOLDER_ID` (una carpeta por cliente) y `GOOGLE_DRIVE_RESPALDOS_FOLDER_ID` (Excel). Si falta alguna, se crea una con nombre fijo en la raíz de Drive.
 
@@ -44,7 +45,12 @@ el `GOOGLE_REFRESH_TOKEN` y guardarlo en las variables de entorno.
 | `npm test` | Pruebas unitarias (`src/lib/__tests__`) |
 | `npm run test:audit` | Auditoría de consistencia de la base de datos (solo lectura) |
 | `npm run build` / `npm start` | Producción fuera de Vercel |
-| `npx tsx scripts/migrar-drive-a-storage.ts [--ejecutar]` | Migración única de fotos antiguas de Drive a Storage |
+
+## Caché
+
+- Código (`/assets/*`, con hash en el nombre): un año, inmutable. `index.html`: siempre se revalida (toma cada despliegue).
+- Fotos (`/api/archivos/*`): un año en el navegador del usuario (`private`): cada archivo nuevo tiene ruta nueva.
+- **Datos de la API: nunca en caché** (`no-store`). Montos, deudas y cálculos se recalculan en cada consulta.
 
 ## Seguridad
 

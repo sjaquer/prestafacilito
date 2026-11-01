@@ -17,7 +17,7 @@ router.get("/drive/status", requireAuth, (_req: express.Request, res: express.Re
 
 /**
  * Proxies de archivos antiguos guardados en Drive (antes de Supabase Storage).
- * Siguen activos hasta ejecutar scripts/migrar-drive-a-storage.ts; después se pueden eliminar.
+ * Los usa la migración (Sistema → Migrar fotos a Storage) y muestran lo que aún no se migró; después se pueden eliminar.
  */
 const proxyDrive = async (req: express.Request, res: express.Response) => {
   const fileId = String(req.params.fileId || "").split("?")[0].trim();
@@ -32,7 +32,7 @@ const proxyDrive = async (req: express.Request, res: express.Response) => {
       return;
     }
     res.setHeader("Content-Type", archivo.contentType);
-    res.setHeader("Cache-Control", "private, max-age=86400");
+    res.setHeader("Cache-Control", "private, max-age=2592000, immutable"); // 30 días: el archivo de Drive no cambia
     res.removeHeader("Pragma");
     res.removeHeader("Expires");
     res.send(archivo.buffer);

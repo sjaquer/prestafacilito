@@ -3,6 +3,7 @@ import { CalendarDays, CheckCircle2, Cloud, CloudOff, CloudUpload, Download, Fil
 import { FontSizeControl } from "../components/common/FontSizeControl";
 import { useFeedback } from "../components/ui/Feedback";
 import { useEstadoSistema } from "./useEstadoSistema";
+import { MigracionFotos } from "./MigracionFotos";
 
 type Props = ReturnType<typeof useEstadoSistema>;
 
@@ -102,6 +103,9 @@ export const SistemaPanel: React.FC<Props> = ({ driveOk, backup, backupError, de
           {sincronizando ? "Sincronizando" : "Sincronizar ahora"}
         </button>
       </div>
+
+      {/* Migración única de fotos de Drive (desaparece al terminar) */}
+      <MigracionFotos />
 
       {/* Respaldo semanal */}
       <div className={`p-3 rounded-2xl border space-y-2.5 ${atencion ? "bg-rose-50 border-rose-200" : "bg-slate-50 border-slate-100"}`}>

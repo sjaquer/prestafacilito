@@ -156,7 +156,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
             <span className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-sm">
               <Coins className="text-white" size={16} />
             </span>
-            <span className="font-black text-slate-900 text-base sm:text-sm tracking-tight">PrestaFácil</span>
+            <span className="font-black text-slate-900 text-base sm:text-sm tracking-tight">PrestaFacilito</span>
           </Link>
 
           {/* Navegación de escritorio */}
