@@ -1,7 +1,8 @@
 /**
  * Utilidades de formateo para toda la aplicación PrestaFacilito
  */
-import { ARCHIVOS_PREFIX, driveIdDeUrl, esUrlDeProxyDrive, urlDeRuta } from "./archivos";
+// Con extensión .js: este archivo también lo carga el servidor, y Node (Vercel) no resuelve imports sin extensión
+import { ARCHIVOS_PREFIX, driveIdDeUrl, esUrlDeProxyDrive, urlDeRuta } from "./archivos.js";
 
 /**
  * Formatea un valor numérico a moneda en Soles Peruanos (S/.)

@@ -2,16 +2,10 @@
 -- Activar Row Level Security (RLS) en todo el esquema público
 -- ============================================================================
 --
--- ⚠️  PENDIENTE: ejecutar SOLO cuando producción (Vercel) use la clave service_role.
+-- ✅ APLICADA el 2026-11-01 vía MCP. Verificado: las 10 tablas con RLS forzado, la vista con
+--    security_invoker, anon sin acceso a tablas ni a Storage, y la app (service_role) funcionando.
 --
--- Al 2026-11-01: local ya usa service_role; los logs de Supabase muestran que Vercel
--- todavía usa la clave anon. Activar esto antes deja a la app de producción sin datos.
---
--- Orden:
---   1. Vercel → variables importadas desde .env.local (SUPABASE_KEY = service_role) y redespliegue.
---   2. Confirmar en los logs de Supabase que las peticiones desde Vercel llegan con rol service_role.
---   3. Ejecutar este script (Claude lo hace vía MCP) y verificar que la app sigue funcionando.
---   4. Rotar la clave anon (Settings → API): estuvo en uso con acceso total.
+-- Pendiente manual: rotar la clave anon (Settings → API), porque estuvo en uso con acceso total.
 --
 -- Efecto: nadie puede leer ni escribir datos con la clave anon/authenticated
 -- (por ejemplo, alguien que obtenga la URL del proyecto y la clave pública).
