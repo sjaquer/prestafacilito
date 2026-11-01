@@ -29,7 +29,8 @@ const app = express();
 // Middlewares de seguridad
 app.use((req, res, next) => {
   res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet, noodp, noydir");
-  res.setHeader("X-Frame-Options", "DENY");
+  // En desarrollo se permite embeber la app en sí misma (vista previa de celular en un iframe)
+  res.setHeader("X-Frame-Options", process.env.NODE_ENV === "production" ? "DENY" : "SAMEORIGIN");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "no-referrer");
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");

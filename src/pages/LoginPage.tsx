@@ -1,295 +1,197 @@
-import React, { useState, useEffect } from "react";
-import { Lock, User, AlertCircle, ChevronRight, UserCheck, Delete } from "lucide-react";
+import React, { useState } from "react";
+import { AlertCircle, ArrowRight, Coins, Delete, Loader2, Lock, User } from "lucide-react";
 import { motion } from "motion/react";
-import { Button } from "../components/ui/Button";
 
 interface LoginPageProps {
   onLoginSuccess: (username: string) => void;
 }
 
+const OPERADORES = [
+  { usuario: "sjaquer", nombre: "Sebastián", iniciales: "SJ" },
+  { usuario: "rjaque", nombre: "Roberto", iniciales: "RJ" },
+];
+
+const TECLAS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+
+/** Ingreso con PIN: elegir operador, teclear el PIN (teclado en pantalla o físico) y entrar. */
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
-  const [operator, setOperator] = useState<"sjaquer" | "rjaque" | "custom">("sjaquer");
-  const [username, setUsername] = useState("sjaquer");
-  const [password, setPassword] = useState("");
+  const [usuario, setUsuario] = useState(OPERADORES[0].usuario);
+  const [otroUsuario, setOtroUsuario] = useState(false);
+  const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (operator !== "custom") {
-      setUsername(operator);
-    } else {
-      setUsername("");
-    }
-  }, [operator]);
-
   const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!username || !password) return;
-
+    e?.preventDefault();
+    if (!usuario || !pin || loading) return;
     setError("");
     setLoading(true);
-
     try {
-      const response = await fetch("/api/auth/login", {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username: usuario, password: pin }),
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        onLoginSuccess(data.username);
-      } else {
-        const errData = await response.json();
-        setError(errData.message || "Credenciales incorrectas");
-        setPassword("");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.message || data.error || "PIN incorrecto");
+        setPin("");
+        return;
       }
-    } catch (err) {
-      setError("Error al conectar con el servidor.");
+      onLoginSuccess(data.username);
+    } catch {
+      setError("No se pudo conectar con el servidor.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKeypadPress = (val: string) => {
-    setPassword((prev) => prev + val);
+  const elegir = (u: string) => {
+    setOtroUsuario(false);
+    setUsuario(u);
+    setError("");
   };
 
-  const handleKeypadDelete = () => {
-    setPassword((prev) => prev.slice(0, -1));
-  };
-
-  const handleKeypadClear = () => {
-    setPassword("");
-  };
+  const teclaCls =
+    "h-14 sm:h-12 rounded-2xl bg-white border border-slate-200 text-xl sm:text-lg font-mono font-black text-slate-800 active:bg-slate-100 active:scale-95 transition flex items-center justify-center disabled:opacity-50";
 
   return (
-    <div id="login-container" className="min-h-screen relative flex items-center justify-center p-4 sm:p-6 overflow-hidden font-sans select-none bg-slate-50">
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-50 via-slate-100 to-slate-200 z-0" />
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl z-0" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl z-0" />
-      
+    <div className="min-h-[100dvh] bg-slate-50 flex flex-col items-center justify-center px-4 py-8 pt-safe pb-safe-5">
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className="w-full max-w-md relative z-10"
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="w-full max-w-sm space-y-6"
       >
-        <div id="login-card" className="bento-card rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-250 bg-white/95">
-          <div id="logo-header" className="text-center mb-6">
-            <motion.div 
-              initial={{ scale: 0.8, rotate: -10 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-              className="mx-auto w-14 h-14 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center mb-3 shadow-sm overflow-hidden shrink-0"
-            >
-              <img src="/brand_logo_icon.png" alt="Logo" className="w-full h-full object-cover" />
-            </motion.div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Gestión de Cartera
-            </h1>
-            <p className="text-slate-500 text-[10px] sm:text-xs mt-1.5 font-bold uppercase tracking-wider">
-              Sistema Cerrado · Control Operacional 🇵🇪
-            </p>
+        {/* Marca */}
+        <div className="text-center space-y-2">
+          <span className="mx-auto w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-600/20">
+            <Coins className="text-white" size={26} />
+          </span>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">PrestaFácil</h1>
+          <p className="text-sm text-slate-500 font-semibold">¿Quién ingresa?</p>
+        </div>
+
+        {/* Operador */}
+        {!otroUsuario ? (
+          <div className="grid grid-cols-2 gap-2.5" role="radiogroup" aria-label="Operador">
+            {OPERADORES.map((op) => {
+              const activo = usuario === op.usuario;
+              return (
+                <button
+                  key={op.usuario}
+                  type="button"
+                  role="radio"
+                  aria-checked={activo}
+                  onClick={() => elegir(op.usuario)}
+                  className={`h-16 px-3 rounded-2xl border-2 flex items-center gap-3 text-left transition ${
+                    activo ? "bg-emerald-50 border-emerald-500" : "bg-white border-slate-200"
+                  }`}
+                >
+                  <span
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
+                      activo ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {op.iniciales}
+                  </span>
+                  <span className={`text-sm font-black ${activo ? "text-emerald-900" : "text-slate-600"}`}>{op.nombre}</span>
+                </button>
+              );
+            })}
           </div>
+        ) : (
+          <label className="block">
+            <span className="sr-only">Usuario</span>
+            <span className="relative block">
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                value={usuario}
+                onChange={(e) => setUsuario(e.target.value.trim())}
+                placeholder="Usuario"
+                autoComplete="username"
+                autoCapitalize="none"
+                className="w-full h-14 pl-11 pr-4 bg-white border border-slate-200 rounded-2xl text-base font-semibold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15"
+              />
+            </span>
+          </label>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* PIN: se puede escribir con el teclado del equipo o con el de abajo */}
+          <label className="block">
+            <span className="sr-only">PIN</span>
+            <span className="relative block">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="password"
+                inputMode="numeric"
+                autoComplete="current-password"
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                placeholder="PIN"
+                className="w-full h-14 pl-11 pr-4 bg-white border border-slate-200 rounded-2xl text-center text-2xl font-mono font-black tracking-[0.4em] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15 placeholder:text-base placeholder:tracking-normal placeholder:font-sans placeholder:font-semibold"
+              />
+            </span>
+          </label>
 
           {error && (
-            <div
-              id="login-error"
-              className="flex items-start gap-2.5 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-xs mb-4"
-            >
-              <AlertCircle size={16} className="shrink-0 text-rose-600 mt-0.5" />
-              <span>{error}</span>
-            </div>
+            <p role="alert" className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-sm font-semibold">
+              <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+            </p>
           )}
 
-          {/* Selector de Operador */}
-          <div className="space-y-3 mb-5">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block text-center select-none">
-              Seleccionar Operador
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setOperator("sjaquer")}
-                className={`p-3 rounded-2xl border text-left transition-all duration-200 cursor-pointer relative overflow-hidden flex flex-col justify-between h-20 ${
-                  operator === "sjaquer"
-                    ? "bg-emerald-50 border-emerald-300 shadow-sm text-emerald-950"
-                    : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
-                }`}
-              >
-                <div className="flex justify-between items-start w-full">
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black ${
-                    operator === "sjaquer" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
-                  }`}>
-                    SJ
-                  </div>
-                  {operator === "sjaquer" && <UserCheck size={14} className="text-emerald-600" />}
-                </div>
-                <div className="mt-2">
-                  <span className="text-xs font-black block leading-none">Sebastián</span>
-                  <span className="text-[8px] font-bold text-slate-500 block mt-1">sjaquer</span>
-                </div>
+          <div className="grid grid-cols-3 gap-2">
+            {TECLAS.map((n) => (
+              <button key={n} type="button" onClick={() => setPin((p) => p + n)} disabled={loading} className={teclaCls}>
+                {n}
               </button>
-
-              <button
-                type="button"
-                onClick={() => setOperator("rjaque")}
-                className={`p-3 rounded-2xl border text-left transition-all duration-200 cursor-pointer relative overflow-hidden flex flex-col justify-between h-20 ${
-                  operator === "rjaque"
-                    ? "bg-indigo-50 border-indigo-300 shadow-sm text-indigo-950"
-                    : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
-                }`}
-              >
-                <div className="flex justify-between items-start w-full">
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black ${
-                    operator === "rjaque" ? "bg-indigo-100 text-indigo-800" : "bg-slate-100 text-slate-500"
-                  }`}>
-                    RJ
-                  </div>
-                  {operator === "rjaque" && <UserCheck size={14} className="text-indigo-600" />}
-                </div>
-                <div className="mt-2">
-                  <span className="text-xs font-black block leading-none">Roberto</span>
-                  <span className="text-[8px] font-bold text-slate-500 block mt-1">rjaque</span>
-                </div>
-              </button>
-            </div>
-
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => setOperator(operator === "custom" ? "sjaquer" : "custom")}
-                className="text-[9px] font-black text-slate-500 hover:text-slate-800 uppercase tracking-wider transition-colors cursor-pointer border-none bg-transparent"
-              >
-                {operator === "custom" ? "Volver a operadores" : "Otro usuario de acceso"}
-              </button>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit} id="login-form" className="space-y-4">
-            {operator === "custom" && (
-              <div id="username-field" className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-1">
-                  Nombre de Usuario
-                </label>
-                <div className="relative group">
-                  <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 group-focus-within:text-emerald-600 transition-colors">
-                    <User size={16} />
-                  </span>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Ingresa usuario"
-                    className="w-full glass-input pl-10 pr-4 py-3 rounded-xl text-xs font-medium"
-                    required
-                    autoComplete="off"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Input de PIN de Acceso por Teclado Físico o Teclado en Pantalla */}
-            <div id="password-field" className="space-y-2">
-              <div className="flex justify-between items-center px-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
-                  Contraseña / PIN de Acceso
-                </label>
-                {password.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleKeypadClear}
-                    className="text-[8px] font-black text-rose-600 hover:text-rose-700 uppercase tracking-wider border-none bg-transparent cursor-pointer"
-                  >
-                    Borrar Todo
-                  </button>
-                )}
-              </div>
-              
-              <div className="relative group">
-                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 group-focus-within:text-emerald-600 transition-colors">
-                  <Lock size={16} />
-                </span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Escribe tu PIN o contraseña"
-                  className="w-full glass-input pl-10 pr-4 py-3 rounded-xl text-sm font-mono font-bold tracking-[0.2em] text-center bg-slate-50 border-slate-200 outline-none focus:border-emerald-500 focus:bg-white transition-all"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Teclado Virtual Numérico en Pantalla */}
-            <div className="pt-2">
-              <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-2xl border border-slate-200">
-                {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
-                  <button
-                    key={num}
-                    type="button"
-                    onClick={() => handleKeypadPress(num)}
-                    disabled={loading}
-                    className="h-10 rounded-xl bg-white border border-slate-200 text-xs font-mono font-black text-slate-800 hover:bg-slate-100 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
-                  >
-                    {num}
-                  </button>
-                ))}
-                
-                <button
-                  type="button"
-                  onClick={handleKeypadClear}
-                  disabled={loading || password.length === 0}
-                  className="h-10 rounded-xl bg-rose-50 border border-rose-200 text-[9px] font-black text-rose-700 hover:bg-rose-100 active:scale-95 transition-all cursor-pointer flex items-center justify-center uppercase"
-                >
-                  C
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleKeypadPress("0")}
-                  disabled={loading}
-                  className="h-10 rounded-xl bg-white border border-slate-200 text-xs font-mono font-black text-slate-800 hover:bg-slate-100 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
-                >
-                  0
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleKeypadDelete}
-                  disabled={loading || password.length === 0}
-                  className="h-10 rounded-xl bg-slate-100 border border-slate-200 text-xs font-black text-slate-600 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
-                  title="Retroceso"
-                >
-                  <Delete size={14} />
-                </button>
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              variant={password.length > 0 ? "primary" : "secondary"}
-              loading={loading}
-              disabled={password.length === 0}
-              className="w-full py-3 mt-2 font-bold text-xs min-h-[42px] flex items-center justify-center gap-1.5"
+            ))}
+            <button
+              type="button"
+              onClick={() => setPin("")}
+              disabled={loading || !pin}
+              className={`${teclaCls} !text-xs !font-sans uppercase text-slate-500`}
+              aria-label="Borrar todo"
             >
-              {loading ? (
-                <span>Validando Acceso...</span>
-              ) : (
-                <>
-                  <span>Ingresar al Sistema</span>
-                  <ChevronRight size={14} />
-                </>
-              )}
-            </Button>
-          </form>
-
-          <div id="login-footer" className="text-center mt-6 pt-5 border-t border-slate-200 select-none">
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-              Acceso Restringido · Panel Administrativo 🇵🇪
-            </p>
+              Borrar
+            </button>
+            <button type="button" onClick={() => setPin((p) => p + "0")} disabled={loading} className={teclaCls}>
+              0
+            </button>
+            <button
+              type="button"
+              onClick={() => setPin((p) => p.slice(0, -1))}
+              disabled={loading || !pin}
+              className={teclaCls}
+              aria-label="Borrar un dígito"
+            >
+              <Delete className="w-5 h-5" />
+            </button>
           </div>
+
+          <button
+            type="submit"
+            disabled={!pin || !usuario || loading}
+            className="w-full h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-base font-black inline-flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 disabled:opacity-40 disabled:shadow-none transition"
+          >
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRight className="w-5 h-5" />}
+            {loading ? "Validando..." : "Ingresar"}
+          </button>
+        </form>
+
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={() => {
+              setOtroUsuario((v) => !v);
+              setUsuario(otroUsuario ? OPERADORES[0].usuario : "");
+            }}
+            className="h-11 px-4 text-sm font-bold text-slate-500 hover:text-slate-800"
+          >
+            {otroUsuario ? "Elegir operador" : "Otro usuario"}
+          </button>
         </div>
       </motion.div>
     </div>

@@ -26,15 +26,20 @@ const MAX_TANDAS = 15;
 export function useEstadoSistema() {
   const [driveOk, setDriveOk] = useState<boolean | null>(null);
   const [backup, setBackup] = useState<BackupStatus | null>(null);
+  /** El servidor no pudo informar el estado del respaldo (ej. falta la migración de la BD). */
+  const [backupError, setBackupError] = useState(false);
   const [descargando, setDescargando] = useState(false);
   const [respaldando, setRespaldando] = useState(false);
 
   const cargarBackup = useCallback(async () => {
     try {
       const res = await fetch("/api/backup/status");
-      if (res.ok) setBackup(await res.json());
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setBackup(await res.json());
+      setBackupError(false);
     } catch (e) {
       console.error("Error al obtener estado de respaldo:", e);
+      setBackupError(true);
     }
   }, []);
 
@@ -106,7 +111,7 @@ export function useEstadoSistema() {
   }, []);
 
   /** Hay algo que requiere atención (Drive caído o respaldo vencido/incompleto). */
-  const alerta = driveOk === false || !!backup?.requiere_backup || !!backup?.en_curso;
+  const alerta = driveOk === false || backupError || !!backup?.requiere_backup || !!backup?.en_curso;
 
-  return { driveOk, backup, descargando, descargarExcel, respaldando, respaldarAhora, alerta };
+  return { driveOk, backup, backupError, descargando, descargarExcel, respaldando, respaldarAhora, alerta };
 }

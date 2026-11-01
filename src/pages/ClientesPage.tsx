@@ -1,12 +1,14 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { RefreshCw, Search, UserPlus, Users } from "lucide-react";
+import { UserPlus, Users } from "lucide-react";
 import { useClientes } from "../hooks/useClientes";
 import { Cliente, TipoDocumento } from "../types";
 import { ClientSlideOverForm } from "../components/cliente/ClientSlideOverForm";
 import { ClienteFila } from "../components/cliente/ClienteFila";
 import { useFeedback } from "../components/ui/Feedback";
 import { subirDocumentosCliente } from "../components/cliente/documentos";
+import { ActionButton, Chips, EmptyState, ListSkeleton, PageHeader, RefreshButton, SearchInput, StickyBar } from "../components/ui/Page";
+import { useAccionUrl } from "../hooks/useAccionUrl";
 
 type Filtro = "con_deuda" | "sin_deuda" | "todos";
 
@@ -32,6 +34,9 @@ export const ClientesPage: React.FC = () => {
   const [formAbierto, setFormAbierto] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("con_deuda");
+
+  // Botón "+" del celular
+  useAccionUrl((accion) => accion === "nuevo" && setFormAbierto(true));
 
   const conteo = useMemo(
     () => ({ con_deuda: clientes.filter(tieneDeuda).length, sin_deuda: clientes.filter((c) => !tieneDeuda(c)).length, todos: clientes.length }),
@@ -68,83 +73,43 @@ export const ClientesPage: React.FC = () => {
 
   return (
     <div className="space-y-4 pb-12 max-w-3xl mx-auto">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <Users className="w-6 h-6 text-indigo-600" /> Clientes
-          </h1>
-          <p className="text-xs text-slate-500 font-semibold">
-            {conteo.todos} registrados · {conteo.con_deuda} con deuda vigente
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={refetch}
-            disabled={loading}
-            className="h-11 w-11 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center"
-            aria-label="Actualizar"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setFormAbierto(true)}
-            className="h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold inline-flex items-center gap-2 shadow-sm"
-          >
-            <UserPlus className="w-4 h-4" /> Nuevo
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Clientes"
+        icon={<Users className="w-6 h-6" />}
+        subtitle={`${conteo.todos} registrados · ${conteo.con_deuda} con deuda vigente`}
+        actions={
+          <>
+            <RefreshButton onClick={refetch} loading={loading} />
+            <ActionButton icon={<UserPlus className="w-4 h-4" />} onClick={() => setFormAbierto(true)}>
+              Nuevo
+            </ActionButton>
+          </>
+        }
+      />
 
-      <div className="sticky top-14 sm:top-[6.5rem] lg:top-16 z-20 -mx-4 px-4 py-2 bg-slate-50/95 backdrop-blur space-y-2 sm:mx-0 sm:px-0">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="search"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por nombre, apodo o teléfono..."
-            className="w-full h-11 pl-9 pr-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500"
-          />
-        </div>
+      <StickyBar>
+        <SearchInput value={busqueda} onChange={setBusqueda} placeholder="Buscar por nombre, apodo o teléfono..." />
         {!busqueda && (
-          <div className="flex gap-1.5 overflow-x-auto" role="tablist" aria-label="Filtrar clientes">
-            {FILTROS.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                role="tab"
-                aria-selected={filtro === f.id}
-                onClick={() => setFiltro(f.id)}
-                className={`h-9 px-3 rounded-full text-xs font-bold whitespace-nowrap border transition ${
-                  filtro === f.id ? "bg-slate-900 border-slate-900 text-white" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                {f.label} <span className={filtro === f.id ? "text-white/70" : "text-slate-400"}>{conteo[f.id]}</span>
-              </button>
-            ))}
-          </div>
+          <Chips<Filtro>
+            etiqueta="Filtrar clientes"
+            valor={filtro}
+            onChange={setFiltro}
+            opciones={FILTROS.map((f) => ({ ...f, n: conteo[f.id] }))}
+          />
         )}
-      </div>
+      </StickyBar>
 
       {loading && clientes.length === 0 ? (
-        <ul className="space-y-2" aria-busy>
-          {[0, 1, 2, 3].map((i) => (
-            <li key={i} className="h-24 bg-white border border-slate-200 rounded-2xl animate-pulse" />
-          ))}
-        </ul>
+        <ListSkeleton filas={4} />
       ) : visibles.length === 0 ? (
-        <div className="text-center py-12 bg-white border border-dashed border-slate-200 rounded-2xl space-y-3">
-          <p className="text-sm font-bold text-slate-700">{busqueda ? `Nadie coincide con "${busqueda}"` : "No hay clientes en este filtro"}</p>
-          <button
-            type="button"
-            onClick={() => setFormAbierto(true)}
-            className="h-10 px-4 rounded-xl bg-emerald-600 text-white text-xs font-bold inline-flex items-center gap-1.5"
-          >
-            <UserPlus className="w-4 h-4" /> Registrar cliente
-          </button>
-        </div>
+        <EmptyState
+          titulo={busqueda ? `Nadie coincide con "${busqueda}"` : "No hay clientes en este filtro"}
+          accion={
+            <ActionButton icon={<UserPlus className="w-4 h-4" />} onClick={() => setFormAbierto(true)}>
+              Registrar cliente
+            </ActionButton>
+          }
+        />
       ) : (
         <ul className="space-y-2">
           {visibles.map((c) => (

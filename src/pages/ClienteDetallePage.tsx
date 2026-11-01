@@ -116,7 +116,7 @@ export const ClienteDetallePage: React.FC = () => {
     <div className="space-y-4 pb-12 max-w-5xl mx-auto">
       <button
         onClick={() => navigate("/clientes")}
-        className="h-10 text-slate-600 hover:text-slate-900 text-xs font-bold inline-flex items-center gap-2 bg-transparent border-none"
+        className="hidden sm:inline-flex h-10 text-slate-600 hover:text-slate-900 text-xs font-bold items-center gap-2 bg-transparent border-none"
       >
         <ArrowLeft size={14} /> Clientes
       </button>

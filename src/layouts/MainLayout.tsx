@@ -1,21 +1,28 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import {
+  ArrowLeft,
   BarChart3,
   Briefcase,
   Coins,
   FileText,
   Home,
+  HandCoins,
+  KeyRound,
   Landmark,
   LayoutGrid,
   LogOut,
-  MoreHorizontal,
+  Menu,
+  Plus,
   Settings,
+  Upload,
+  UserPlus,
   Users,
-  X,
+  Wallet,
 } from "lucide-react";
 import { SistemaPanel } from "./SistemaPanel";
 import { useEstadoSistema } from "./useEstadoSistema";
+import { BottomSheet } from "../components/ui/BottomSheet";
 
 interface MainLayoutProps {
   user: string | null;
@@ -40,28 +47,64 @@ const NAV: NavItem[] = [
   { path: "/bi", label: "Reportes", icon: BarChart3 },
 ];
 
-/** En el celular, la barra inferior muestra estos; el resto va en "Más". */
-const NAV_MOVIL = ["/", "/cartera", "/cuentas", "/clientes"];
+/** Barra inferior del celular: dos a cada lado del botón "+". El resto va en "Menú". */
+const NAV_MOVIL_IZQ = ["/", "/cartera"];
+const NAV_MOVIL_DER = ["/clientes"];
+
+/** Acciones del botón "+": cada una abre el formulario en la página que lo maneja. */
+const ACCIONES_RAPIDAS = [
+  { to: "/?accion=pago", label: "Registrar pago", detalle: "De un préstamo", icon: Wallet, color: "bg-emerald-600 text-white" },
+  { to: "/?accion=prestamo", label: "Nuevo préstamo", detalle: "Prestar dinero", icon: HandCoins, color: "bg-slate-900 text-white" },
+  { to: "/alquileres?accion=pago", label: "Cobrar alquiler", detalle: "Mensualidad", icon: KeyRound, color: "bg-teal-600 text-white" },
+  { to: "/clientes?accion=nuevo", label: "Nuevo cliente", detalle: "Registrar datos", icon: UserPlus, color: "bg-indigo-600 text-white" },
+  { to: "/alquileres?accion=nuevo", label: "Nuevo alquiler", detalle: "Contrato", icon: Home, color: "bg-white text-slate-800 border border-slate-200" },
+  { to: "/vouchers?accion=subir", label: "Subir voucher", detalle: "A un pago", icon: Upload, color: "bg-white text-slate-800 border border-slate-200" },
+];
+
+/** Pantallas de detalle: en el celular muestran "atrás" en la barra superior. */
+const DETALLES: { prefijo: string; titulo: string; padre: string }[] = [
+  { prefijo: "/prestamos/", titulo: "Préstamo", padre: "/cartera" },
+  { prefijo: "/clientes/", titulo: "Cliente", padre: "/clientes" },
+  { prefijo: "/alquileres/", titulo: "Alquiler", padre: "/alquileres" },
+];
 
 const isActive = (item: NavItem, pathname: string) =>
   item.path === "/"
     ? pathname === "/"
     : [item.path, ...(item.match || [])].some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
-const AlertaDot: React.FC = () => <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />;
+const AlertaDot: React.FC<{ className?: string }> = ({ className = "top-1 right-1" }) => (
+  <span className={`absolute ${className} w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white`} aria-label="Requiere atención" />
+);
+
+const TabMovil: React.FC<{ item: NavItem; activo: boolean }> = ({ item, activo }) => (
+  <Link
+    to={item.path}
+    aria-current={activo ? "page" : undefined}
+    className="flex flex-col items-center justify-center gap-1 h-16 decoration-none"
+  >
+    <span className={`h-8 w-14 rounded-full flex items-center justify-center transition-colors ${activo ? "bg-emerald-100 text-emerald-700" : "text-slate-500"}`}>
+      <item.icon size={22} strokeWidth={activo ? 2.4 : 1.9} />
+    </span>
+    <span className={`text-[11px] leading-none font-bold ${activo ? "text-emerald-800" : "text-slate-500"}`}>{item.label}</span>
+  </Link>
+);
 
 export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const tipoNavegacion = useNavigationType();
   const sistema = useEstadoSistema();
   const [menuSistema, setMenuSistema] = useState(false);
-  const [masAbierto, setMasAbierto] = useState(false);
+  const [hoja, setHoja] = useState<null | "menu" | "acciones">(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Cerrar menús al navegar
+  // Al navegar: cerrar menús y empezar arriba en la pantalla nueva (al volver atrás se respeta la posición)
   useEffect(() => {
     setMenuSistema(false);
-    setMasAbierto(false);
-  }, [pathname]);
+    setHoja(null);
+    if (tipoNavegacion !== "POP") window.scrollTo({ top: 0 });
+  }, [pathname, tipoNavegacion]);
 
   // Cerrar el menú de escritorio al hacer clic fuera
   useEffect(() => {
@@ -73,29 +116,47 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
     return () => document.removeEventListener("mousedown", onClick);
   }, [menuSistema]);
 
-  // Bloquear scroll de fondo con la hoja "Más" abierta
-  useEffect(() => {
-    if (!masAbierto) return;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [masAbierto]);
+  const detalle = DETALLES.find((d) => pathname.startsWith(d.prefijo));
+  const volver = () => {
+    // Si se entró directo por un enlace no hay historial en la app: ir a la lista
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (idx > 0) navigate(-1);
+    else navigate(detalle?.padre || "/");
+  };
 
-  const navMovil = NAV.filter((n) => NAV_MOVIL.includes(n.path));
-  const navMas = NAV.filter((n) => !NAV_MOVIL.includes(n.path));
-  const masActivo = navMas.some((n) => isActive(n, pathname));
+  const navIzq = NAV.filter((n) => NAV_MOVIL_IZQ.includes(n.path));
+  const navDer = NAV.filter((n) => NAV_MOVIL_DER.includes(n.path));
+  const navMenu = NAV.filter((n) => !NAV_MOVIL_IZQ.includes(n.path) && !NAV_MOVIL_DER.includes(n.path));
+  const menuActivo = navMenu.some((n) => isActive(n, pathname));
+  const cerrarHoja = () => setHoja(null);
 
   return (
     <div id="admin-workspace" className="workspace-shell min-h-screen flex flex-col bg-slate-50 text-slate-900">
-      {/* ── HEADER ── */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center gap-4">
-          <Link to="/" className="flex items-center gap-2 shrink-0 decoration-none" aria-label="Ir al inicio">
+      {/* ── CABECERA ── */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 pt-safe">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center gap-3 sm:gap-4">
+          {/* Celular en una pantalla de detalle: botón atrás */}
+          {detalle && (
+            <button
+              type="button"
+              onClick={volver}
+              className="sm:hidden -ml-2 h-11 pl-1 pr-3 rounded-xl text-slate-800 hover:bg-slate-100 inline-flex items-center gap-1 text-sm font-bold"
+              aria-label="Volver"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              {detalle.titulo}
+            </button>
+          )}
+
+          <Link
+            to="/"
+            className={`${detalle ? "hidden sm:flex" : "flex"} items-center gap-2 shrink-0 decoration-none`}
+            aria-label="Ir al inicio"
+          >
             <span className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-sm">
               <Coins className="text-white" size={16} />
             </span>
-            <span className="font-black text-slate-900 text-sm tracking-tight">PrestaFácil</span>
+            <span className="font-black text-slate-900 text-base sm:text-sm tracking-tight">PrestaFácil</span>
           </Link>
 
           {/* Navegación de escritorio */}
@@ -119,6 +180,17 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
           </nav>
 
           <div className="flex items-center gap-1.5 ml-auto lg:ml-0 shrink-0">
+            {/* Celular: ajustes del sistema (abre el menú) */}
+            <button
+              type="button"
+              onClick={() => setHoja("menu")}
+              className="sm:hidden relative h-11 w-11 -mr-2 rounded-xl text-slate-600 hover:bg-slate-100 flex items-center justify-center"
+              aria-label="Sistema y ajustes"
+            >
+              <Settings className="w-5 h-5" />
+              {sistema.alerta && <AlertaDot className="top-2 right-2" />}
+            </button>
+
             {/* Sistema (tablet/escritorio) */}
             <div className="relative hidden sm:block" ref={menuRef}>
               <button
@@ -159,7 +231,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
         </div>
 
         {/* Navegación de tablet (sm a lg) */}
-        <nav className="hidden sm:flex lg:hidden gap-1 overflow-x-auto px-4 pb-2" aria-label="Secciones">
+        <nav className="hidden sm:flex lg:hidden gap-1 scroll-x-limpio px-4 pb-2" aria-label="Secciones">
           {NAV.map((item) => {
             const activo = isActive(item, pathname);
             return (
@@ -179,88 +251,107 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ user, onLogout }) => {
         </nav>
       </header>
 
-      {/* ── CONTENIDO ── */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 pb-28 sm:pb-8">
+      {/* ── CONTENIDO ── (en el celular deja espacio para la barra inferior) */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:pb-8">
         <Outlet context={{ user }} />
       </main>
 
       {/* ── BARRA INFERIOR (celular) ── */}
-      <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 pb-safe" aria-label="Principal">
-        <div className="grid grid-cols-5">
-          {navMovil.map((item) => {
-            const activo = isActive(item, pathname);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                aria-current={activo ? "page" : undefined}
-                className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] decoration-none"
-              >
-                <span className={`px-4 py-1 rounded-full ${activo ? "bg-emerald-100 text-emerald-700" : "text-slate-500"}`}>
-                  <item.icon size={20} strokeWidth={activo ? 2.5 : 2} />
-                </span>
-                <span className={`text-[10px] font-bold ${activo ? "text-emerald-800" : "text-slate-500"}`}>{item.label}</span>
-              </Link>
-            );
-          })}
+      <nav
+        className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 pb-safe shadow-[0_-4px_16px_rgba(15,23,42,0.06)]"
+        aria-label="Principal"
+      >
+        <div className="grid grid-cols-5 items-end">
+          {navIzq.map((item) => (
+            <TabMovil key={item.path} item={item} activo={isActive(item, pathname)} />
+          ))}
+
+          {/* Acción rápida: el botón más importante, en el centro y al alcance del pulgar */}
+          <div className="flex justify-center h-16 items-center">
+            <button
+              type="button"
+              onClick={() => setHoja("acciones")}
+              className="-mt-6 h-14 w-14 rounded-2xl bg-emerald-600 active:bg-emerald-700 text-white shadow-lg shadow-emerald-600/30 ring-4 ring-white flex items-center justify-center"
+              aria-label="Acciones rápidas: registrar pago, nuevo préstamo, nuevo cliente"
+            >
+              <Plus className="w-7 h-7" strokeWidth={2.5} />
+            </button>
+          </div>
+
+          {navDer.map((item) => (
+            <TabMovil key={item.path} item={item} activo={isActive(item, pathname)} />
+          ))}
+
           <button
             type="button"
-            onClick={() => setMasAbierto(true)}
-            className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] bg-transparent border-none"
-            aria-label="Más opciones"
+            onClick={() => setHoja("menu")}
+            className="flex flex-col items-center justify-center gap-1 h-16 bg-transparent border-none"
+            aria-label="Menú: más secciones y ajustes"
           >
-            <span className={`relative px-4 py-1 rounded-full ${masActivo ? "bg-emerald-100 text-emerald-700" : "text-slate-500"}`}>
-              <MoreHorizontal size={20} />
-              {sistema.alerta && <AlertaDot />}
+            <span className={`relative h-8 w-14 rounded-full flex items-center justify-center ${menuActivo ? "bg-emerald-100 text-emerald-700" : "text-slate-500"}`}>
+              <Menu size={22} strokeWidth={menuActivo ? 2.4 : 1.9} />
+              {sistema.alerta && <AlertaDot className="top-0.5 right-3" />}
             </span>
-            <span className={`text-[10px] font-bold ${masActivo ? "text-emerald-800" : "text-slate-500"}`}>Más</span>
+            <span className={`text-[11px] leading-none font-bold ${menuActivo ? "text-emerald-800" : "text-slate-500"}`}>Menú</span>
           </button>
         </div>
       </nav>
 
-      {/* ── HOJA "MÁS" (celular) ── */}
-      {masAbierto && (
-        <div className="sm:hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Más opciones">
-          <div className="absolute inset-0 bg-slate-950/50" onClick={() => setMasAbierto(false)} />
-          <div className="absolute inset-x-0 bottom-0 bg-white rounded-t-3xl max-h-[85vh] overflow-y-auto pb-safe">
-            <div className="sticky top-0 bg-white flex items-center justify-between px-5 pt-4 pb-2">
-              <span className="text-sm font-black text-slate-900">{user ? `Hola, ${user}` : "Más opciones"}</span>
-              <button
-                type="button"
-                onClick={() => setMasAbierto(false)}
-                className="h-10 w-10 rounded-xl hover:bg-slate-100 flex items-center justify-center"
-                aria-label="Cerrar"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="px-4 pb-5 space-y-4">
-              <div className="grid grid-cols-3 gap-2">
-                {navMas.map((item) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex flex-col items-center gap-1.5 py-3.5 rounded-2xl border text-xs font-bold decoration-none ${
-                      isActive(item, pathname) ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-slate-50 border-slate-100 text-slate-700"
-                    }`}
-                  >
-                    <item.icon size={20} />
-                    {item.label}
-                  </Link>
-                ))}
-              </div>
-              <SistemaPanel {...sistema} />
-              <button
-                type="button"
-                onClick={onLogout}
-                className="w-full h-12 rounded-2xl bg-rose-50 text-rose-700 text-sm font-bold inline-flex items-center justify-center gap-2"
-              >
-                <LogOut className="w-4 h-4" /> Cerrar sesión
-              </button>
-            </div>
-          </div>
+      {/* ── HOJA: ACCIONES RÁPIDAS ── */}
+      <BottomSheet open={hoja === "acciones"} onClose={cerrarHoja} title="¿Qué quieres hacer?">
+        <div className="grid grid-cols-2 gap-2.5 pb-2">
+          {ACCIONES_RAPIDAS.map((a) => (
+            <Link
+              key={a.to}
+              to={a.to}
+              onClick={cerrarHoja}
+              className={`${a.color} rounded-2xl p-4 min-h-[92px] flex flex-col justify-between decoration-none active:scale-[0.98] transition`}
+            >
+              <a.icon className="w-6 h-6" />
+              <span>
+                <span className="block text-sm font-black leading-tight">{a.label}</span>
+                <span className="block text-[11px] font-semibold opacity-75">{a.detalle}</span>
+              </span>
+            </Link>
+          ))}
         </div>
-      )}
+      </BottomSheet>
+
+      {/* ── HOJA: MENÚ ── */}
+      <BottomSheet open={hoja === "menu"} onClose={cerrarHoja} title={user ? `Hola, ${user}` : "Menú"}>
+        <div className="space-y-4 pb-2">
+          <nav className="grid grid-cols-2 gap-2" aria-label="Más secciones">
+            {navMenu.map((item) => {
+              const activo = isActive(item, pathname);
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`h-14 px-4 rounded-2xl border text-sm font-bold flex items-center gap-3 decoration-none ${
+                    activo ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-slate-50 border-slate-100 text-slate-700"
+                  }`}
+                >
+                  <item.icon size={20} className={activo ? "text-emerald-600" : "text-slate-500"} />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div>
+            <p className="px-1 pb-2 text-[11px] font-black uppercase tracking-wider text-slate-400">Sistema</p>
+            <SistemaPanel {...sistema} />
+          </div>
+
+          <button
+            type="button"
+            onClick={onLogout}
+            className="w-full h-12 rounded-2xl bg-rose-50 text-rose-700 text-sm font-bold inline-flex items-center justify-center gap-2"
+          >
+            <LogOut className="w-4 h-4" /> Cerrar sesión
+          </button>
+        </div>
+      </BottomSheet>
     </div>
   );
 };

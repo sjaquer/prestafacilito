@@ -7,7 +7,7 @@ import { useEstadoSistema } from "./useEstadoSistema";
 type Props = ReturnType<typeof useEstadoSistema>;
 
 /** Estado de Drive, respaldo semanal y tamaño de letra. Se usa en el menú de escritorio y en "Más" del celular. */
-export const SistemaPanel: React.FC<Props> = ({ driveOk, backup, descargando, descargarExcel, respaldando, respaldarAhora }) => {
+export const SistemaPanel: React.FC<Props> = ({ driveOk, backup, backupError, descargando, descargarExcel, respaldando, respaldarAhora }) => {
   const { notify, confirm } = useFeedback();
   const [sincronizando, setSincronizando] = useState(false);
 
@@ -57,8 +57,10 @@ export const SistemaPanel: React.FC<Props> = ({ driveOk, backup, descargando, de
     }
   };
 
-  const atencion = !!backup?.requiere_backup || !!backup?.en_curso;
-  const estadoRespaldo = !backup
+  const atencion = backupError || !!backup?.requiere_backup || !!backup?.en_curso;
+  const estadoRespaldo = backupError
+    ? "No se pudo consultar el estado del respaldo"
+    : !backup
     ? "Verificando..."
     : backup.en_curso
       ? "Respaldo a medias: faltan archivos por copiar"

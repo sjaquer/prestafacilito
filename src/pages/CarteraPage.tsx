@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileDown, Briefcase, RefreshCw } from "lucide-react";
+import { FileDown, Briefcase } from "lucide-react";
+import { ActionButton, PageHeader, RefreshButton } from "../components/ui/Page";
 import { DataTable } from "../components/ui/DataTable";
 import { linkCobroWhatsApp } from "../lib/cobranza";
 import { useClientes } from "../hooks/useClientes";
@@ -108,34 +109,26 @@ export const CarteraPage: React.FC = () => {
   const columns = useMemo(() => buildCarteraColumns({ resumenDe, getWhatsAppLink, onEdit: editar }), [resumenDe, getWhatsAppLink, editar]);
 
   return (
-    <div className="space-y-4 pb-12">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <Briefcase className="w-6 h-6 text-indigo-600" /> Cartera
-          </h1>
-          <p className="text-xs text-slate-500 font-semibold">Todos los préstamos, lo más urgente primero</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={fetchLoans}
-            disabled={loading}
-            className="h-11 w-11 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center"
-            aria-label="Actualizar"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          </button>
-          <button
-            type="button"
-            onClick={() => exportCarteraCsv(filteredLoans, resumenDe)}
-            disabled={filteredLoans.length === 0}
-            className="h-11 px-3 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-50"
-          >
-            <FileDown className="w-4 h-4" /> <span className="hidden sm:inline">Exportar</span> CSV
-          </button>
-        </div>
-      </div>
+    <div className="space-y-4 pb-12 max-w-6xl mx-auto">
+      <PageHeader
+        title="Cartera"
+        icon={<Briefcase className="w-6 h-6" />}
+        subtitle="Todos los préstamos, lo más urgente primero"
+        actions={
+          <>
+            <RefreshButton onClick={fetchLoans} loading={loading} />
+            <ActionButton
+              tono="claro"
+              compactoEnMovil
+              icon={<FileDown className="w-4 h-4" />}
+              onClick={() => exportCarteraCsv(filteredLoans, resumenDe)}
+              disabled={filteredLoans.length === 0}
+            >
+              Exportar CSV
+            </ActionButton>
+          </>
+        }
+      />
 
       <CarteraKPIs {...kpis} onFiltrar={(estado) => setFilters((f) => ({ ...f, estado }))} />
 

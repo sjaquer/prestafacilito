@@ -89,10 +89,11 @@ export const AlquilerDetallePage: React.FC = () => {
 
   return (
     <div className="space-y-4 pb-12 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between">
+      {/* En el celular el "atrás" está en la barra superior */}
+      <div className="hidden sm:flex items-center justify-between">
         <button
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-1.5 h-10 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors bg-transparent border-none cursor-pointer"
+          className="hidden sm:inline-flex items-center gap-1.5 h-10 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors bg-transparent border-none cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" /> Volver
         </button>

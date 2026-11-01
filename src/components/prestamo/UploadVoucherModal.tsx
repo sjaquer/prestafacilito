@@ -87,14 +87,14 @@ export const UploadVoucherModal: React.FC<UploadVoucherModalProps> = ({
       title="Subir Voucher / Comprobante"
       size="md"
       footerActions={
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={onClose} disabled={uploading}>
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={uploading}>
             Cancelar
           </Button>
-          <Button variant="primary" size="sm" onClick={handleSubmit} loading={uploading} icon={<Upload size={14} />}>
+          <Button variant="primary" onClick={handleSubmit} loading={uploading} icon={<Upload size={14} />}>
             Adjuntar Comprobante
           </Button>
-        </div>
+        </>
       }
     >
       <div className="space-y-4">

@@ -13,6 +13,8 @@ interface RegistrarPagoAlquilerFormProps {
   alquileresActivos: Alquiler[];
   selectedAlquilerIdFromParent?: string;
   onPagoRegistrado: () => void;
+  /** Sin tarjeta ni título propio (para usarlo dentro de un modal). */
+  bare?: boolean;
 }
 
 const MESES = [
@@ -24,7 +26,8 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
   clientes,
   alquileresActivos,
   selectedAlquilerIdFromParent,
-  onPagoRegistrado
+  onPagoRegistrado,
+  bare = false
 }) => {
   const [clienteId, setClienteId] = useState("");
   const [alquilerId, setAlquilerId] = useState("");
@@ -183,20 +186,20 @@ export const RegistrarPagoAlquilerForm: React.FC<RegistrarPagoAlquilerFormProps>
   return (
     <div
       onPaste={handlePaste}
-      className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4 tab-focus-none outline-none"
-      tabIndex={0}
+      className={`${bare ? "" : "bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm"} space-y-4 outline-none`}
+      tabIndex={-1}
     >
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2">
+      {!bare && (
+        <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
           <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
             <DollarSign className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-800">Registrar Pago de Alquiler</h2>
-            <p className="text-xs text-slate-500">Cobro de renta por período de alquiler</p>
+            <h2 className="text-base font-bold text-slate-800">Registrar pago de alquiler</h2>
+            <p className="text-xs text-slate-500">Cobro de renta por período</p>
           </div>
         </div>
-      </div>
+      )}
 
       {errorMsg && (
         <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl flex items-center gap-2">

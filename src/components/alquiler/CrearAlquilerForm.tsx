@@ -7,12 +7,15 @@ interface CrearAlquilerFormProps {
   clientes: Cliente[];
   onAlquilerCreado: (nuevoAlquiler: Alquiler) => void;
   onClienteCreado?: (nuevoCliente: Cliente) => void;
+  /** Sin tarjeta ni título propio (para usarlo dentro de un modal). */
+  bare?: boolean;
 }
 
 export const CrearAlquilerForm: React.FC<CrearAlquilerFormProps> = ({
   clientes,
   onAlquilerCreado,
-  onClienteCreado
+  onClienteCreado,
+  bare = false
 }) => {
   const [clienteId, setClienteId] = useState("");
   const [descripcionInmueble, setDescripcionInmueble] = useState("");
@@ -86,18 +89,18 @@ export const CrearAlquilerForm: React.FC<CrearAlquilerFormProps> = ({
   };
 
   return (
-    <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2">
+    <div className={bare ? "space-y-4" : "bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-4"}>
+      {!bare && (
+        <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
           <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
             <Home className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-800">Nuevo Contrato de Alquiler</h2>
-            <p className="text-xs text-slate-500">Sección 8.3.2 — Renta mensual fija</p>
+            <h2 className="text-base font-bold text-slate-800">Nuevo contrato de alquiler</h2>
+            <p className="text-xs text-slate-500">Renta mensual fija</p>
           </div>
         </div>
-      </div>
+      )}
 
       {errorMsg && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs text-red-700 font-medium">

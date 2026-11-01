@@ -114,27 +114,27 @@ export const ClientSlideOverForm: React.FC<ClientSlideOverFormProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/40 backdrop-blur-xs flex justify-end transition-opacity">
-      <div className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col justify-between border-l border-slate-200 animate-slideLeft">
-        {/* Header */}
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
-              <User className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold">
-                {clienteToEdit ? "Editar Cliente" : "Nuevo Cliente"}
-              </h2>
-              <p className="text-xs text-slate-300">
-                {clienteToEdit ? "Modificar expediente" : "Registrar nuevo prestatario o inquilino"}
-              </p>
-            </div>
+    // Celular: pantalla completa. Escritorio: panel a la derecha.
+    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/50 sm:backdrop-blur-sm flex justify-end" role="dialog" aria-modal="true" aria-labelledby="cliente-form-titulo">
+      <div className="w-full sm:max-w-md bg-white h-[100dvh] shadow-2xl flex flex-col sm:border-l sm:border-slate-200 animate-slideLeft pt-safe">
+        {/* Encabezado */}
+        <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-100 flex items-center gap-3">
+          <span className="p-2 bg-emerald-50 text-emerald-600 rounded-xl shrink-0">
+            <User className="w-5 h-5" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <h2 id="cliente-form-titulo" className="text-base font-black text-slate-900 leading-tight">
+              {clienteToEdit ? "Editar cliente" : "Nuevo cliente"}
+            </h2>
+            <p className="text-xs text-slate-500 font-semibold truncate">
+              {clienteToEdit ? clienteToEdit.nombre_completo : "Prestatario o inquilino"}
+            </p>
           </div>
-
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors"
+            className="h-11 w-11 -mr-2 rounded-full text-slate-500 hover:bg-slate-100 flex items-center justify-center shrink-0"
+            aria-label="Cerrar"
           >
             <X className="w-5 h-5" />
           </button>
@@ -352,11 +352,11 @@ export const ClientSlideOverForm: React.FC<ClientSlideOverFormProps> = ({
         </form>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2">
+        <div className="px-4 pt-3 pb-safe-3 sm:pb-3 border-t border-slate-200 bg-slate-50 grid grid-cols-2 sm:flex sm:justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-100 transition-colors text-xs"
+            className="h-12 sm:h-10 px-4 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-100 transition-colors text-sm sm:text-xs"
           >
             Cancelar
           </button>
@@ -364,7 +364,7 @@ export const ClientSlideOverForm: React.FC<ClientSlideOverFormProps> = ({
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 text-xs disabled:opacity-50"
+            className="h-12 sm:h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5 text-sm sm:text-xs disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             <span>{isSubmitting ? "Guardando..." : "Guardar Cliente"}</span>

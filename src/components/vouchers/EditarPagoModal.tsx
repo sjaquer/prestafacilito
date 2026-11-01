@@ -72,14 +72,14 @@ export const EditarPagoModal: React.FC<EditarPagoModalProps> = ({ pago, onClose,
       onClose={onClose}
       title={`Editar Pago - ${pago?.cliente_nombre ?? ""}`}
       footerActions={
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={saving}>
             Cancelar
           </Button>
-          <Button variant="primary" size="sm" onClick={handleSave} loading={saving} disabled={loadingLoans}>
+          <Button variant="primary" onClick={handleSave} loading={saving} disabled={loadingLoans}>
             Guardar Cambios
           </Button>
-        </div>
+        </>
       }
     >
       {loadingLoans ? (

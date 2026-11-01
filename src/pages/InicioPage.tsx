@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router-dom";
-import { Archive, ArrowRight, Plus, RefreshCw, Search, Share2, Wallet } from "lucide-react";
+import { Archive, ArrowRight, Plus, Share2, Wallet } from "lucide-react";
 import { Cliente, Prestamo } from "../types";
 import { formatCurrency, getSaludoPorHora } from "../lib/formatters";
 import { GRUPOS_COBRO, GrupoCobro, ESTILO_GRUPO, CUOTAS_ESTANCADO } from "../lib/cobranza";
@@ -16,36 +16,14 @@ import { CobroCard } from "../components/inicio/CobroCard";
 import { ReporteCobrosModal } from "../components/inicio/ReporteCobrosModal";
 import { CuentasDesglose } from "../components/cuentas/CuentasDesglose";
 import { ItemCobro, ItemCobroApi, ordenarPorUrgencia, prepararItems } from "../components/inicio/tipos";
+import { Chips, EmptyState, Kpi, ListSkeleton, RefreshButton, SearchInput, StickyBar } from "../components/ui/Page";
+import { useAccionUrl } from "../hooks/useAccionUrl";
 
 type Filtro = GrupoCobro | "todos";
 
 const fechaLarga = () => {
   const s = new Date().toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long" });
   return s.charAt(0).toUpperCase() + s.slice(1);
-};
-
-const Kpi: React.FC<{ label: string; valor: string; detalle?: string; tono?: string; onClick?: () => void }> = ({
-  label,
-  valor,
-  detalle,
-  tono = "text-slate-900",
-  onClick,
-}) => {
-  const contenido = (
-    <>
-      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</p>
-      <p className={`text-lg sm:text-xl font-black font-mono leading-tight ${tono}`}>{valor}</p>
-      {detalle && <p className="text-[11px] text-slate-500 font-semibold truncate">{detalle}</p>}
-    </>
-  );
-  const cls = "bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm text-left";
-  return onClick ? (
-    <button type="button" onClick={onClick} className={`${cls} hover:border-slate-300 transition`}>
-      {contenido}
-    </button>
-  ) : (
-    <div className={cls}>{contenido}</div>
-  );
 };
 
 /** Pantalla de trabajo diario: qué cobrar hoy, qué está vencido y cuánto entró a cada cuenta. */
@@ -144,6 +122,12 @@ export const InicioPage: React.FC = () => {
     else abrirPago(item.id);
   };
 
+  // Botón "+" del celular
+  useAccionUrl((accion) => {
+    if (accion === "pago") abrirPago();
+    if (accion === "prestamo") setModal("prestamo");
+  });
+
   const pendientesReporte = items.filter((i) => ["atrasado", "hoy", "manana", "semana"].includes(i.grupo));
 
   return (
@@ -157,15 +141,7 @@ export const InicioPage: React.FC = () => {
             {user ? `, ${user}` : ""}
           </h1>
         </div>
-        <button
-          type="button"
-          onClick={recargarTodo}
-          disabled={loading}
-          className="h-10 w-10 shrink-0 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center"
-          aria-label="Actualizar"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-        </button>
+        <RefreshButton onClick={recargarTodo} loading={loading} />
       </div>
 
       {/* Resumen del día */}
@@ -217,56 +193,26 @@ export const InicioPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
         {/* Lista de cobros */}
         <section className="lg:col-span-8 space-y-3">
-          <div className="sticky top-14 sm:top-[6.5rem] lg:top-16 z-20 -mx-4 px-4 py-2 bg-slate-50/95 backdrop-blur space-y-2 sm:mx-0 sm:px-0">
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5" role="tablist" aria-label="Filtrar cobros">
-              {[...GRUPOS_COBRO.map((g) => ({ id: g.id as Filtro, label: g.label, n: conteo[g.id].n })), { id: "todos" as Filtro, label: "Todos", n: items.length - conteo.estancado.n }].map(
-                (t) => {
-                  const activo = filtroActivo === t.id && !busqueda;
-                  const dot = t.id !== "todos" ? ESTILO_GRUPO[t.id as GrupoCobro].dot : "bg-slate-400";
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={activo}
-                      onClick={() => setFiltro(t.id)}
-                      className={`h-9 px-3 rounded-full text-xs font-bold whitespace-nowrap inline-flex items-center gap-1.5 border transition ${
-                        activo ? "bg-slate-900 border-slate-900 text-white" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      <span className={`w-2 h-2 rounded-full ${dot}`} />
-                      {t.label}
-                      <span className={activo ? "text-white/70" : "text-slate-400"}>{t.n}</span>
-                    </button>
-                  );
-                }
-              )}
-            </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="search"
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar cliente, apodo o inmueble..."
-                className="w-full h-11 pl-9 pr-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500"
-              />
-            </div>
-          </div>
+          <StickyBar>
+            <Chips
+              etiqueta="Filtrar cobros"
+              valor={busqueda ? null : filtroActivo}
+              onChange={(id) => setFiltro(id)}
+              opciones={[
+                ...GRUPOS_COBRO.map((g) => ({ id: g.id as Filtro, label: g.label, n: conteo[g.id].n, dot: ESTILO_GRUPO[g.id].dot })),
+                { id: "todos" as Filtro, label: "Todos", n: items.length - conteo.estancado.n, dot: "bg-slate-400" },
+              ]}
+            />
+            <SearchInput value={busqueda} onChange={setBusqueda} placeholder="Buscar cliente, apodo o inmueble..." />
+          </StickyBar>
 
           {loading && items.length === 0 ? (
-            <ul className="space-y-2" aria-busy>
-              {[0, 1, 2].map((i) => (
-                <li key={i} className="h-24 bg-white border border-slate-200 rounded-2xl animate-pulse" />
-              ))}
-            </ul>
+            <ListSkeleton />
           ) : visibles.length === 0 ? (
-            <div className="text-center py-12 bg-white border border-dashed border-slate-200 rounded-2xl">
-              <p className="text-sm font-bold text-slate-700">{busqueda ? "Sin resultados" : "Nada pendiente aquí"}</p>
-              <p className="text-xs text-slate-500 mt-1">
-                {busqueda ? "Prueba con otro nombre." : "Revisa otra pestaña o actualiza."}
-              </p>
-            </div>
+            <EmptyState
+              titulo={busqueda ? "Sin resultados" : "Nada pendiente aquí"}
+              detalle={busqueda ? "Prueba con otro nombre." : "Revisa otra pestaña o actualiza."}
+            />
           ) : (
             <ul className="space-y-2">
               {visibles.map((it) => (

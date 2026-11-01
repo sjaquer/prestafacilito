@@ -21,7 +21,11 @@ Hasta el paso 5, subir comprobantes o documentos falla ("Bucket not found"): des
 - **[tú]** Si la app de OAuth en Google Cloud está en modo **Testing**, el refresh token caduca a los 7 días y el respaldo semanal fallará siempre. Pasarla a **In production** (Google Auth Platform → Audience → Publish app).
 - El callback de OAuth escribe el token en `.env` (local) o lo imprime en los logs (Vercel). Mejor guardarlo en la base de datos para que "Reconectar" funcione sin redesplegar.
 
-## 3. Deuda técnica restante
+## 3. Para revisar (cálculos, no se tocaron)
+
+- **Reportes vs. Inicio no coinciden en "atrasados"**: Inicio muestra 5 clientes atrasados, Reportes dice "9 con atraso" (préstamos con alguna cuota vencida) y la barra de estado dice 8. Además `routes/bi.routes.ts` cuenta como activos solo `estado = "activo"` (deja fuera los `estancado`) y como pagados solo `"pagado"`, aunque la migración de estados pasó esos a `"liquidado"`. Conviene definir un único criterio de "atrasado".
+
+## 4. Deuda técnica restante
 
 - **Límite de 1000 filas de Supabase**: `dashboard`, `bi`, `prestamos` (listado, amortizaciones) y `clientes/:id/score` piden tablas completas sin paginar. Hoy hay ~114 pagos, pero al pasar de 1000 los totales saldrían cortados sin aviso. El score además trae los pagos de todos los clientes en vez de filtrar por sus préstamos. (Solo cambia qué filas se leen, no los cálculos.) El respaldo y el Excel ya paginan.
 - **Subidas grandes**: Vercel limita el cuerpo de la petición a 4.5 MB y los archivos van en base64. Los documentos subidos desde el formulario de cliente no se comprimen; un PDF de más de ~3 MB fallará. Solución: URLs firmadas de subida directa a Storage.

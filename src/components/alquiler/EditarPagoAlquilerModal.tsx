@@ -68,14 +68,14 @@ export const EditarPagoAlquilerModal: React.FC<EditarPagoAlquilerModalProps> = (
       title="Editar pago de alquiler"
       size="sm"
       footerActions={
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={saving}>
             Cancelar
           </Button>
-          <Button variant="primary" size="sm" onClick={handleSave} loading={saving}>
+          <Button variant="primary" onClick={handleSave} loading={saving}>
             Guardar
           </Button>
-        </div>
+        </>
       }
     >
       <div className="grid grid-cols-2 gap-3">

@@ -1,206 +1,200 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Loader2, AlertCircle, RefreshCw, Upload } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { FileText, Upload } from "lucide-react";
 import { usePagos } from "../hooks/usePagos";
-import { Card } from "../components/ui/Card";
-import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
-import { parseVoucherUrls } from "../lib/formatters";
-import { UploadVoucherModal } from "../components/prestamo/UploadVoucherModal";
+import { formatSoles, parseVoucherUrls } from "../lib/formatters";
 import { METODOS_PAGO } from "../lib/constants";
+import { UploadVoucherModal } from "../components/prestamo/UploadVoucherModal";
 import { VoucherLightbox } from "../components/common/VoucherLightbox";
 import { VoucherCard } from "../components/vouchers/VoucherCard";
 import { PrestamoCronogramaModal } from "../components/vouchers/PrestamoCronogramaModal";
 import { EditarPagoModal } from "../components/vouchers/EditarPagoModal";
 import { useFeedback } from "../components/ui/Feedback";
+import { ActionButton, Chips, EmptyState, ListSkeleton, PageHeader, RefreshButton, SearchInput, StickyBar } from "../components/ui/Page";
+import { useAccionUrl } from "../hooks/useAccionUrl";
 
+type FiltroVoucher = "sin" | "con" | "todos";
+
+const normalizar = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+
+const nombreMes = (fecha: string) => {
+  const [a, m] = String(fecha || "").slice(0, 7).split("-").map(Number);
+  if (!a || !m) return "Sin fecha";
+  const s = new Date(a, m - 1, 1).toLocaleDateString("es-PE", { month: "long", year: "numeric" });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
+/** Pagos de préstamos con sus comprobantes: encontrar los que faltan adjuntar y revisar cada voucher. */
 export const VouchersPage: React.FC = () => {
   const { notify, confirm } = useFeedback();
   const { fetchAmortizaciones, deletePago, loading } = usePagos();
   const [pagos, setPagos] = useState<any[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [methodFilter, setMethodFilter] = useState("Todos");
-  const [voucherFilter, setVoucherFilter] = useState("Todos"); // Todos, con, sin
-  const [uploadVoucherPagoId, setUploadVoucherPagoId] = useState<string | null>(null);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
+  const [metodo, setMetodo] = useState("Todos");
+  const [filtro, setFiltro] = useState<FiltroVoucher>("todos");
+  const [subirAbierto, setSubirAbierto] = useState(false);
+  const [pagoParaAdjuntar, setPagoParaAdjuntar] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [cronogramaPago, setCronogramaPago] = useState<any | null>(null);
   const [editPago, setEditPago] = useState<any | null>(null);
-  const [deletingPagoId, setDeletingPagoId] = useState<string | null>(null);
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null);
 
-  const loadVouchers = useCallback(async () => {
-    const list = await fetchAmortizaciones();
-    setPagos(list || []);
+  const cargar = useCallback(async () => {
+    setPagos((await fetchAmortizaciones()) || []);
   }, [fetchAmortizaciones]);
 
   useEffect(() => {
-    loadVouchers();
-  }, [loadVouchers]);
+    cargar();
+  }, [cargar]);
+
+  // Botón "+" del celular
+  useAccionUrl((accion) => accion === "subir" && setSubirAbierto(true));
 
   const handleDelete = async (pagoId: string) => {
     const ok = await confirm({
       title: "Eliminar pago",
-      message:
-        "¿Estás seguro de que deseas eliminar este pago de forma permanente? Esto anulará el abono y recalculará la deuda del préstamo correspondiente.",
+      message: "Se borrará el pago de forma permanente y se recalculará la deuda del préstamo.",
       confirmLabel: "Eliminar",
       danger: true,
     });
     if (!ok) return;
 
-    setDeletingPagoId(pagoId);
+    setEliminandoId(pagoId);
     try {
       const res = await deletePago(pagoId);
-      if (res.success) {
-        await loadVouchers();
-      } else {
-        notify(res.error || "No se pudo eliminar el pago.");
-      }
+      if (!res.success) throw new Error(res.error || "No se pudo eliminar el pago.");
+      notify("Pago eliminado", "success");
+      await cargar();
     } catch (e: any) {
       notify(e.message || "Error al conectar con el servidor.");
     } finally {
-      setDeletingPagoId(null);
+      setEliminandoId(null);
     }
   };
 
-  const filteredPagos = useMemo(() => {
-    return pagos.filter((pago) => {
-      const matchesSearch = pago.cliente_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            pago.monto?.toString().includes(searchTerm);
-      
-      const matchesMethod = methodFilter === "Todos" || pago.metodo_pago === methodFilter;
-      
-      const urls = parseVoucherUrls(pago.comprobante_url);
-      const hasVoucher = urls.length > 0;
-      const matchesVoucher = voucherFilter === "Todos" ||
-                             (voucherFilter === "con" && hasVoucher) ||
-                             (voucherFilter === "sin" && !hasVoucher);
+  const sinVoucher = useMemo(() => pagos.filter((p) => parseVoucherUrls(p.comprobante_url).length === 0).length, [pagos]);
 
-      return matchesSearch && matchesMethod && matchesVoucher;
+  const visibles = useMemo(() => {
+    const q = normalizar(busqueda.trim());
+    return pagos.filter((p) => {
+      const tiene = parseVoucherUrls(p.comprobante_url).length > 0;
+      if (filtro === "con" && !tiene) return false;
+      if (filtro === "sin" && tiene) return false;
+      if (metodo !== "Todos" && p.metodo_pago !== metodo) return false;
+      return !q || normalizar(p.cliente_nombre || "").includes(q) || String(p.monto ?? "").includes(q);
     });
-  }, [pagos, searchTerm, methodFilter, voucherFilter]);
+  }, [pagos, busqueda, filtro, metodo]);
+
+  // Agrupados por mes (la API ya los trae del más reciente al más antiguo)
+  const porMes = useMemo(() => {
+    const grupos: { mes: string; pagos: any[]; total: number }[] = [];
+    for (const p of visibles) {
+      const mes = nombreMes(p.fecha_pago);
+      const ultimo = grupos[grupos.length - 1];
+      if (ultimo?.mes === mes) {
+        ultimo.pagos.push(p);
+        ultimo.total += Number(p.monto) || 0;
+      } else {
+        grupos.push({ mes, pagos: [p], total: Number(p.monto) || 0 });
+      }
+    }
+    return grupos;
+  }, [visibles]);
 
   return (
-    <div className="space-y-6 select-none font-sans pb-12">
-      {/* Cabecera */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
-            Galería de Vouchers y Comprobantes
-          </h1>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
-            Consulta, verifica y descarga los comprobantes de pago subidos por los operadores
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button 
-            onClick={() => setIsUploadModalOpen(true)}
-            variant="primary"
-            size="sm"
-            icon={<Upload size={14} />}
-          >
-            + Subir Voucher
-          </Button>
-          <Button 
-            onClick={loadVouchers} 
-            variant="secondary" 
-            size="sm"
-            icon={<RefreshCw size={14} className={loading ? "animate-spin" : ""} />}
-            disabled={loading}
-          >
-            Sincronizar
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-4 pb-12 max-w-5xl mx-auto">
+      <PageHeader
+        title="Vouchers"
+        icon={<FileText className="w-6 h-6" />}
+        subtitle={`${pagos.length} pagos · ${sinVoucher} sin comprobante`}
+        actions={
+          <>
+            <RefreshButton onClick={cargar} loading={loading} />
+            <ActionButton compactoEnMovil icon={<Upload className="w-4 h-4" />} onClick={() => setSubirAbierto(true)}>
+              Subir voucher
+            </ActionButton>
+          </>
+        }
+      />
 
-      {/* Filtros */}
-      <Card variant="simple" className="p-5">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Input
-            label="Buscador de pagos"
-            placeholder="Buscar por cliente o monto..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest pl-0.5">
-              Método de Pago
-            </label>
-            <select
-              value={methodFilter}
-              onChange={(e) => setMethodFilter(e.target.value)}
-              className="glass-input w-full px-4 rounded-xl border border-slate-200 font-bold bg-white text-slate-800 cursor-pointer h-12 text-xs"
-            >
-              <option value="Todos">Todos los métodos</option>
-              {METODOS_PAGO.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest pl-0.5">
-              Estado de Archivo
-            </label>
-            <select
-              value={voucherFilter}
-              onChange={(e) => setVoucherFilter(e.target.value)}
-              className="glass-input w-full px-4 rounded-xl border border-slate-200 font-bold bg-white text-slate-800 cursor-pointer h-12 text-xs"
-            >
-              <option value="Todos">Todos</option>
-              <option value="con">Con Voucher Adjunto</option>
-              <option value="sin">Sin Voucher Adjunto</option>
-            </select>
-          </div>
-        </div>
-      </Card>
-
-      {/* Grid de Contenido */}
-      {loading && pagos.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24">
-          <Loader2 className="animate-spin text-indigo-500 mb-3" size={32} />
-          <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Cargando comprobantes...</p>
-        </div>
-      ) : filteredPagos.length === 0 ? (
-        <div className="text-center py-20 text-slate-400 border-2 border-dashed border-slate-200 rounded-3xl p-8 bg-white/40">
-          <AlertCircle className="mx-auto text-slate-300 mb-3" size={36} />
-          <p className="text-sm font-bold">No se encontraron pagos coincidentes</p>
-          <p className="text-xs text-slate-500 mt-1">Prueba reajustando los filtros o el buscador</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-          {filteredPagos.map((pago) => (
-            <VoucherCard
-              key={pago.id}
-              pago={pago}
-              deleting={deletingPagoId === pago.id}
-              onPreview={setLightboxUrl}
-              onViewLoan={setCronogramaPago}
-              onEdit={setEditPago}
-              onDelete={handleDelete}
-              onAttach={setUploadVoucherPagoId}
+      <StickyBar>
+        <SearchInput value={busqueda} onChange={setBusqueda} placeholder="Buscar cliente o monto..." />
+        <div className="flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <Chips<FiltroVoucher>
+              etiqueta="Filtrar por comprobante"
+              valor={filtro}
+              onChange={setFiltro}
+              opciones={[
+                { id: "todos", label: "Todos", n: pagos.length },
+                { id: "sin", label: "Sin voucher", n: sinVoucher, dot: "bg-amber-500" },
+                { id: "con", label: "Con voucher", n: pagos.length - sinVoucher, dot: "bg-emerald-500" },
+              ]}
             />
-          ))}
+          </div>
+          <select
+            value={metodo}
+            onChange={(e) => setMetodo(e.target.value)}
+            aria-label="Filtrar por cuenta"
+            className={`h-10 sm:h-9 max-w-[7.5rem] sm:max-w-[11rem] shrink-0 pl-3 pr-7 rounded-full border text-xs font-bold outline-none cursor-pointer ${
+              metodo === "Todos" ? "bg-white border-slate-200 text-slate-600" : "bg-slate-900 border-slate-900 text-white"
+            }`}
+          >
+            <option value="Todos">Cuentas</option>
+            {METODOS_PAGO.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
         </div>
+      </StickyBar>
+
+      {loading && pagos.length === 0 ? (
+        <ListSkeleton filas={5} alto="h-[5.5rem]" />
+      ) : porMes.length === 0 ? (
+        <EmptyState titulo="No hay pagos con estos filtros" detalle="Cambia el filtro o busca otro nombre." />
+      ) : (
+        porMes.map((g) => (
+          <section key={g.mes} className="space-y-2">
+            <h2 className="flex items-baseline justify-between px-1 pt-1">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-500">{g.mes}</span>
+              <span className="text-xs font-bold text-slate-500">
+                {g.pagos.length} · <span className="font-mono text-slate-700">{formatSoles(g.total)}</span>
+              </span>
+            </h2>
+            <ul className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+              {g.pagos.map((pago) => (
+                <VoucherCard
+                  key={pago.id}
+                  pago={pago}
+                  deleting={eliminandoId === pago.id}
+                  onPreview={setLightboxUrl}
+                  onViewLoan={setCronogramaPago}
+                  onEdit={setEditPago}
+                  onDelete={handleDelete}
+                  onAttach={setPagoParaAdjuntar}
+                />
+              ))}
+            </ul>
+          </section>
+        ))
       )}
 
       <VoucherLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
 
-      {/* Modal Upload Voucher (botón superior) */}
       <UploadVoucherModal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
+        isOpen={subirAbierto || !!pagoParaAdjuntar}
+        onClose={() => {
+          setSubirAbierto(false);
+          setPagoParaAdjuntar(null);
+        }}
         pagos={pagos}
-        initialPago={null}
-        onUploaded={loadVouchers}
-      />
-
-      {/* Modal Upload Voucher (por fila) */}
-      <UploadVoucherModal
-        isOpen={!!uploadVoucherPagoId}
-        onClose={() => setUploadVoucherPagoId(null)}
-        pagos={pagos}
-        initialPago={pagos.find((p) => p.id === uploadVoucherPagoId) || null}
-        onUploaded={loadVouchers}
+        initialPago={pagos.find((p) => p.id === pagoParaAdjuntar) || null}
+        onUploaded={cargar}
       />
 
       <PrestamoCronogramaModal pago={cronogramaPago} onClose={() => setCronogramaPago(null)} />
@@ -210,7 +204,7 @@ export const VouchersPage: React.FC = () => {
         onClose={() => setEditPago(null)}
         onSaved={() => {
           setEditPago(null);
-          loadVouchers();
+          cargar();
         }}
       />
     </div>
