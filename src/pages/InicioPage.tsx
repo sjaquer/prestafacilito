@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router-dom";
-import { Archive, ArrowRight, Plus, Share2, Wallet } from "lucide-react";
+import { Archive, ArrowRight, LayoutList, Plus, Share2, Table2, Wallet } from "lucide-react";
 import { Cliente, Prestamo } from "../types";
 import { formatCurrency, getSaludoPorHora } from "../lib/formatters";
 import { GRUPOS_COBRO, GrupoCobro, ESTILO_GRUPO, CUOTAS_ESTANCADO } from "../lib/cobranza";
@@ -13,6 +13,7 @@ import { useFeedback } from "../components/ui/Feedback";
 import { CrearPrestamoForm } from "../components/dashboard/CrearPrestamoForm";
 import { RegistrarPagoForm } from "../components/dashboard/RegistrarPagoForm";
 import { CobroCard } from "../components/inicio/CobroCard";
+import { TablaCobros } from "../components/inicio/TablaCobros";
 import { ReporteCobrosModal } from "../components/inicio/ReporteCobrosModal";
 import { CuentasDesglose } from "../components/cuentas/CuentasDesglose";
 import { ItemCobro, ItemCobroApi, ordenarPorUrgencia, prepararItems } from "../components/inicio/tipos";
@@ -39,6 +40,22 @@ export const InicioPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<Filtro | null>(null);
   const [busqueda, setBusqueda] = useState("");
+  // Tarjetas o tabla; se recuerda en este equipo
+  const [vista, setVista] = useState<"tarjetas" | "tabla">(() => {
+    try {
+      return localStorage.getItem("inicio_vista") === "tabla" ? "tabla" : "tarjetas";
+    } catch {
+      return "tarjetas";
+    }
+  });
+  const cambiarVista = (v: "tarjetas" | "tabla") => {
+    setVista(v);
+    try {
+      localStorage.setItem("inicio_vista", v);
+    } catch {
+      /* sin almacenamiento: solo dura esta sesión */
+    }
+  };
 
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
   const [modal, setModal] = useState<null | "prestamo" | "pago" | "reporte">(null);
@@ -97,13 +114,18 @@ export const InicioPage: React.FC = () => {
 
   // Por defecto se abre el grupo más urgente que tenga algo
   const filtroActivo: Filtro =
-    filtro ?? (conteo.atrasado.n ? "atrasado" : conteo.hoy.n ? "hoy" : conteo.manana.n ? "manana" : conteo.semana.n ? "semana" : "todos");
+    filtro ?? (conteo.atrasado.n ? "atrasado" : conteo.hoy.n + conteo.hoyExtra ? "hoy" : conteo.manana.n ? "manana" : conteo.semana.n ? "semana" : "todos");
 
   const visibles = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
     return items.filter((it) => {
       // Los estancados tienen su propia sección; solo aparecen en la lista al buscar
-      if (!q) return it.grupo !== "estancado" && (filtroActivo === "todos" || it.grupo === filtroActivo);
+      // Lo que vence hoy aparece en "Cobrar hoy" aunque además tenga algo atrasado (sale en ambas pestañas)
+      if (!q)
+        return (
+          it.grupo !== "estancado" &&
+          (filtroActivo === "todos" || it.grupo === filtroActivo || (filtroActivo === "hoy" && it.venceHoyTambien))
+        );
       return (
         it.cliente_nombre.toLowerCase().includes(q) ||
         (it.cliente_apodo || "").toLowerCase().includes(q) ||
@@ -205,11 +227,43 @@ export const InicioPage: React.FC = () => {
               valor={busqueda ? null : filtroActivo}
               onChange={(id) => setFiltro(id)}
               opciones={[
-                ...GRUPOS_COBRO.map((g) => ({ id: g.id as Filtro, label: g.label, n: conteo[g.id].n, dot: ESTILO_GRUPO[g.id].dot })),
+                ...GRUPOS_COBRO.map((g) => ({
+                  id: g.id as Filtro,
+                  label: g.label,
+                  n: conteo[g.id].n + (g.id === "hoy" ? conteo.hoyExtra : 0),
+                  dot: ESTILO_GRUPO[g.id].dot,
+                })),
                 { id: "todos" as Filtro, label: "Todos", n: items.length - conteo.estancado.n, dot: "bg-slate-400" },
               ]}
             />
-            <SearchInput value={busqueda} onChange={setBusqueda} placeholder="Buscar cliente, apodo o inmueble..." />
+            <div className="flex gap-2">
+              <div className="flex-1 min-w-0">
+                <SearchInput value={busqueda} onChange={setBusqueda} placeholder="Buscar cliente, apodo o inmueble..." />
+              </div>
+              <div className="flex shrink-0 p-1 bg-white border border-slate-200 rounded-xl" role="group" aria-label="Vista">
+                {(
+                  [
+                    ["tarjetas", LayoutList, "Tarjetas"],
+                    ["tabla", Table2, "Tabla"],
+                  ] as const
+                ).map(([v, Icono, label]) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => cambiarVista(v)}
+                    aria-pressed={vista === v}
+                    aria-label={`Ver como ${label.toLowerCase()}`}
+                    title={label}
+                    className={`h-10 sm:h-9 w-10 sm:w-auto sm:px-3 rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1.5 ${
+                      vista === v ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-50"
+                    }`}
+                  >
+                    <Icono className="w-4 h-4" />
+                    <span className="hidden sm:inline">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </StickyBar>
 
           {loading && items.length === 0 ? (
@@ -219,6 +273,8 @@ export const InicioPage: React.FC = () => {
               titulo={busqueda ? "Sin resultados" : "Nada pendiente aquí"}
               detalle={busqueda ? "Prueba con otro nombre." : "Revisa otra pestaña o actualiza."}
             />
+          ) : vista === "tabla" ? (
+            <TablaCobros items={visibles} />
           ) : (
             <ul className="space-y-2">
               {visibles.map((it) => (

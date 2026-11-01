@@ -51,8 +51,12 @@ export const CobroCard: React.FC<CobroCardProps> = ({ item, onCobrar }) => {
     <li className={`border rounded-2xl overflow-hidden ${estilo.tarjeta}`}>
       <Link to={detalle} className="block px-3.5 pt-3 pb-2.5 decoration-none">
         <div className="flex items-center justify-between gap-2">
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${item.sinCobro ? "bg-sky-100 text-sky-800" : estilo.pill}`}>
-            {item.sinCobro ? "Sin cobro" : estilo.etiqueta}
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+              item.sinCobro ? "bg-sky-100 text-sky-800" : item.venceHoyTambien ? "bg-gradient-to-r from-amber-500 to-rose-600 text-white" : estilo.pill
+            }`}
+          >
+            {item.sinCobro ? "Sin cobro" : item.venceHoyTambien ? "Hoy + atrasado" : estilo.etiqueta}
           </span>
           <span className={`text-[11px] font-bold ${estilo.texto} truncate`}>{textoCuando(item)}</span>
         </div>
