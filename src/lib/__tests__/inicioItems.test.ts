@@ -21,4 +21,19 @@ describe("Inicio — atrasado al que además hoy le vence otra cuota", () => {
     assert.equal(it0.venceHoyTambien, false);
     assert.equal(it0.montoACobrar, 58.71);
   });
+
+  it("atrasado cuya próxima cuota vence mañana: se marca para la pestaña Mañana y cobra solo lo atrasado", () => {
+    const [it0] = prepararItems([{ ...base, proximo_cobro: "2026-11-02", atrasado: 66.95, monto_proximo: 133.9 }], hoy);
+    assert.equal(it0.grupo, "atrasado");
+    assert.equal(it0.venceMananaTambien, true);
+    assert.equal(it0.venceHoyTambien, false);
+    assert.equal(it0.montoACobrar, 66.95);
+  });
+
+  it("atrasado cuya próxima cuota vence en 3 días: se marca para la pestaña Esta semana", () => {
+    const [it0] = prepararItems([{ ...base, proximo_cobro: "2026-11-04", atrasado: 50, monto_proximo: 100 }], hoy);
+    assert.equal(it0.venceSemanaTambien, true);
+    assert.equal(it0.venceMananaTambien, false);
+    assert.equal(it0.montoACobrar, 50);
+  });
 });

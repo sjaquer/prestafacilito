@@ -1,6 +1,6 @@
 # Pendientes
 
-Estado al 2026-10-31. Lo marcado **[tú]** requiere acceso a Supabase, Vercel o Google y no se puede hacer desde el código.
+Estado al 2026-11-01. Lo marcado **[tú]** requiere acceso a Supabase, Vercel o Google y no se puede hacer desde el código.
 
 ## 1. Storage, copia en Drive y seguridad — ✅ completado el 2026-11-01
 
@@ -28,7 +28,7 @@ Pendiente manual:
 
 Verificado con los datos reales (25 préstamos con estado `activo` en la BD, 114 pagos).
 
-**El motor (`buildPaymentSchedule`) es coherente.** Cobra el interés del mes sobre el capital al inicio del mes; si el pago no lo cubre, el resto pasa a mora (sin interés sobre interés). Cada pago se aplica primero a la mora, luego al interés y el excedente va a capital. Las fechas no se corren (préstamo del 31 → 28/29 feb → 31 mar). Los tests pasan.
+**El motor (`buildPaymentSchedule`) es coherente.** Cobra el interés del mes sobre el capital al inicio del mes; si el pago no lo cubre, el resto queda como interés atrasado (sin recargo ni interés sobre interés). Cada pago se aplica primero al interés atrasado, luego al interés y el excedente va a capital. Las fechas no se corren (préstamo del 31 → 28/29 feb → 31 mar). Los tests pasan.
 
 **Por qué Inicio dice 5 atrasados y Reportes dice 9.** No es un error de cálculo: cada pantalla usa un criterio distinto.
 - Inicio: préstamos con interés vencido *hoy* sin pagar (5). Los que tienen 5 o más cuotas sin pagar van aparte, en la sección de estancados (2, ambos de Isabel Sánchez).
@@ -47,7 +47,7 @@ Verificado con los datos reales (25 préstamos con estado `activo` en la BD, 114
    - Fabrizio: S/ 400 al **0 %** y pagó S/ 550.
    - Isabel, Diego y Lizbeth: S/ 18, S/ 25 y S/ 30 de más.
    Probablemente son préstamos registrados con una tasa equivocada (debería ser 10 %) o pagos de más. **Siguiente paso, cuando las fotos ya estén en Storage:** revisar préstamo por préstamo (los 25 "activos") junto a sus vouchers.
-6. **Desglose por pago en el cronograma** (`pagosRecibidos.aplicadoInteres/aplicadoCapital`): no tiene en cuenta la mora, los varios pagos en un mismo mes ni el tope de capital. En 10 de 107 meses lo que se muestra no coincide con lo que realmente se aplicó (los totales del mes sí están bien).
+6. **Desglose por pago en el cronograma** (`pagosRecibidos.aplicadoInteres/aplicadoCapital`): no tiene en cuenta el interés atrasado, los varios pagos en un mismo mes ni el tope de capital. En 10 de 107 meses lo que se muestra no coincide con lo que realmente se aplicó (los totales del mes sí están bien).
 7. **Alquileres "al día" en Reportes**: basta cualquier pago del mes actual, aunque sea parcial y aunque haya meses anteriores sin pagar.
 
 **Previsualizar pago en cuotas** (`usePreviewCuotas` + `CrearPrestamoForm`):
@@ -57,7 +57,7 @@ Verificado con los datos reales (25 préstamos con estado `activo` en la BD, 114
 - Propuesta: guardar `numero_cuotas`; generar la vista previa simulando con el propio motor (una sola fuente de verdad); que la última cuota absorba el redondeo; mostrar también "si solo paga interés: S/ X al mes"; y en Inicio/Cartera mostrar "cuota del plan" junto al interés del mes.
 
 **El monolito** (propuesta para cuando se decida tocarlo, con los tests como red):
-- `buildPaymentSchedule` (240 líneas) hace seis cosas a la vez: generar períodos, detectar congelamientos, asignar pagos al período, aplicar el pago (mora → interés → capital), decidir el estado de la cuota y armar el resumen. Se puede separar en funciones puras sin cambiar resultados, verificando contra una "foto" del resultado actual para todos los préstamos reales.
+- `buildPaymentSchedule` (240 líneas) hace seis cosas a la vez: generar períodos, detectar congelamientos, asignar pagos al período, aplicar el pago (interés atrasado → interés → capital), decidir el estado de la cuota y armar el resumen. Se puede separar en funciones puras sin cambiar resultados, verificando contra una "foto" del resultado actual para todos los préstamos reales.
 - `routes/prestamos.routes.ts` (731 líneas) mezcla HTTP con reglas de negocio (el registro de pago recalcula el cronograma 3 veces).
 - El criterio de "atrasado/estancado/al día" está repetido en `proximoCobro`, `cobranza`, `bi.routes`, `calendario-eventos` y el motor. Debería existir un solo módulo `estadoCobranza` que usen Inicio, Cartera, Reportes y Calendario.
 
@@ -66,6 +66,8 @@ Verificado con los datos reales (25 préstamos con estado `activo` en la BD, 114
 - ✅ **Alquileres**: cada pago cuenta para el mes elegido; lo pagado de más cubre el mes impago más antiguo (totales verificados iguales en los 4 contratos). "Debe a la fecha" ya no suma la mensualidad que aún no vence.
 - **[revisar con la clienta] Natali Reátegui**: el contrato figura desde el 07/12/2025, pero no hay pagos registrados de febrero a mayo de 2026 y julio tiene dos pagos de S/ 330. Puede ser que la fecha de inicio esté mal, que falten pagos o que un pago de julio fuera de otro mes. Debe S/ 1,450.
 - ✅ **Score A/B/C**: recalculado para los 20 clientes con préstamos; se actualiza cada día y después de cada pago.
+- ✅ **Inicio**: "atrasado" es solo lo vencido *antes* de hoy. Un atrasado al que además le vence una cuota hoy, mañana o esta semana aparece también en esa pestaña ("Hoy + atrasado", "Mañana + atrasado"). Se agregó la vista de tabla.
+- ✅ **Congelamientos**: siempre de cuota X a cuota Y (se exige fecha de fin). Se quitaron "Acuerdos/notas del préstamo" y "Tipo de cada pago"; "Previsualizar cuotas" pasó a ser la **Guía de pagos** (solo informativa).
 
 ## 4. Deuda técnica restante
 

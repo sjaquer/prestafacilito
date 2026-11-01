@@ -19,7 +19,7 @@ function textoCuando(item: ItemCobro) {
     const n = item.cuotas_atrasadas || 1;
     const unidad = item.es_alquiler ? "mes" : "cuota";
     const texto = `${n} ${unidad}${n > 1 ? "s" : ""} sin pagar`;
-    return item.venceHoyTambien ? `${texto} · hoy vence otra` : texto;
+    return item.venceHoyTambien ? `${texto} · hoy vence otra` : item.venceMananaTambien ? `${texto} · mañana vence otra` : item.venceSemanaTambien ? `${texto} · otra vence esta semana` : texto;
   }
   const fecha = item.proximo_cobro ? `${textoRelativo(item.dias)} · ${formatFechaCorta(item.proximo_cobro)}` : "Sin fecha";
   return item.sinCobro && item.congelado ? `${fecha} · interés congelado` : fecha;
@@ -53,10 +53,16 @@ export const CobroCard: React.FC<CobroCardProps> = ({ item, onCobrar }) => {
         <div className="flex items-center justify-between gap-2">
           <span
             className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-              item.sinCobro ? "bg-sky-100 text-sky-800" : item.venceHoyTambien ? "bg-gradient-to-r from-amber-500 to-rose-600 text-white" : estilo.pill
+              item.sinCobro
+                ? "bg-sky-100 text-sky-800"
+                : item.venceHoyTambien
+                  ? "bg-gradient-to-r from-amber-500 to-rose-600 text-white"
+                  : item.venceMananaTambien
+                    ? "bg-gradient-to-r from-sky-600 to-rose-600 text-white"
+                    : estilo.pill
             }`}
           >
-            {item.sinCobro ? "Sin cobro" : item.venceHoyTambien ? "Hoy + atrasado" : estilo.etiqueta}
+            {item.sinCobro ? "Sin cobro" : item.venceHoyTambien ? "Hoy + atrasado" : item.venceMananaTambien ? "Mañana + atrasado" : estilo.etiqueta}
           </span>
           <span className={`text-[11px] font-bold ${estilo.texto} truncate`}>{textoCuando(item)}</span>
         </div>

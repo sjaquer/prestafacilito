@@ -53,10 +53,16 @@ export const TablaCobros: React.FC<{ items: ItemCobro[] }> = ({ items }) => {
                   <td className="px-3 py-2.5">
                     <span
                       className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-black whitespace-nowrap ${
-                        it.sinCobro ? "bg-sky-100 text-sky-800" : it.venceHoyTambien ? "bg-gradient-to-r from-amber-500 to-rose-600 text-white" : estilo.pill
+                        it.sinCobro
+                ? "bg-sky-100 text-sky-800"
+                : it.venceHoyTambien
+                  ? "bg-gradient-to-r from-amber-500 to-rose-600 text-white"
+                  : it.venceMananaTambien
+                    ? "bg-gradient-to-r from-sky-600 to-rose-600 text-white"
+                    : estilo.pill
                       }`}
                     >
-                      {it.sinCobro ? "Sin cobro" : it.venceHoyTambien ? "Hoy + atrasado" : estilo.etiqueta}
+                      {it.sinCobro ? "Sin cobro" : it.venceHoyTambien ? "Hoy + atrasado" : it.venceMananaTambien ? "Mañana + atrasado" : estilo.etiqueta}
                     </span>
                   </td>
                   <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{it.ultimo_pago_fecha ? formatFechaCorta(it.ultimo_pago_fecha) : "—"}</td>

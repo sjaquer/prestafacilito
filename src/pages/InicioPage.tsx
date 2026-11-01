@@ -100,6 +100,8 @@ export const InicioPage: React.FC = () => {
       estancado: { n: 0, monto: 0 },
     };
     let hoyExtra = 0;
+    let mananaExtra = 0;
+    let semanaExtra = 0;
     for (const it of items) {
       c[it.grupo].n++;
       // Atrasados: solo lo vencido. Si además hoy vence otra cuota, esa parte suma en "Cobrar hoy".
@@ -108,23 +110,29 @@ export const InicioPage: React.FC = () => {
         c.hoy.monto += it.montoACobrar - it.atrasado;
         hoyExtra++;
       }
+      if (it.venceMananaTambien) mananaExtra++;
+      if (it.venceSemanaTambien) semanaExtra++;
     }
-    return { ...c, hoyExtra };
+    return { ...c, hoyExtra, mananaExtra, semanaExtra };
   }, [items]);
 
   // Por defecto se abre el grupo más urgente que tenga algo
   const filtroActivo: Filtro =
-    filtro ?? (conteo.atrasado.n ? "atrasado" : conteo.hoy.n + conteo.hoyExtra ? "hoy" : conteo.manana.n ? "manana" : conteo.semana.n ? "semana" : "todos");
+    filtro ?? (conteo.atrasado.n ? "atrasado" : conteo.hoy.n + conteo.hoyExtra ? "hoy" : conteo.manana.n + conteo.mananaExtra ? "manana" : conteo.semana.n + conteo.semanaExtra ? "semana" : "todos");
 
   const visibles = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
     return items.filter((it) => {
       // Los estancados tienen su propia sección; solo aparecen en la lista al buscar
-      // Lo que vence hoy aparece en "Cobrar hoy" aunque además tenga algo atrasado (sale en ambas pestañas)
+      // Lo que vence hoy o mañana aparece en esa pestaña aunque además tenga algo atrasado (sale en ambas)
       if (!q)
         return (
           it.grupo !== "estancado" &&
-          (filtroActivo === "todos" || it.grupo === filtroActivo || (filtroActivo === "hoy" && it.venceHoyTambien))
+          (filtroActivo === "todos" ||
+            it.grupo === filtroActivo ||
+            (filtroActivo === "hoy" && it.venceHoyTambien) ||
+            (filtroActivo === "manana" && it.venceMananaTambien) ||
+            (filtroActivo === "semana" && it.venceSemanaTambien))
         );
       return (
         it.cliente_nombre.toLowerCase().includes(q) ||
@@ -230,7 +238,7 @@ export const InicioPage: React.FC = () => {
                 ...GRUPOS_COBRO.map((g) => ({
                   id: g.id as Filtro,
                   label: g.label,
-                  n: conteo[g.id].n + (g.id === "hoy" ? conteo.hoyExtra : 0),
+                  n: conteo[g.id].n + (g.id === "hoy" ? conteo.hoyExtra : g.id === "manana" ? conteo.mananaExtra : g.id === "semana" ? conteo.semanaExtra : 0),
                   dot: ESTILO_GRUPO[g.id].dot,
                 })),
                 { id: "todos" as Filtro, label: "Todos", n: items.length - conteo.estancado.n, dot: "bg-slate-400" },
