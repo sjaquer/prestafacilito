@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Home as HomeIcon, MessageCircle, Wallet } from "lucide-react";
-import { formatCurrency, formatDate } from "../../lib/formatters";
+import { formatFechaCorta, formatSoles } from "../../lib/formatters";
 import { ESTILO_GRUPO, linkCobroWhatsApp } from "../../lib/cobranza";
 import { textoRelativo } from "../../lib/fechas";
 import { ItemCobro } from "./tipos";
@@ -20,7 +20,7 @@ function textoCuando(item: ItemCobro) {
     const unidad = item.es_alquiler ? "mes" : "cuota";
     return `${n} ${unidad}${n > 1 ? "s" : ""} sin pagar`;
   }
-  return item.proximo_cobro ? `${textoRelativo(item.dias)} · ${formatDate(item.proximo_cobro)}` : "Sin fecha";
+  return item.proximo_cobro ? `${textoRelativo(item.dias)} · ${formatFechaCorta(item.proximo_cobro)}` : "Sin fecha";
 }
 
 const Celda: React.FC<{ label: string; valor: string; destacado?: boolean }> = ({ label, valor, destacado }) => (
@@ -66,7 +66,7 @@ export const CobroCard: React.FC<CobroCardProps> = ({ item, onCobrar }) => {
                 </>
               ) : (
                 <>
-                  {item.tipo} · {item.tasa}% mensual · prestó {formatCurrency(item.monto_original)}
+                  {item.tipo} · {item.tasa}% mensual · prestó {formatSoles(item.monto_original)}
                 </>
               )}
             </p>
@@ -77,24 +77,24 @@ export const CobroCard: React.FC<CobroCardProps> = ({ item, onCobrar }) => {
         <div className="mt-2 grid grid-cols-3 gap-1.5">
           {item.es_alquiler ? (
             <>
-              <Celda label="Renta" valor={formatCurrency(item.renta_mensual)} />
-              <Celda label="Atrasado" valor={formatCurrency(item.atrasado)} />
+              <Celda label="Renta" valor={formatSoles(item.renta_mensual)} />
+              <Celda label="Mes" valor={item.proximo_cobro ? formatFechaCorta(item.proximo_cobro) : "—"} />
             </>
           ) : (
             <>
-              <Celda label="Capital" valor={formatCurrency(item.capital_restante)} />
-              <Celda label="Interés/mes" valor={formatCurrency(item.interes_mes)} />
+              <Celda label="Capital" valor={formatSoles(item.capital_restante)} />
+              <Celda label="Interés/mes" valor={item.congelado ? "Congelado" : formatSoles(item.interes_mes)} />
             </>
           )}
-          <Celda label={esAtraso ? "Atrasado" : "A cobrar"} valor={formatCurrency(item.montoACobrar)} destacado />
+          <Celda label={esAtraso ? "Atrasado" : "A cobrar"} valor={formatSoles(item.montoACobrar)} destacado />
         </div>
       </Link>
 
       <div className="flex items-center gap-2 px-3.5 pb-3">
         <span className="flex-1 text-[10px] text-slate-500 font-semibold truncate">
-          {esAtraso && item.debe_desde ? `Debe desde ${formatDate(item.debe_desde)}` : ""}
+          {esAtraso && item.debe_desde ? `Debe desde ${formatFechaCorta(item.debe_desde)}` : ""}
           {esAtraso && item.debe_desde ? " · " : ""}
-          {item.ultimo_pago_fecha ? `Último pago ${formatDate(item.ultimo_pago_fecha)}` : "Sin pagos"}
+          {item.ultimo_pago_fecha ? `Último pago ${formatFechaCorta(item.ultimo_pago_fecha)}` : "Sin pagos"}
         </span>
         {wa && (
           <a

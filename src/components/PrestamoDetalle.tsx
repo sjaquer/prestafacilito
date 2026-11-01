@@ -12,7 +12,7 @@ import {
   Settings2,
   AlertTriangle,
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { TimelineDetallePrestamo, TimelineMesItem } from "./prestamo/TimelineDetallePrestamo";
 import { AjustesPrestamoPanel } from "./prestamo/AjustesPrestamoPanel";
 import { RegistrarPagoPrestamoForm } from "./prestamo/RegistrarPagoPrestamoForm";
@@ -22,6 +22,8 @@ import { LoanHero } from "./prestamo/LoanHero";
 import { VoucherLightbox } from "./common/VoucherLightbox";
 import { CollapsibleSection } from "./ui/CollapsibleSection";
 import { formatCurrency } from "../lib/formatters";
+import { montosDePago } from "../lib/proximoCobro";
+import { hoyISO } from "../lib/fechas";
 
 type Flash = { type: "success" | "error" | "info"; text: string } | null;
 
@@ -34,6 +36,8 @@ const FLASH_STYLES = {
 export const PrestamoDetalle: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const abrirEditar = searchParams.get("seccion") === "editar";
 
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,6 +72,11 @@ export const PrestamoDetalle: React.FC = () => {
   useEffect(() => {
     fetchDetalle();
   }, [fetchDetalle]);
+
+  // Llegando desde "Editar" (Cartera), ir directo al formulario
+  useEffect(() => {
+    if (abrirEditar && data) document.getElementById("seccion-editar")?.scrollIntoView({ behavior: "smooth" });
+  }, [abrirEditar, data]);
 
   const refrescar = useCallback(
     async (mensaje?: string) => {
@@ -105,10 +114,13 @@ export const PrestamoDetalle: React.FC = () => {
 
   const { cliente, resumen, deuda, ajustes = [], pagosRealizados = [] } = data;
   const timeline: TimelineMesItem[] = data.timeline || [];
+  const montos = montosDePago({ ...data, resumen: deuda, cuotas: data.cuotas || [] }, prestamo.fecha_emision, hoyISO());
   const isLiquidado = prestamo.estado === "pagado" || prestamo.estado === "liquidado" || (resumen && resumen.saldoPendiente <= 0.01);
   const isEstancado = !isLiquidado && (deuda?.esEstancado || prestamo.estado === "estancado");
   const ajustesActivos = ajustes.filter((a: any) => a.activo).length;
-  const mesesConProblema = timeline.filter((m) => ["SinPago", "Vencida", "PagoIncompleto"].includes(m.estado)).length;
+  const mesesConProblema = timeline.filter(
+    (m) => ["SinPago", "Vencida", "PagoIncompleto"].includes(m.estado) && m.fechaVencimiento < hoyISO() && m.saldoPendienteCuota > 0.009
+  ).length;
   const FlashIcon = flash ? FLASH_STYLES[flash.type].icon : null;
   const clienteNombre = cliente?.nombre_completo || prestamo.cliente_nombre;
 
@@ -128,7 +140,7 @@ export const PrestamoDetalle: React.FC = () => {
         prestamo={prestamo}
         cliente={cliente}
         deuda={deuda}
-        cuotaSiguiente={data.cuota_siguiente}
+        montos={montos}
         ajustesActivos={ajustesActivos}
         isLiquidado={isLiquidado}
         isEstancado={isEstancado}
@@ -173,6 +185,7 @@ export const PrestamoDetalle: React.FC = () => {
                 prestamo={prestamo}
                 resumen={resumen}
                 deuda={deuda}
+                montos={montos}
                 onError={(text) => setFlash({ type: "error", text })}
                 onSuccess={(text) => refrescar(text)}
               />
@@ -184,16 +197,18 @@ export const PrestamoDetalle: React.FC = () => {
             title="Ajustes y facilidades"
             icon={<ShieldCheck className="w-4 h-4" />}
             aside={ajustesActivos > 0 ? `${ajustesActivos} activo${ajustesActivos > 1 ? "s" : ""}` : undefined}
+            defaultOpen={ajustes.some((a: any) => a.activo && a.tipo === "congelar_interes_temporal" && !a.fecha_fin)}
           >
             <AjustesPrestamoPanel
               prestamoId={prestamo.id}
+              fechaEmision={prestamo.fecha_emision}
               ajustes={ajustes}
-              totalCuotas={resumen?.totalCuotas || 1}
+              timeline={timeline}
               onAjusteActualizado={fetchDetalle}
             />
           </CollapsibleSection>
 
-          <CollapsibleSection className="order-5" title="Editar préstamo" icon={<Settings2 className="w-4 h-4" />}>
+          <CollapsibleSection id="seccion-editar" className="order-5" title="Editar préstamo" icon={<Settings2 className="w-4 h-4" />} defaultOpen={abrirEditar}>
             <EditarPrestamoForm
               key={`edit-${version}`}
               prestamo={prestamo}

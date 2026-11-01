@@ -1,185 +1,77 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
-import { MessageSquare, Edit } from "lucide-react";
-import { motion } from "motion/react";
-import { Badge } from "../ui/Badge";
-import { formatCurrency, formatDateShort } from "../../lib/formatters";
-import { EstadoMoraCliente } from "../../lib/moraLogic";
-import {
-  ESTADO_CUOTA_BADGE,
-  daysUntil,
-  getEstadoCuotaLabel,
-  getIndicatorColor,
-  isEnMora,
-  esLiquidado,
-  GrupoCartera,
-} from "./carteraUtils";
+import { Link } from "react-router-dom";
+import { ChevronRight, Edit3, MessageCircle } from "lucide-react";
+import { formatFechaCorta, formatSoles } from "../../lib/formatters";
 import { ESTILO_GRUPO } from "../../lib/cobranza";
+import { ResumenPrestamo } from "../../lib/resumenPrestamo";
 
 interface CarteraLoanCardProps {
   loan: any;
-  mora?: EstadoMoraCliente;
-  grupo: GrupoCartera;
-  today: Date;
+  resumen: ResumenPrestamo;
   waLink: string | null;
   onEdit: (loan: any) => void;
 }
 
-const badgeBase = "text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5";
+const Celda: React.FC<{ label: string; valor: string; fuerte?: boolean }> = ({ label, valor, fuerte }) => (
+  <div className={`rounded-xl px-2.5 py-1.5 ${fuerte ? "bg-white shadow-sm" : "bg-white/60"}`}>
+    <p className="text-[9.5px] font-bold text-slate-500 uppercase truncate">{label}</p>
+    <p className={`font-mono leading-tight ${fuerte ? "text-[15px] font-black text-slate-900" : "text-[13px] font-bold text-slate-700"}`}>{valor}</p>
+  </div>
+);
 
-const PlazoBadge: React.FC<{ loan: any; mora?: EstadoMoraCliente; today: Date }> = ({ loan, mora, today }) => {
-  if (esLiquidado(loan)) {
-    return <Badge variant="neutral" className={`${badgeBase} bg-slate-100 text-slate-500`}>Liquidado</Badge>;
-  }
-  if (!mora || !mora.fechaCuotaActual) return null;
-  if (isEnMora(mora)) {
-    return <Badge variant="danger" className={badgeBase}>Mora -{Math.abs(mora.diasAtraso)}d</Badge>;
-  }
-  const days = Math.max(0, daysUntil(mora.fechaCuotaActual, today));
-  if (days === 0) return <Badge variant="warning" className={`${badgeBase} animate-pulse`}>Vence hoy</Badge>;
-  if (days <= 5) return <Badge variant="info" className={badgeBase}>En {days}d</Badge>;
-  return <Badge variant="neutral" className={`${badgeBase} text-slate-550`}>{days}d</Badge>;
-};
-
-/** Tarjeta deslizable de un préstamo para la vista móvil de la cartera. */
-export const CarteraLoanCard: React.FC<CarteraLoanCardProps> = ({ loan, mora, grupo, today, waLink, onEdit }) => {
-  const navigate = useNavigate();
-  const fondo = grupo === "liquidado" ? "bg-white border-slate-200" : ESTILO_GRUPO[grupo].tarjeta;
-  const isPagado = esLiquidado(loan);
-  const canCobrar = !esLiquidado(loan) && !!waLink;
-
-  const indicatorColor = isPagado ? "bg-slate-300" : getIndicatorColor(mora, today);
-  const statusBadgeColor = isPagado
-    ? "bg-slate-100 text-slate-600 border-slate-250"
-    : mora
-    ? ESTADO_CUOTA_BADGE[mora.estadoCuotaMes]
-    : ESTADO_CUOTA_BADGE.sin_cuotas;
-  const statusLabel = isPagado ? "Pagado" : mora ? getEstadoCuotaLabel(mora, true) : "Sin cuotas";
-
-  let dueDateStr = "No est.";
-  if (loan.tipo_prestamo === "Alquiler de Casa") {
-    const day = loan.fecha_emision ? parseInt(loan.fecha_emision.split("-")[2]) : "";
-    dueDateStr = `Día ${day} de c/mes`;
-  } else if (loan.fecha_vencimiento) {
-    dueDateStr = formatDateShort(loan.fecha_vencimiento);
-  }
+/** Tarjeta de préstamo para el celular: estado por color, cifras clave y acciones directas (sin gestos ocultos). */
+export const CarteraLoanCard: React.FC<CarteraLoanCardProps> = ({ loan, resumen: r, waLink, onEdit }) => {
+  const liquidado = r.grupo === "liquidado";
+  const estilo = liquidado ? null : ESTILO_GRUPO[r.grupo];
+  const atraso = r.grupo === "atrasado" || r.grupo === "estancado";
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 select-none min-h-[125px]">
-      {/* ACCIONES DETRÁS (SWIPE REVEAL) */}
-      <div className="absolute inset-0 flex items-center justify-end px-4 gap-2 bg-slate-100/80 z-0">
-        {canCobrar && (
+    <li className={`border rounded-2xl overflow-hidden ${estilo ? estilo.tarjeta : "bg-slate-50 border-slate-200"}`}>
+      <Link to={`/prestamos/${loan.id}`} className="block px-3.5 pt-3 pb-2.5 decoration-none">
+        <div className="flex items-center justify-between gap-2">
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${estilo ? estilo.pill : "bg-slate-200 text-slate-600"}`}>
+            {estilo ? estilo.etiqueta : "Liquidado"}
+          </span>
+          {!liquidado && r.fecha && (
+            <span className={`text-[11px] font-bold ${atraso ? "text-rose-700" : "text-slate-600"}`}>
+              {atraso ? `${r.cuotasAtrasadas} cuota${r.cuotasAtrasadas > 1 ? "s" : ""} · desde ${formatFechaCorta(r.fecha)}` : formatFechaCorta(r.fecha)}
+            </span>
+          )}
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="font-extrabold text-slate-900 text-[15px] leading-tight truncate">{loan.cliente_nombre}</p>
+            <p className="text-[11px] text-slate-600 font-semibold truncate">
+              {loan.tipo_prestamo} · {loan.tasa_interes_porcentaje}% · prestó {formatSoles(loan.monto_capital)}
+            </p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+        </div>
+        {!liquidado && (
+          <div className="mt-2 grid grid-cols-3 gap-1.5">
+            <Celda label="Capital" valor={formatSoles(r.capitalRestante)} />
+            <Celda label="Interés/mes" valor={r.congelado ? "Congelado" : formatSoles(r.interesMes)} />
+            <Celda label={atraso ? "Atrasado" : "A cobrar"} valor={formatSoles(r.aCobrar)} fuerte />
+          </div>
+        )}
+      </Link>
+      <div className="grid grid-cols-2 border-t border-black/5 text-xs font-bold">
+        {waLink ? (
           <a
-            href={waLink!}
+            href={waLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center hover:bg-emerald-700 transition"
-            title="Cobrar vía WhatsApp"
+            className="h-11 inline-flex items-center justify-center gap-1.5 text-emerald-700 hover:bg-white/60 decoration-none border-r border-black/5"
           >
-            <MessageSquare size={16} />
+            <MessageCircle className="w-4 h-4" /> Recordar
           </a>
+        ) : (
+          <span className="h-11 inline-flex items-center justify-center text-slate-400 border-r border-black/5">Sin WhatsApp</span>
         )}
-        <button
-          type="button"
-          onClick={() => onEdit(loan)}
-          className="w-10 h-10 bg-indigo-650 text-white rounded-xl flex items-center justify-center hover:bg-indigo-700 transition border-none cursor-pointer"
-          title="Editar Parámetros"
-        >
-          <Edit size={16} />
+        <button type="button" onClick={() => onEdit(loan)} className="h-11 inline-flex items-center justify-center gap-1.5 text-slate-700 hover:bg-white/60">
+          <Edit3 className="w-4 h-4" /> Editar
         </button>
       </div>
-
-      {/* TARJETA DELANTERA DESLIZABLE */}
-      <motion.div
-        drag="x"
-        dragConstraints={{ left: -150, right: 0 }}
-        dragElastic={0.05}
-        dragTransition={{ bounceStiffness: 600, bounceDamping: 25 }}
-        onTap={() => navigate(`/prestamos/${loan.id}`)}
-        className={`relative p-3.5 z-10 flex flex-col gap-2.5 border-b cursor-pointer touch-pan-y ${fondo}`}
-      >
-        <div className="flex justify-between items-start">
-          <div className="flex items-center gap-1.5">
-            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${indicatorColor}`} />
-            <h4 className="font-extrabold text-slate-900 text-[13px] tracking-tight truncate max-w-[150px] leading-tight">
-              {loan.cliente_nombre}
-            </h4>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className={`badge text-[8px] font-black border ${statusBadgeColor}`}>{statusLabel}</span>
-            <PlazoBadge loan={loan} mora={mora} today={today} />
-          </div>
-        </div>
-
-        {/* Fila 1: Resumen de saldos */}
-        <div className="grid grid-cols-3 gap-2 border-b border-slate-100 pb-2.5">
-          <div className="flex flex-col">
-            <span className="text-[7.5px] text-slate-400 font-bold uppercase tracking-wider">Capital Inic.</span>
-            <span className="font-financial text-slate-700 text-[11px] font-bold mt-0.5 leading-none">
-              {formatCurrency(loan.monto_capital)}
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[7.5px] text-rose-500 font-black uppercase tracking-wider">Falta Cobrar</span>
-            <span className="font-financial text-rose-600 text-[11px] font-extrabold mt-0.5 leading-none">
-              {formatCurrency(mora ? mora.saldoPendiente : 0)}
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[7.5px] text-indigo-500 font-black uppercase tracking-wider">
-              {mora && isEnMora(mora) ? "Atrasado" : "Cuota mes"}
-            </span>
-            <span className="font-financial text-indigo-650 text-[11px] font-extrabold mt-0.5 leading-none">
-              {formatCurrency(mora ? (isEnMora(mora) ? mora.moraAcumulada : mora.montoCuotaActual) : 0)}
-            </span>
-          </div>
-        </div>
-
-        {/* Fila 2: Detalles de pago y fechas */}
-        <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-550 pt-0.5">
-          <div>
-            <span className="text-[7.5px] text-slate-400 font-bold uppercase block tracking-wider">Último Abono</span>
-            <span className="font-medium text-slate-700 block leading-tight mt-0.5">
-              {mora && mora.ultimoPagoMonto
-                ? `${formatCurrency(mora.ultimoPagoMonto)} (${formatDateShort(mora.ultimoPagoFecha!)})`
-                : "Ninguno"}
-            </span>
-          </div>
-          <div>
-            <span className="text-[7.5px] text-slate-400 font-bold uppercase block tracking-wider">Próx. Vencimiento</span>
-            <span className="font-mono text-slate-700 font-bold block leading-tight mt-0.5 truncate">{dueDateStr}</span>
-          </div>
-        </div>
-
-        <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-[8.5px]">
-          <span className="text-slate-450 font-bold uppercase">{loan.tipo_prestamo}</span>
-          <div className="flex items-center gap-2">
-            {canCobrar && (
-              <a
-                href={waLink!}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="p-1.5 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition flex items-center justify-center decoration-none"
-                title="Cobrar vía WhatsApp"
-              >
-                <MessageSquare size={12} />
-              </a>
-            )}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(loan);
-              }}
-              className="p-1.5 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition flex items-center justify-center border-none cursor-pointer"
-              title="Editar Parámetros"
-            >
-              <Edit size={12} />
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </div>
+    </li>
   );
 };

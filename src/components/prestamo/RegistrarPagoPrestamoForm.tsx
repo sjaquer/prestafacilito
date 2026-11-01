@@ -4,12 +4,15 @@ import { CuentaSelector } from "../cuentas/CuentaSelector";
 import { subirVoucher } from "../../lib/imageCompression";
 import { round2 } from "../../lib/loanLogic";
 import { hoyISO } from "../../lib/fechas";
+import { formatDate } from "../../lib/formatters";
+import type { MontosDePago } from "../../lib/proximoCobro";
 
 interface RegistrarPagoPrestamoFormProps {
   prestamoId: string;
   prestamo: any;
   resumen: any;
   deuda: any;
+  montos: MontosDePago;
   onSuccess: (msg: string) => void;
   onError: (msg: string) => void;
 }
@@ -18,7 +21,7 @@ const inputClass =
   "w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all";
 
 /** Vista previa (solo informativa) de cómo se distribuye el abono: mora → interés → capital. */
-const useDesglose = (montoPago: string, prestamo: any, resumen: any, deuda: any) =>
+const useDesglose = (montoPago: string, prestamo: any, resumen: any, deuda: any, cuotaAPagar: number) =>
   useMemo(() => {
     const nMonto = round2(parseFloat(montoPago) || 0);
     if (nMonto <= 0 || !prestamo) return null;
@@ -35,7 +38,8 @@ const useDesglose = (montoPago: string, prestamo: any, resumen: any, deuda: any)
     const cubiertoCapital = round2(Math.min(capitalAntes, restante));
     restante = round2(restante - cubiertoCapital);
 
-    const cuotaMinima = round2(moraAntes + interesAntes);
+    // Lo que falta para quedar al día en el período actual (ver montosDePago)
+    const cuotaMinima = round2(cuotaAPagar);
     const esIncompleto = nMonto > 0 && nMonto < cuotaMinima - 0.01;
 
     return {
@@ -50,13 +54,14 @@ const useDesglose = (montoPago: string, prestamo: any, resumen: any, deuda: any)
       esIncompleto,
       moraGeneradaFutura: esIncompleto ? round2(cuotaMinima - nMonto) : 0,
     };
-  }, [montoPago, prestamo, resumen, deuda]);
+  }, [montoPago, prestamo, resumen, deuda, cuotaAPagar]);
 
 export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps> = ({
   prestamoId,
   prestamo,
   resumen,
   deuda,
+  montos,
   onSuccess,
   onError,
 }) => {
@@ -67,14 +72,12 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
   const [comprobanteFiles, setComprobanteFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const desglose = useDesglose(montoPago, prestamo, resumen, deuda);
+  const desglose = useDesglose(montoPago, prestamo, resumen, deuda, montos.cuota);
 
-  // Montos de referencia (mismos valores que usa el desglose)
-  const capital = round2(resumen?.capitalRestante ?? prestamo?.monto_capital ?? 0);
-  const minimo = round2((deuda?.moraAcumulada ?? 0) + (deuda?.interesPendiente ?? 0));
+  // Montos de referencia coherentes con cómo el sistema reparte el pago
   const atajos = [
-    { label: "Pago mínimo", detalle: "interés + mora", monto: minimo },
-    { label: "Liquidar todo", detalle: "deja el saldo en 0", monto: round2(minimo + capital) },
+    { label: "Cuota a pagar", detalle: montos.fechaCuota ? `al día hasta ${formatDate(montos.fechaCuota)}` : "queda al día", monto: montos.cuota },
+    { label: "Liquidar todo", detalle: "deja el saldo en 0", monto: montos.liquidar },
   ].filter((a) => a.monto > 0.009);
 
   const handleSubmit = async (e: React.FormEvent) => {

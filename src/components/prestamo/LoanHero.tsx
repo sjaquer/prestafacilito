@@ -2,12 +2,13 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, CalendarClock, CheckCircle2, Snowflake } from "lucide-react";
 import { formatCurrency, formatDate } from "../../lib/formatters";
+import type { MontosDePago } from "../../lib/proximoCobro";
 
 interface LoanHeroProps {
   prestamo: any;
   cliente: any;
   deuda: any;
-  cuotaSiguiente: any;
+  montos: MontosDePago;
   ajustesActivos: number;
   isLiquidado: boolean;
   isEstancado: boolean;
@@ -49,7 +50,7 @@ export const LoanHero: React.FC<LoanHeroProps> = ({
   prestamo,
   cliente,
   deuda,
-  cuotaSiguiente,
+  montos,
   ajustesActivos,
   isLiquidado,
   isEstancado,
@@ -57,22 +58,16 @@ export const LoanHero: React.FC<LoanHeroProps> = ({
   const capital = Number(prestamo.monto_capital) || 0;
   const capitalPendiente = Number(deuda?.capitalPendiente ?? capital) || 0;
   const capitalPagadoPct = capital > 0 ? Math.min(100, Math.max(0, ((capital - capitalPendiente) / capital) * 100)) : 0;
-  const mora = Number(deuda?.moraAcumulada) || 0;
-  const pagoMinimo = mora + (Number(deuda?.interesPendiente) || 0);
-  const saldo = Number(deuda?.saldoPendiente) || 0;
-
-  const fechaProx = cuotaSiguiente?.fechaVencimiento as string | undefined;
-  const dias = diasHasta(fechaProx);
-  const vencido = dias !== null && dias < 0;
+  const dias = diasHasta(montos.fechaCuota || undefined);
   const dia = diaDePago(prestamo);
 
   return (
     <div className="bg-white border border-slate-200/80 rounded-3xl shadow-sm overflow-hidden">
       {/* Cliente y estado */}
-      <div className="px-5 pt-5 pb-4 flex items-start justify-between gap-3">
+      <div className="px-5 pt-5 pb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-            {prestamo.tipo_prestamo || "Préstamo"}
+            {prestamo.tipo_prestamo || "Préstamo"} · {prestamo.tasa_interes_porcentaje}% mensual
           </p>
           <Link
             to={`/clientes/${prestamo.cliente_id}`}
@@ -92,63 +87,59 @@ export const LoanHero: React.FC<LoanHeroProps> = ({
         </div>
       </div>
 
-      {/* Cifra principal */}
-      <div className="px-5 pb-4">
-        <p className="text-[11px] font-bold text-slate-500">
-          {isLiquidado ? "Préstamo pagado por completo" : "Saldo pendiente (capital + mora)"}
-        </p>
-        <p className={`text-3xl sm:text-4xl font-black font-mono tracking-tight ${isLiquidado ? "text-emerald-600" : "text-slate-900"}`}>
-          {formatCurrency(saldo)}
-        </p>
-        {mora > 0.009 && !isLiquidado && (
-          <p className="mt-1 text-xs font-bold text-rose-600 flex items-center gap-1">
-            <AlertTriangle className="w-3.5 h-3.5" /> Incluye {formatCurrency(mora)} de mora acumulada
-          </p>
-        )}
-      </div>
-
-      {/* Pago mínimo y próximo vencimiento */}
-      {!isLiquidado && (
-        <div className="grid grid-cols-2 border-y border-slate-100 divide-x divide-slate-100">
-          <div className="px-5 py-3">
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Pago mínimo</p>
-            <p className="text-lg font-black font-mono text-indigo-700">{formatCurrency(pagoMinimo)}</p>
-            <p className="text-[10px] text-slate-500 font-semibold">Interés{mora > 0.009 ? " + mora" : ""} pendiente</p>
-          </div>
-          <div className="px-5 py-3">
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-              <CalendarClock className="w-3 h-3" /> Próximo vencimiento
+      {isLiquidado ? (
+        <div className="px-5 pb-4">
+          <p className="text-[11px] font-bold text-slate-500">Préstamo pagado por completo</p>
+          <p className="text-3xl font-black font-mono text-emerald-600">{formatCurrency(0)}</p>
+        </div>
+      ) : (
+        <>
+          {/* Cifra principal: lo que hay que cobrar */}
+          <div className={`mx-4 mb-3 rounded-2xl p-4 ${montos.atrasado ? "bg-rose-50 border border-rose-200" : "bg-indigo-50/70 border border-indigo-100"}`}>
+            <p className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+              <CalendarClock className="w-3.5 h-3.5" />
+              Cuota a pagar
+              {montos.fechaCuota && (
+                <>
+                  {" "}· vence {formatDate(montos.fechaCuota)}{" "}
+                  <span className={dias === 0 ? "text-amber-700" : "text-slate-500"}>
+                    ({dias === 0 ? "hoy" : dias === 1 ? "mañana" : `en ${dias} días`})
+                  </span>
+                </>
+              )}
             </p>
-            {fechaProx ? (
-              <>
-                <p className="text-sm font-black text-slate-900">{formatDate(fechaProx)}</p>
-                <p className={`text-[11px] font-bold ${vencido ? "text-rose-600" : dias === 0 ? "text-amber-600" : "text-slate-500"}`}>
-                  {vencido ? `Vencido hace ${Math.abs(dias!)} d` : dias === 0 ? "Vence hoy" : `En ${dias} día${dias === 1 ? "" : "s"}`}
-                </p>
-              </>
-            ) : (
-              <p className="text-sm font-bold text-slate-400">—</p>
+            <p className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-slate-900">{formatCurrency(montos.cuota)}</p>
+            {montos.atrasado && (
+              <p className="mt-1 text-xs font-bold text-rose-700 flex items-center gap-1">
+                <AlertTriangle className="w-3.5 h-3.5" /> Incluye {formatCurrency(montos.moraVencida)} de interés atrasado
+              </p>
             )}
           </div>
-        </div>
-      )}
 
-      {/* Explicación en palabras simples */}
-      {!isLiquidado && (
-        <p className="mx-5 mt-4 p-3 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-xs text-indigo-950 leading-relaxed">
-          {pagoMinimo > 0.009 ? (
-            <>
-              Para quedar al día paga <b className="font-mono">{formatCurrency(pagoMinimo)}</b>. Lo que pague por encima baja el
-              capital de <b className="font-mono">{formatCurrency(capitalPendiente)}</b>.
-            </>
-          ) : (
-            <>
-              Está al día. Cualquier pago ahora baja directo el capital de{" "}
-              <b className="font-mono">{formatCurrency(capitalPendiente)}</b>.
-            </>
-          )}{" "}
-          Con <b className="font-mono">{formatCurrency(pagoMinimo + capitalPendiente)}</b> liquida el préstamo.
-        </p>
+          <div className="grid grid-cols-2 border-y border-slate-100 divide-x divide-slate-100">
+            <div className="px-5 py-3">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Capital restante</p>
+              <p className="text-lg font-black font-mono text-slate-900">{formatCurrency(capitalPendiente)}</p>
+            </div>
+            <div className="px-5 py-3">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Para liquidar hoy</p>
+              <p className="text-lg font-black font-mono text-slate-900">{formatCurrency(montos.liquidar)}</p>
+            </div>
+          </div>
+
+          {/* Explicación en palabras simples */}
+          <p className="mx-5 mt-3 text-xs text-slate-600 leading-relaxed">
+            {montos.cuota > 0.009 ? (
+              <>
+                Pagando <b className="font-mono text-slate-900">{formatCurrency(montos.cuota)}</b> queda al día
+                {montos.fechaCuota ? ` hasta el ${formatDate(montos.fechaCuota)}` : ""}. Lo que pague de más baja el capital.
+              </>
+            ) : (
+              <>Está al día: cualquier pago baja directo el capital.</>
+            )}{" "}
+            Con <b className="font-mono text-slate-900">{formatCurrency(montos.liquidar)}</b> liquida el préstamo.
+          </p>
+        </>
       )}
 
       {/* Avance del capital */}

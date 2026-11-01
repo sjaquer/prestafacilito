@@ -1,74 +1,94 @@
 import React from "react";
-import { Calendar, CreditCard, MapPin, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { CreditCard, MapPin, AlertTriangle, CheckCircle2, Edit3, MessageCircle, Phone, Plus } from "lucide-react";
+import { estandarizarTelefono } from "../../../helpers/telefono";
 import { Card } from "../ui/Card";
-import { Badge } from "../ui/Badge";
 import { Cliente } from "../../types";
-import { formatCurrency, formatDate } from "../../lib/formatters";
+import { formatCurrency, formatDate, getSaludoPorHora } from "../../lib/formatters";
 import { ClienteMoraResumen } from "./clienteFinanzas";
 
 const DatoContacto: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div className="space-y-1">
+  <div className="space-y-0.5 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
     <span className="text-[9px] text-slate-500 font-black uppercase tracking-wider block">{label}</span>
     {children}
   </div>
 );
 
-/** Cabecera del perfil del cliente: avatar, estado y datos de contacto. */
-export const ClientePerfilHeader: React.FC<{ cliente: Cliente }> = ({ cliente }) => {
+interface ClientePerfilHeaderProps {
+  cliente: Cliente;
+  onNuevoPrestamo: () => void;
+  onEditar: () => void;
+}
+
+/** Cabecera del perfil: quién es, cómo contactarlo y acciones principales. */
+export const ClientePerfilHeader: React.FC<ClientePerfilHeaderProps> = ({ cliente, onNuevoPrestamo, onEditar }) => {
   const initials = cliente.nombre_completo
     .split(" ")
+    .filter(Boolean)
     .slice(0, 2)
     .map((n) => n[0])
     .join("")
     .toUpperCase();
-  const esDeudorActivo = (cliente.prestamos_activos || 0) > 0;
+  const tel = estandarizarTelefono(cliente.telefono || "");
+  const tieneTel = tel.length >= 9;
+  const accion = "h-11 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 decoration-none transition";
 
   return (
-    <Card variant="simple" className="relative overflow-hidden p-6 md:p-8">
-      <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
-
-      <div className="flex flex-col md:flex-row items-center md:items-start gap-6 relative">
-        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-black text-2xl shadow-xl shrink-0 select-none">
+    <Card variant="simple" className="p-4 sm:p-5 space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-black text-lg shrink-0 select-none">
           {initials}
         </div>
-
-        <div className="flex-1 text-center md:text-left space-y-4">
-          <div>
-            <div className="flex flex-col md:flex-row md:items-center gap-2 flex-wrap justify-center md:justify-start">
-              <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-none">
-                {cliente.nombre_completo}
-              </h1>
-              <Badge variant={esDeudorActivo ? "success" : "neutral"} className="w-fit mx-auto md:mx-0">
-                {esDeudorActivo ? "Deudor Activo" : "Historial Limpio"}
-              </Badge>
-            </div>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-2 flex items-center justify-center md:justify-start gap-1">
-              <Calendar size={12} /> Cliente desde: {formatDate(cliente.fecha_registro || "")}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs font-semibold text-slate-500 pt-2 border-t border-slate-200/80 text-left">
-            <DatoContacto label="Canal Telefónico">
-              <span className="text-slate-800 font-mono">{cliente.telefono || "Sin teléfono registrado"}</span>
-            </DatoContacto>
-
-            {cliente.direccion && (
-              <DatoContacto label="Domicilio">
-                <span className="text-slate-800 flex items-center gap-1">
-                  <MapPin size={11} className="text-indigo-650 shrink-0" /> {cliente.direccion}
-                </span>
-              </DatoContacto>
-            )}
-
-            {cliente.numero_cuenta && (
-              <DatoContacto label="Datos de Abono">
-                <span className="text-slate-800 flex items-center gap-1 font-mono">
-                  <CreditCard size={11} className="text-indigo-650 shrink-0" /> {cliente.numero_cuenta}
-                </span>
-              </DatoContacto>
-            )}
-          </div>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">{cliente.nombre_completo}</h1>
+          <p className="text-xs text-slate-500 font-semibold truncate">
+            {cliente.apodo ? `"${cliente.apodo}" · ` : ""}Cliente desde {formatDate(cliente.fecha_registro || "")}
+          </p>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+        <DatoContacto label="Teléfono">
+          <span className="text-slate-800 font-mono">{cliente.telefono || "Sin teléfono"}</span>
+        </DatoContacto>
+        {cliente.direccion && (
+          <DatoContacto label="Domicilio">
+            <span className="text-slate-800 flex items-center gap-1">
+              <MapPin size={11} className="text-indigo-600 shrink-0" /> {cliente.direccion}
+            </span>
+          </DatoContacto>
+        )}
+        {cliente.numero_cuenta && (
+          <DatoContacto label="Cuenta para abonos">
+            <span className="text-slate-800 flex items-center gap-1 font-mono">
+              <CreditCard size={11} className="text-indigo-600 shrink-0" /> {cliente.banco_cuenta ? `${cliente.banco_cuenta} · ` : ""}
+              {cliente.numero_cuenta}
+            </span>
+          </DatoContacto>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <button type="button" onClick={onNuevoPrestamo} className={`${accion} col-span-2 sm:col-span-1 bg-emerald-600 hover:bg-emerald-700 text-white`}>
+          <Plus className="w-4 h-4" /> Nuevo préstamo
+        </button>
+        {tieneTel && (
+          <>
+            <a
+              href={`https://wa.me/${tel}?text=${encodeURIComponent(`Hola, ${getSaludoPorHora().toLowerCase()}.`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${accion} bg-emerald-50 hover:bg-emerald-100 text-emerald-700`}
+            >
+              <MessageCircle className="w-4 h-4" /> WhatsApp
+            </a>
+            <a href={`tel:+${tel}`} className={`${accion} bg-slate-100 hover:bg-slate-200 text-slate-700`}>
+              <Phone className="w-4 h-4" /> Llamar
+            </a>
+          </>
+        )}
+        <button type="button" onClick={onEditar} className={`${accion} bg-slate-100 hover:bg-slate-200 text-slate-700 ${tieneTel ? "" : "col-span-2 sm:col-span-1"}`}>
+          <Edit3 className="w-4 h-4" /> Editar datos
+        </button>
       </div>
     </Card>
   );

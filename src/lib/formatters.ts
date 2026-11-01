@@ -16,9 +16,18 @@ export function formatCurrency(amount: unknown): string {
 /**
  * Formatea una fecha a un formato legible en español (ej: "26 de mayo de 2026")
  */
+/**
+ * Convierte a Date: "YYYY-MM-DD" se toma como fecha local (sin desfase de zona horaria);
+ * un timestamp completo ("2026-01-10T10:00:00Z") se respeta tal cual.
+ */
+function aFecha(dateValue: string | Date): Date {
+  if (dateValue instanceof Date) return dateValue;
+  return /^\d{4}-\d{2}-\d{2}$/.test(dateValue) ? new Date(`${dateValue}T00:00:00`) : new Date(dateValue);
+}
+
 export function formatDate(dateValue: string | Date): string {
   if (!dateValue) return "";
-  const date = typeof dateValue === "string" ? new Date(`${dateValue}T00:00:00`) : dateValue;
+  const date = aFecha(dateValue);
   if (Number.isNaN(date.getTime())) return "Fecha inválida";
   
   return date.toLocaleDateString("es-PE", {
@@ -33,7 +42,7 @@ export function formatDate(dateValue: string | Date): string {
  */
 export function formatDateWithDay(dateValue: string | Date): string {
   if (!dateValue) return "";
-  const date = typeof dateValue === "string" ? new Date(`${dateValue}T00:00:00`) : dateValue;
+  const date = aFecha(dateValue);
   if (Number.isNaN(date.getTime())) return "Fecha inválida";
   
   const dayName = date.toLocaleDateString("es-PE", { weekday: "long" });
@@ -52,7 +61,7 @@ export function formatDateWithDay(dateValue: string | Date): string {
  */
 export function formatDateShort(dateValue: string | Date): string {
   if (!dateValue) return "";
-  const date = typeof dateValue === "string" ? new Date(`${dateValue}T00:00:00`) : dateValue;
+  const date = aFecha(dateValue);
   if (Number.isNaN(date.getTime())) return "";
   
   return date.toLocaleDateString("es-PE", {
@@ -67,7 +76,7 @@ export function formatDateShort(dateValue: string | Date): string {
  */
 export function formatRelativeDate(dateValue: string | Date): string {
   if (!dateValue) return "";
-  const date = typeof dateValue === "string" ? new Date(`${dateValue}T00:00:00`) : dateValue;
+  const date = aFecha(dateValue);
   if (Number.isNaN(date.getTime())) return "";
 
   const now = new Date();
@@ -317,3 +326,21 @@ function mensajeCobroBase({
 }
 
 
+
+/** Monto compacto para casillas y listas: "S/ 2,000" o "S/ 70.50" (sin decimales si son cero). */
+export function formatSoles(amount: unknown): string {
+  const n = typeof amount === "number" ? amount : Number.parseFloat(String(amount ?? 0)) || 0;
+  const entero = Math.abs(n - Math.round(n)) < 0.005;
+  return `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: entero ? 0 : 2, maximumFractionDigits: entero ? 0 : 2 })}`;
+}
+
+/** Fecha corta legible: "5 set" (o "5 set 2025" si no es del año actual). */
+export function formatFechaCorta(fecha: string | null | undefined): string {
+  if (!fecha) return "";
+  const [y, m, d] = String(fecha).slice(0, 10).split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  if (Number.isNaN(date.getTime())) return "";
+  const opciones: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" };
+  if (y !== new Date().getFullYear()) opciones.year = "numeric";
+  return date.toLocaleDateString("es-PE", opciones).replace(".", "");
+}

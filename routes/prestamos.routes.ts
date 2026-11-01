@@ -501,6 +501,7 @@ prestamosRouter.post("/:id/ajustes", requireAuth, async (req: AuthRequest, res: 
       .single();
 
     if (error) throw error;
+    programarSync(`prestamo:${prestamoId}`);
     res.status(201).json(newAdj);
   } catch (err: any) {
     console.error("Error al crear ajuste:", err);
@@ -511,25 +512,46 @@ prestamosRouter.post("/:id/ajustes", requireAuth, async (req: AuthRequest, res: 
 prestamosRouter.patch("/:id/ajustes/:ajusteId", requireAuth, async (req: AuthRequest, res: express.Response) => {
   try {
     const { id, ajusteId } = req.params;
-    const { activo } = req.body;
+    const { activo, fecha_inicio, fecha_fin, cuota_numero } = req.body;
+    const cambios: Record<string, unknown> = {};
 
-    if (typeof activo !== "boolean") {
-      return res.status(400).json({ error: "El campo 'activo' debe ser booleano" });
+    if (activo !== undefined) {
+      if (typeof activo !== "boolean") return res.status(400).json({ error: "El campo 'activo' debe ser booleano" });
+      cambios.activo = activo;
+    }
+    const esFecha = (v: unknown) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+    if (fecha_inicio !== undefined) {
+      if (!esFecha(fecha_inicio)) return res.status(400).json({ error: "Fecha de inicio inválida" });
+      cambios.fecha_inicio = fecha_inicio;
+    }
+    if (fecha_fin !== undefined) {
+      if (fecha_fin !== null && !esFecha(fecha_fin)) return res.status(400).json({ error: "Fecha de fin inválida" });
+      cambios.fecha_fin = fecha_fin;
+    }
+    if (cuota_numero !== undefined) cambios.cuota_numero = cuota_numero ? parseInt(cuota_numero, 10) : null;
+    if (Object.keys(cambios).length === 0) return res.status(400).json({ error: "No hay cambios" });
+
+    if (cambios.fecha_inicio || cambios.fecha_fin) {
+      const { data: actual } = await supabase.from("ajustes_prestamo").select("fecha_inicio, fecha_fin").eq("id", ajusteId).single();
+      const ini = String(cambios.fecha_inicio ?? actual?.fecha_inicio ?? "");
+      const fin = cambios.fecha_fin !== undefined ? cambios.fecha_fin : actual?.fecha_fin;
+      if (fin && String(fin) < ini) return res.status(400).json({ error: "La fecha fin no puede ser anterior a la de inicio" });
     }
 
     const { data: updatedAdj, error } = await supabase
       .from("ajustes_prestamo")
-      .update({ activo })
+      .update(cambios)
       .eq("id", ajusteId)
       .eq("prestamo_id", id)
       .select()
       .single();
 
     if (error) throw error;
+    programarSync(`prestamo:${id}`);
     res.json(updatedAdj);
   } catch (err: any) {
     console.error("Error al actualizar ajuste:", err);
-    res.status(500).json({ error: "Error al modificar el estado del ajuste", detail: err.message });
+    res.status(500).json({ error: "Error al modificar el ajuste", detail: err.message });
   }
 });
 

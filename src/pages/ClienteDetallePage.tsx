@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Loader2 } from "lucide-react";
+import { ArrowLeft, BarChart3, User, Loader2 } from "lucide-react";
+import { Modal } from "../components/ui/Modal";
+import { useFeedback } from "../components/ui/Feedback";
+import { CollapsibleSection } from "../components/ui/CollapsibleSection";
+import { CrearPrestamoForm } from "../components/dashboard/CrearPrestamoForm";
+import { ClientSlideOverForm } from "../components/cliente/ClientSlideOverForm";
+import { subirDocumentosCliente } from "../components/cliente/documentos";
 import { usePagos } from "../hooks/usePagos";
 import { useClientes } from "../hooks/useClientes";
 import { Cliente } from "../types";
@@ -15,7 +21,9 @@ import { calcularDistribucionFinanciera, resumirMoraCliente } from "../component
 export const ClienteDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { clientes, loading: loadingClientes, updateCliente, refetch: refetchClientes } = useClientes();
+  const { clientes, loading: loadingClientes, updateCliente, uploadClienteDocument, refetch: refetchClientes } = useClientes();
+  const { notify } = useFeedback();
+  const [modal, setModal] = useState<null | "prestamo" | "editar">(null);
   const { fetchAmortizaciones } = usePagos();
 
   const [clientLoans, setClientLoans] = useState<any[]>([]);
@@ -105,38 +113,68 @@ export const ClienteDetallePage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => navigate("/clientes")}
-          className="text-slate-600 hover:text-slate-900 text-xs font-black inline-flex items-center gap-2 cursor-pointer bg-transparent border-none"
-        >
-          <ArrowLeft size={14} />
-          <span>Volver al directorio</span>
-        </button>
-      </div>
+    <div className="space-y-4 pb-12 max-w-5xl mx-auto">
+      <button
+        onClick={() => navigate("/clientes")}
+        className="h-10 text-slate-600 hover:text-slate-900 text-xs font-bold inline-flex items-center gap-2 bg-transparent border-none"
+      >
+        <ArrowLeft size={14} /> Clientes
+      </button>
 
-      <ClientePerfilHeader cliente={cliente} />
+      <ClientePerfilHeader cliente={cliente} onNuevoPrestamo={() => setModal("prestamo")} onEditar={() => setModal("editar")} />
 
       {!loadingLoans && <ClienteMoraBanner resumen={moraResumen} />}
 
-      <ClientFinancialSummary cliente={cliente} />
-
-      <ClienteScoreCard clienteId={id} />
-
-      <ClienteDistribucionCard data={distribucion} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        <div className="lg:col-span-2 space-y-6">
-          <ClienteCreditos loans={clientLoans} loading={loadingLoans} error={loanError} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        <div className="lg:col-span-2 space-y-4">
+          <ClienteCreditos loans={clientLoans} amortizaciones={amortizaciones} loading={loadingLoans} error={loanError} />
           <ClienteAlquileres alquileres={clientAlquileres} />
         </div>
-
-        <div className="space-y-6">
+        <div className="space-y-4">
           <ClientNotes cliente={cliente} onUpdateClient={handleUpdateClient} />
           <ClienteDocumentos clienteId={id} driveFolderId={cliente.drive_folder_id} />
         </div>
       </div>
+
+      {/* Información de consulta ocasional: plegada para no estorbar */}
+      <CollapsibleSection title="Historial y score del cliente" icon={<BarChart3 className="w-4 h-4" />}>
+        <div className="space-y-4 pt-2">
+          <ClientFinancialSummary cliente={cliente} />
+          <ClienteDistribucionCard data={distribucion} />
+          <ClienteScoreCard clienteId={id} />
+        </div>
+      </CollapsibleSection>
+
+      <Modal isOpen={modal === "prestamo"} onClose={() => setModal(null)} title={`Nuevo préstamo · ${cliente.nombre_completo}`} size="lg">
+        <CrearPrestamoForm
+          bare
+          clientes={clientes}
+          clienteIdInicial={cliente.id}
+          onPrestamoCreado={(nuevo) => {
+            setModal(null);
+            notify("Préstamo creado", "success");
+            if (nuevo?.id) navigate(`/prestamos/${nuevo.id}`);
+            else fetchClientLoans();
+          }}
+        />
+      </Modal>
+
+      <ClientSlideOverForm
+        isOpen={modal === "editar"}
+        onClose={() => setModal(null)}
+        clienteToEdit={cliente}
+        onSubmit={async (data, files = []) => {
+          const res = await updateCliente(cliente.id, data);
+          if (!res.success) {
+            notify(res.error || "No se pudo actualizar el cliente.");
+            return false;
+          }
+          await subirDocumentosCliente(cliente.id, files, uploadClienteDocument);
+          notify("Datos actualizados", "success");
+          refetchClientes();
+          return true;
+        }}
+      />
     </div>
   );
 };

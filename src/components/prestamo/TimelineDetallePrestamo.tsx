@@ -11,7 +11,8 @@ import {
   Info,
 } from "lucide-react";
 import { subirVoucher } from "../../lib/imageCompression";
-import { formatCurrency, formatDate, resolveVoucherUrl } from "../../lib/formatters";
+import { formatFechaCorta, formatSoles, resolveVoucherUrl } from "../../lib/formatters";
+import { hoyISO } from "../../lib/fechas";
 import { useFeedback } from "../ui/Feedback";
 
 export interface TimelinePagoItem {
@@ -58,6 +59,9 @@ const ESTADO_UI: Record<
   Pendiente: { label: "Por vencer", dot: "bg-slate-300", pill: "bg-slate-100 text-slate-700", Icon: Clock },
 };
 
+const CONGELADO = { label: "Congelado", dot: "bg-sky-500", pill: "bg-sky-100 text-sky-800", Icon: Snowflake };
+const VENCE_HOY = { label: "Vence hoy", dot: "bg-amber-500", pill: "bg-amber-100 text-amber-800", Icon: Clock };
+
 const Dato: React.FC<{ label: string; value: string; className?: string }> = ({ label, value, className = "text-slate-800" }) => (
   <div>
     <span className="text-[10px] text-slate-400 block font-semibold">{label}</span>
@@ -71,6 +75,7 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
   onVoucherAdjuntado,
 }) => {
   const { notify } = useFeedback();
+  const hoy = hoyISO();
   const [uploadingPagoId, setUploadingPagoId] = useState<string | null>(null);
   // Los meses ya pagados empiezan plegados; los pendientes o con problemas, abiertos
   const [abiertos, setAbiertos] = useState<Set<number>>(
@@ -124,7 +129,11 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
 
       <ol className="relative space-y-2">
         {timeline.map((mes) => {
-          const ui = ESTADO_UI[mes.estado] || ESTADO_UI.Pendiente;
+          // La cuota que vence hoy todavía está a tiempo: no se muestra como incompleta ni vencida
+          const venceHoy = mes.fechaVencimiento === hoy && mes.estado !== "Saldada";
+          // Mes congelado sin nada que pagar: no es "sin pago" aunque no tenga abonos
+          const congeladoSinDeuda = mes.congelada && mes.estado !== "Saldada" && mes.saldoPendienteCuota <= 0.009;
+          const ui = congeladoSinDeuda ? CONGELADO : venceHoy ? VENCE_HOY : ESTADO_UI[mes.estado] || ESTADO_UI.Pendiente;
           const abierto = abiertos.has(mes.numero);
           const etiquetaEstado = mes.estado === "Vencida" && mes.diasVencidos > 0 ? `Vencida ${mes.diasVencidos}d` : ui.label;
 
@@ -142,12 +151,12 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
                     Mes {mes.numero}
                     {mes.congelada && <Snowflake className="w-3.5 h-3.5 text-sky-500" aria-label="Interés congelado" />}
                   </span>
-                  <span className="block text-[11px] text-slate-500 font-semibold">Vence {formatDate(mes.fechaVencimiento)}</span>
+                  <span className="block text-[11px] text-slate-500 font-semibold">Vence {formatFechaCorta(mes.fechaVencimiento)}</span>
                 </span>
                 <span className="text-right shrink-0">
                   <span className="block text-xs font-black font-mono text-slate-800">
-                    {formatCurrency(mes.totalPagado)}
-                    <span className="text-slate-400 font-bold"> / {formatCurrency(mes.cuotaEsperada)}</span>
+                    {formatSoles(mes.totalPagado)}
+                    <span className="text-slate-400 font-bold"> / {formatSoles(mes.cuotaEsperada)}</span>
                   </span>
                   <span className={`inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-black ${ui.pill}`}>
                     {etiquetaEstado}
@@ -165,10 +174,10 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
                   )}
 
                   <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                    <Dato label="Capital al inicio" value={formatCurrency(mes.capitalInicioMes)} />
-                    <Dato label="Interés del mes" value={formatCurrency(mes.interesMes)} className="text-amber-600" />
-                    <Dato label="Mínimo del mes" value={formatCurrency(mes.cuotaEsperada)} className="text-slate-900" />
-                    <Dato label="Abonado a capital" value={formatCurrency(mes.amortizacionCapital)} className="text-emerald-600" />
+                    <Dato label="Capital al inicio" value={formatSoles(mes.capitalInicioMes)} />
+                    <Dato label="Interés del mes" value={formatSoles(mes.interesMes)} className="text-amber-600" />
+                    <Dato label="Mínimo del mes" value={formatSoles(mes.cuotaEsperada)} className="text-slate-900" />
+                    <Dato label="Abonado a capital" value={formatSoles(mes.amortizacionCapital)} className="text-emerald-600" />
                   </div>
 
                   {mes.pagosRecibidos?.length > 0 ? (
@@ -179,15 +188,15 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
                           className="p-2.5 bg-emerald-50/60 border border-emerald-200/80 rounded-xl text-xs space-y-1.5"
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-black text-emerald-800 font-mono">{formatCurrency(pago.monto)}</span>
+                            <span className="font-black text-emerald-800 font-mono">{formatSoles(pago.monto)}</span>
                             <span className="text-[11px] text-slate-600 font-semibold truncate">
-                              {formatDate(pago.fecha)} · {pago.metodo_pago}
+                              {formatFechaCorta(pago.fecha)} · {pago.metodo_pago}
                             </span>
                           </div>
                           <div className="flex items-center justify-between gap-2 flex-wrap">
                             <span className="text-[11px] font-semibold text-slate-600">
-                              Interés <b className="text-amber-700">{formatCurrency(pago.aplicadoInteres)}</b> · Capital{" "}
-                              <b className="text-emerald-700">{formatCurrency(pago.aplicadoCapital)}</b>
+                              Interés <b className="text-amber-700">{formatSoles(pago.aplicadoInteres)}</b> · Capital{" "}
+                              <b className="text-emerald-700">{formatSoles(pago.aplicadoCapital)}</b>
                             </span>
                             {pago.comprobante_url ? (
                               <button
@@ -233,11 +242,11 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
 
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-[11px] font-semibold text-slate-600">
                     <span>
-                      Capital tras este mes: <b className="text-slate-900 font-mono">{formatCurrency(mes.capitalRestante)}</b>
+                      Capital tras este mes: <b className="text-slate-900 font-mono">{formatSoles(mes.capitalRestante)}</b>
                     </span>
                     {mes.saldoPendienteCuota > 0 && (
                       <span className="text-amber-700 font-bold">
-                        Faltan {formatCurrency(mes.saldoPendienteCuota)} para cubrir el mes
+                        Faltan {formatSoles(mes.saldoPendienteCuota)} para cubrir el mes
                       </span>
                     )}
                   </div>

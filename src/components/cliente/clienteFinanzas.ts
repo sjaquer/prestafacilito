@@ -1,4 +1,5 @@
-import { calcularEstadoMora } from "../../lib/moraLogic";
+import { proximoCobroPrestamo } from "../../lib/proximoCobro";
+import { hoyISO } from "../../lib/fechas";
 import { buildPaymentSchedule } from "../../lib/loanLogic";
 
 export interface ClienteMoraResumen {
@@ -10,37 +11,30 @@ export interface ClienteMoraResumen {
   proximaCuotaTipo: string;
 }
 
-/** Resume la situación de mora del cliente a partir de sus préstamos activos. */
+/** Resume lo atrasado y el próximo cobro del cliente (misma regla que Inicio). */
 export const resumirMoraCliente = (clientLoans: any[], amortizaciones: any[]): ClienteMoraResumen => {
+  const hoy = hoyISO();
   const estados = clientLoans
-    .filter((l) => l.estado === "activo")
-    .map((l) => ({ ...calcularEstadoMora(l, amortizaciones, new Date()), tipo_prestamo: l.tipo_prestamo }));
+    .filter((l) => l.estado !== "pagado" && l.estado !== "liquidado")
+    .map((l) => {
+      const pagos = amortizaciones.filter((a) => a.prestamo_id === l.id);
+      const deuda = buildPaymentSchedule(l, pagos, { ajustes: l.ajustes || [], referenceDate: new Date(`${hoy}T12:00:00`) });
+      return { deuda, prox: proximoCobroPrestamo(deuda, l.fecha_emision, hoy), tipo: l.tipo_prestamo };
+    })
+    .filter((e) => !e.prox.liquidado);
 
-  const cuotasEnMora = estados.filter((e) => ["mora_mes", "mora_acumulada"].includes(e.estadoCuotaMes));
-  const tieneMora = cuotasEnMora.length > 0;
-
-  let proximaCuotaFecha = "";
-  let proximaCuotaMonto = 0;
-  let proximaCuotaTipo = "";
-
-  if (!tieneMora) {
-    const [proxima] = estados
-      .filter((e) => e.estadoCuotaMes === "pendiente_mes")
-      .sort((a, b) => new Date(a.fechaCuotaActual).getTime() - new Date(b.fechaCuotaActual).getTime());
-    if (proxima) {
-      proximaCuotaFecha = proxima.fechaCuotaActual;
-      proximaCuotaMonto = proxima.montoCuotaActual;
-      proximaCuotaTipo = proxima.tipo_prestamo;
-    }
-  }
+  const atrasados = estados.filter((e) => e.prox.atrasado);
+  const proxima = estados
+    .filter((e) => !e.prox.atrasado && e.prox.fecha)
+    .sort((a, b) => String(a.prox.fecha).localeCompare(String(b.prox.fecha)))[0];
 
   return {
-    tieneMora,
-    totalCuotasAtrasadas: cuotasEnMora.reduce((sum, e) => sum + e.cuotasAtrasadas, 0),
-    totalMontoAtrasado: cuotasEnMora.reduce((sum, e) => sum + e.moraAcumulada, 0),
-    proximaCuotaFecha,
-    proximaCuotaMonto,
-    proximaCuotaTipo,
+    tieneMora: atrasados.length > 0,
+    totalCuotasAtrasadas: atrasados.reduce((sum, e) => sum + e.prox.cuotasAtrasadas, 0),
+    totalMontoAtrasado: atrasados.reduce((sum, e) => sum + e.prox.moraVencida, 0),
+    proximaCuotaFecha: atrasados.length ? "" : proxima?.prox.fecha || "",
+    proximaCuotaMonto: proxima?.prox.cuota?.saldoPendiente || 0,
+    proximaCuotaTipo: proxima?.tipo || "",
   };
 };
 

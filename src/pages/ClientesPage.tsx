@@ -1,155 +1,159 @@
-import React, { useState } from "react";
-import { UserPlus, Users, RefreshCw } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { RefreshCw, Search, UserPlus, Users } from "lucide-react";
 import { useClientes } from "../hooks/useClientes";
 import { Cliente, TipoDocumento } from "../types";
-import { ClientList } from "../components/cliente/ClientList";
 import { ClientSlideOverForm } from "../components/cliente/ClientSlideOverForm";
-import { UploadDocumentoModal } from "../components/cliente/UploadDocumentoModal";
+import { ClienteFila } from "../components/cliente/ClienteFila";
 import { useFeedback } from "../components/ui/Feedback";
+import { subirDocumentosCliente } from "../components/cliente/documentos";
 
+type Filtro = "con_deuda" | "sin_deuda" | "todos";
 
-const fileToBase64 = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const base64 = result.includes(",") ? result.split(",")[1] : result;
-      resolve(base64 || "");
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+const FILTROS: { id: Filtro; label: string }[] = [
+  { id: "con_deuda", label: "Con deuda vigente" },
+  { id: "sin_deuda", label: "Sin deuda" },
+  { id: "todos", label: "Todos" },
+];
 
+const tieneDeuda = (c: Cliente) => (c.prestamos_activos || 0) + (c.alquileres_activos || 0) > 0;
+
+const normalizar = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+
+/** Directorio de clientes: buscar rápido, ver qué tiene cada uno y contactarlo. */
 export const ClientesPage: React.FC = () => {
+  const navigate = useNavigate();
   const { notify } = useFeedback();
-  const { clientes, loading, createCliente, updateCliente, uploadClienteDocument, refetch } = useClientes();
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [clienteToEdit, setClienteToEdit] = useState<Cliente | null>(null);
-  const [uploadDocCliente, setUploadDocCliente] = useState<Cliente | null>(null);
+  const { clientes, loading, createCliente, uploadClienteDocument, refetch } = useClientes();
+  const [formAbierto, setFormAbierto] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
+  const [filtro, setFiltro] = useState<Filtro>("con_deuda");
 
-  const handleOpenCreateForm = () => {
-    setClienteToEdit(null);
-    setIsFormOpen(true);
-  };
+  const conteo = useMemo(
+    () => ({ con_deuda: clientes.filter(tieneDeuda).length, sin_deuda: clientes.filter((c) => !tieneDeuda(c)).length, todos: clientes.length }),
+    [clientes]
+  );
 
-  const handleOpenEditForm = (cliente: Cliente) => {
-    setClienteToEdit(cliente);
-    setIsFormOpen(true);
-  };
-
-  const handleFormSubmit = async (
-    clientData: Partial<Cliente>,
-    files: { tipo: TipoDocumento; file: File }[] = []
-  ) => {
-    if (clienteToEdit) {
-      const res = await updateCliente(clienteToEdit.id, clientData);
-      if (res.success) {
-        await uploadDocs(res.cliente?.id || clienteToEdit.id, files);
-        refetch();
+  const visibles = useMemo(() => {
+    const q = normalizar(busqueda.trim());
+    return clientes
+      .filter((c) => {
+        // Al buscar se busca en todos, sin importar el filtro
+        if (q) {
+          return [c.nombre_completo, c.apodo || "", c.telefono || ""].some((v) => normalizar(v).includes(q));
+        }
+        if (filtro === "con_deuda") return tieneDeuda(c);
+        if (filtro === "sin_deuda") return !tieneDeuda(c);
         return true;
-      } else {
-        notify(res.error || "No se pudo actualizar el cliente.");
-        return false;
-      }
-    } else {
-      const res = await createCliente(clientData as any);
-      if (res.success) {
-        await uploadDocs(res.cliente?.id, files);
-        refetch();
-        return true;
-      } else {
-        notify(res.error || "No se pudo crear el cliente.");
-        return false;
-      }
-    }
-  };
+      })
+      .sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo, "es"));
+  }, [clientes, busqueda, filtro]);
 
-  const uploadDocs = async (
-    clienteId: string | undefined,
-    files: { tipo: TipoDocumento; file: File }[]
-  ) => {
-    if (!clienteId || files.length === 0) return;
-    for (const doc of files) {
-      try {
-        const base64Data = await fileToBase64(doc.file);
-        await uploadClienteDocument(clienteId, {
-          fileName: doc.file.name,
-          mimeType: doc.file.type || "application/octet-stream",
-          base64Data,
-          tipo_documento: doc.tipo
-        });
-      } catch (err) {
-        console.error(`No se pudo subir el documento ${doc.file.name}:`, err);
-      }
+  const handleCrear = async (data: Partial<Cliente>, files: { tipo: TipoDocumento; file: File }[] = []) => {
+    const res = await createCliente(data as any);
+    if (!res.success) {
+      notify(res.error || "No se pudo crear el cliente.");
+      return false;
     }
+    await subirDocumentosCliente(res.cliente?.id, files, uploadClienteDocument);
+    notify("Cliente registrado", "success");
+    refetch();
+    if (res.cliente?.id) navigate(`/clientes/${res.cliente.id}`);
+    return true;
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Header Principal de la Página de Clientes (Sección 7.2) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 p-6 rounded-3xl text-white shadow-xl">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full text-xs font-semibold">
-              Fase 7 — Directorio
-            </span>
-            <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-              <Users className="w-3.5 h-3.5" /> Total: {clientes.length} prestatarios
-            </span>
-          </div>
-          <h1 className="text-2xl font-extrabold tracking-tight">Directorio de Clientes</h1>
-          <p className="text-xs text-slate-300">
-            Lista completa con apodos, evaluación de score A/B/C e historial acumulado.
+    <div className="space-y-4 pb-12 max-w-3xl mx-auto">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <Users className="w-6 h-6 text-indigo-600" /> Clientes
+          </h1>
+          <p className="text-xs text-slate-500 font-semibold">
+            {conteo.todos} registrados · {conteo.con_deuda} con deuda vigente
           </p>
         </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={refetch}
             disabled={loading}
-            className="p-2.5 bg-white/10 hover:bg-white/20 border border-white/15 text-white rounded-xl transition-all"
-            title="Actualizar lista"
+            className="h-11 w-11 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center"
+            aria-label="Actualizar"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
-
           <button
-            onClick={handleOpenCreateForm}
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2"
+            type="button"
+            onClick={() => setFormAbierto(true)}
+            className="h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold inline-flex items-center gap-2 shadow-sm"
           >
-            <UserPlus className="w-4 h-4" /> [+ Nuevo Cliente]
+            <UserPlus className="w-4 h-4" /> Nuevo
           </button>
         </div>
       </div>
 
-      {/* Lista Protagonista de Clientes (Tarea 7.1, 7.3.3) */}
-      <ClientList
-        clientes={clientes}
-        isLoading={loading}
-        onEditClient={handleOpenEditForm}
-        onOpenNewClientForm={handleOpenCreateForm}
-        onUploadDocumento={(cliente) => setUploadDocCliente(cliente)}
-      />
+      <div className="sticky top-14 sm:top-[6.5rem] lg:top-16 z-20 -mx-4 px-4 py-2 bg-slate-50/95 backdrop-blur space-y-2 sm:mx-0 sm:px-0">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="search"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar por nombre, apodo o teléfono..."
+            className="w-full h-11 pl-9 pr-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-indigo-500"
+          />
+        </div>
+        {!busqueda && (
+          <div className="flex gap-1.5 overflow-x-auto" role="tablist" aria-label="Filtrar clientes">
+            {FILTROS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                role="tab"
+                aria-selected={filtro === f.id}
+                onClick={() => setFiltro(f.id)}
+                className={`h-9 px-3 rounded-full text-xs font-bold whitespace-nowrap border transition ${
+                  filtro === f.id ? "bg-slate-900 border-slate-900 text-white" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {f.label} <span className={filtro === f.id ? "text-white/70" : "text-slate-400"}>{conteo[f.id]}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
-      {/* Panel / Formulario Deslizable (Slide-over) (Tarea 7.3.2) */}
-      <ClientSlideOverForm
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        onSubmit={handleFormSubmit}
-        clienteToEdit={clienteToEdit}
-      />
+      {loading && clientes.length === 0 ? (
+        <ul className="space-y-2" aria-busy>
+          {[0, 1, 2, 3].map((i) => (
+            <li key={i} className="h-24 bg-white border border-slate-200 rounded-2xl animate-pulse" />
+          ))}
+        </ul>
+      ) : visibles.length === 0 ? (
+        <div className="text-center py-12 bg-white border border-dashed border-slate-200 rounded-2xl space-y-3">
+          <p className="text-sm font-bold text-slate-700">{busqueda ? `Nadie coincide con "${busqueda}"` : "No hay clientes en este filtro"}</p>
+          <button
+            type="button"
+            onClick={() => setFormAbierto(true)}
+            className="h-10 px-4 rounded-xl bg-emerald-600 text-white text-xs font-bold inline-flex items-center gap-1.5"
+          >
+            <UserPlus className="w-4 h-4" /> Registrar cliente
+          </button>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {visibles.map((c) => (
+            <ClienteFila key={c.id} cliente={c} />
+          ))}
+        </ul>
+      )}
 
-      {/* Subida rápida de documentos por cliente */}
-      <UploadDocumentoModal
-        isOpen={!!uploadDocCliente}
-        onClose={() => setUploadDocCliente(null)}
-        cliente={uploadDocCliente}
-        onUpload={async (clienteId, doc) => {
-          const res = await uploadClienteDocument(clienteId, doc);
-          return { success: res.success, error: res.error };
-        }}
-        onUploaded={refetch}
-      />
+      <ClientSlideOverForm isOpen={formAbierto} onClose={() => setFormAbierto(false)} onSubmit={handleCrear} clienteToEdit={null} />
     </div>
   );
 };

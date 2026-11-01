@@ -1,55 +1,36 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
-import { ArrowUpRight, FileDown, Briefcase } from "lucide-react";
-import { Card } from "../components/ui/Card";
-import { Button } from "../components/ui/Button";
+import { useNavigate } from "react-router-dom";
+import { FileDown, Briefcase, RefreshCw } from "lucide-react";
 import { DataTable } from "../components/ui/DataTable";
 import { linkCobroWhatsApp } from "../lib/cobranza";
 import { useClientes } from "../hooks/useClientes";
 import { usePagos } from "../hooks/usePagos";
-import { calcularEstadoMora, EstadoMoraCliente } from "../lib/moraLogic";
+import { hoyISO } from "../lib/fechas";
+import { resumirPrestamo, ResumenPrestamo, GrupoPrestamo } from "../lib/resumenPrestamo";
 import { CarteraKPIs } from "../components/cartera/CarteraKPIs";
 import { CarteraFiltros } from "../components/cartera/CarteraFiltros";
 import { CarteraLoanCard } from "../components/cartera/CarteraLoanCard";
-import { EditarPrestamoModal } from "../components/cartera/EditarPrestamoModal";
-import { buildCarteraColumns, CarteraExpandedRow } from "../components/cartera/carteraColumns";
-import {
-  CarteraFilters,
-  EMPTY_FILTERS,
-  esLiquidado,
-  exportCarteraCsv,
-  grupoCartera,
-  GrupoCartera,
-  filterLoans,
-} from "../components/cartera/carteraUtils";
-import { buildPaymentSchedule } from "../lib/loanLogic";
-import { proximoCobroPrestamo } from "../lib/proximoCobro";
-import { toISODateLocal } from "../lib/fechas";
+import { buildCarteraColumns } from "../components/cartera/carteraColumns";
+import { CarteraFilters, EMPTY_FILTERS, exportCarteraCsv, filterLoans } from "../components/cartera/carteraUtils";
 
+const PRIORIDAD: Record<GrupoPrestamo, number> = { atrasado: 0, hoy: 1, manana: 2, semana: 3, despues: 4, estancado: 5, liquidado: 6 };
+
+/** Todos los préstamos, ordenados por urgencia de cobro, con filtros y acceso a editar. */
 export const CarteraPage: React.FC = () => {
+  const navigate = useNavigate();
   const { clientes } = useClientes();
   const { fetchAmortizaciones } = usePagos();
 
   const [prestamos, setPrestamos] = useState<any[]>([]);
   const [amortizaciones, setAmortizaciones] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingLoan, setEditingLoan] = useState<any>(null);
   const [filters, setFilters] = useState<CarteraFilters>(EMPTY_FILTERS);
-
-  const [today] = useState(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  });
 
   const fetchLoans = useCallback(async () => {
     try {
       setLoading(true);
       const [res, amortList] = await Promise.all([fetch("/api/prestamos"), fetchAmortizaciones()]);
-      if (res.ok) {
-        const data = await res.json();
-        setPrestamos(data || []);
-      }
+      if (res.ok) setPrestamos((await res.json()) || []);
       setAmortizaciones(amortList || []);
     } catch (err) {
       console.error("Error al cargar préstamos para la cartera:", err);
@@ -60,174 +41,142 @@ export const CarteraPage: React.FC = () => {
 
   useEffect(() => {
     fetchLoans();
-  }, []);
+  }, [fetchLoans]);
 
-  const moraById = useMemo(() => {
-    const map = new Map<string, EstadoMoraCliente>();
-    for (const p of prestamos) map.set(p.id, calcularEstadoMora(p, amortizaciones, today));
-    return map;
-  }, [prestamos, amortizaciones, today]);
+  // Misma regla que Inicio, la ficha del cliente y el calendario
+  const resumenById = useMemo(() => {
+    const hoy = hoyISO();
+    const pagosPorPrestamo = new Map<string, any[]>();
+    for (const a of amortizaciones) pagosPorPrestamo.set(a.prestamo_id, [...(pagosPorPrestamo.get(a.prestamo_id) || []), a]);
+    return new Map<string, ResumenPrestamo>(prestamos.map((p) => [p.id, resumirPrestamo(p, pagosPorPrestamo.get(p.id) || [], hoy)]));
+  }, [prestamos, amortizaciones]);
 
-  // Próximo cobro con la misma regla que Inicio y el calendario
-  const grupoById = useMemo(() => {
-    const hoy = toISODateLocal(today);
-    const map = new Map<string, GrupoCartera>();
-    for (const p of prestamos) {
-      const pagos = amortizaciones.filter((a) => a.prestamo_id === p.id);
-      const deuda = buildPaymentSchedule(p, pagos, { referenceDate: new Date(`${hoy}T12:00:00`) });
-      map.set(p.id, grupoCartera(p, proximoCobroPrestamo(deuda, p.fecha_emision, hoy)));
-    }
-    return map;
-  }, [prestamos, amortizaciones, today]);
-  const grupoDe = useCallback((p: any): GrupoCartera => grupoById.get(p.id) || "despues", [grupoById]);
+  const resumenDe = useCallback((p: any) => resumenById.get(p.id)!, [resumenById]);
+  const grupoDe = useCallback((p: any): GrupoPrestamo => resumenById.get(p.id)?.grupo || "despues", [resumenById]);
 
   const clientesById = useMemo(() => new Map(clientes.map((c) => [c.id, c])), [clientes]);
 
   const getWhatsAppLink = useCallback(
     (loan: any) => {
-      const mora = moraById.get(loan.id);
-      if (!mora || esLiquidado(loan)) return null;
-      const vencido = grupoDe(loan) === "atrasado" || grupoDe(loan) === "estancado";
+      const r = resumenById.get(loan.id);
+      if (!r || r.grupo === "liquidado") return null;
+      const atrasado = r.grupo === "atrasado" || r.grupo === "estancado";
       return linkCobroWhatsApp(clientesById.get(loan.cliente_id)?.telefono, {
-        esAlquiler: loan.tipo_prestamo === "Alquiler de Casa",
-        fechaVencimiento: mora.fechaCuotaActual,
-        diasAtraso: mora.diasAtraso,
-        atrasado: vencido,
-        monto: vencido ? mora.moraAcumulada : mora.montoCuotaActual,
+        fechaVencimiento: r.fecha || undefined,
+        atrasado,
+        monto: r.aCobrar,
       });
     },
-    [clientesById, moraById, grupoDe]
+    [clientesById, resumenById]
   );
+
+  // Editar = abrir el detalle con el formulario completo desplegado (una sola forma de editar)
+  const editar = useCallback((loan: any) => navigate(`/prestamos/${loan.id}?seccion=editar`), [navigate]);
 
   const loanTypes = useMemo(
     () => Array.from(new Set(prestamos.map((p) => p.tipo_prestamo).filter(Boolean))) as string[],
     [prestamos]
   );
 
-  const portfolioKPIs = useMemo(() => {
-    const vigentes = prestamos.filter((p) => !esLiquidado(p));
+  const kpis = useMemo(() => {
     let capitalPendiente = 0;
     let vencidosCount = 0;
     let montoVencido = 0;
     let hoyCount = 0;
-    for (const p of vigentes) {
-      const mora = moraById.get(p.id);
-      capitalPendiente += mora ? Math.max(0, mora.saldoPendiente - mora.moraAcumulada) : parseFloat(p.monto_capital) || 0;
-      const grupo = grupoDe(p);
-      if (grupo === "atrasado") {
+    let activasCount = 0;
+    for (const r of resumenById.values()) {
+      if (r.grupo === "liquidado") continue;
+      activasCount++;
+      capitalPendiente += r.capitalRestante;
+      if (r.grupo === "atrasado") {
         vencidosCount++;
-        montoVencido += mora?.moraAcumulada || 0;
-      } else if (grupo === "hoy") hoyCount++;
+        montoVencido += r.aCobrar;
+      } else if (r.grupo === "hoy") hoyCount++;
     }
-    return { capitalPendiente, activasCount: vigentes.length, vencidosCount, montoVencido, hoyCount };
-  }, [prestamos, moraById, grupoDe]);
+    return { capitalPendiente, activasCount, vencidosCount, montoVencido, hoyCount };
+  }, [resumenById]);
 
-  // Más urgente primero: vencidos, hoy, 7 días, después y al final los pagados
-  const filteredLoans = useMemo(() => {
-    const prioridad: Record<GrupoCartera, number> = { atrasado: 0, hoy: 1, manana: 2, semana: 3, despues: 4, estancado: 5, liquidado: 6 };
-    const fecha = (p: any) => moraById.get(p.id)?.fechaCuotaActual || "9999";
-    return filterLoans(prestamos, grupoDe, filters).sort(
-      (a, b) => prioridad[grupoDe(a)] - prioridad[grupoDe(b)] || fecha(a).localeCompare(fecha(b))
-    );
-  }, [prestamos, moraById, filters, grupoDe]);
-
-  const columns = useMemo(
-    () => buildCarteraColumns({ moraById, today, getWhatsAppLink, onEdit: setEditingLoan }),
-    [moraById, today, getWhatsAppLink]
+  const filteredLoans = useMemo(
+    () =>
+      filterLoans(prestamos, grupoDe, filters).sort(
+        (a, b) =>
+          PRIORIDAD[grupoDe(a)] - PRIORIDAD[grupoDe(b)] || String(resumenDe(a)?.fecha || "9999").localeCompare(String(resumenDe(b)?.fecha || "9999"))
+      ),
+    [prestamos, grupoDe, resumenDe, filters]
   );
 
-  const emptyMessage = loading ? "Cargando base de datos..." : "No se encontraron préstamos que coincidan con la búsqueda.";
+  const columns = useMemo(() => buildCarteraColumns({ resumenDe, getWhatsAppLink, onEdit: editar }), [resumenDe, getWhatsAppLink, editar]);
 
   return (
-    <div className="space-y-6 font-sans">
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-4 pb-12">
+      <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none flex items-center gap-2">
-            <Briefcase className="text-indigo-650 shrink-0" size={24} />
-            <span>Cartera de Deudas</span>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <Briefcase className="w-6 h-6 text-indigo-600" /> Cartera
           </h1>
-          <p className="text-[11px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-1.5">
-            Todos los préstamos, ordenados por urgencia de cobro
-          </p>
+          <p className="text-xs text-slate-500 font-semibold">Todos los préstamos, lo más urgente primero</p>
         </div>
-
-        <div className="flex items-center gap-2 select-none">
-          <Button
-            variant="secondary"
-            onClick={() => exportCarteraCsv(filteredLoans, today)}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={fetchLoans}
+            disabled={loading}
+            className="h-11 w-11 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center"
+            aria-label="Actualizar"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          </button>
+          <button
+            type="button"
+            onClick={() => exportCarteraCsv(filteredLoans, resumenDe)}
             disabled={filteredLoans.length === 0}
-            className="flex items-center gap-1.5 text-xs font-bold py-2.5 px-4 h-11"
+            className="h-11 px-3 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-50"
           >
-            <FileDown size={14} />
-            <span>Exportar CSV</span>
-          </Button>
-
-          <Link
-            to="/clientes"
-            className="btn-primary inline-flex items-center gap-1.5 text-xs font-bold py-2.5 px-4 h-11 rounded-xl border border-emerald-600/20 text-white shadow-lg shadow-emerald-600/10 transition decoration-none"
-          >
-            <span>Ver Clientes</span>
-            <ArrowUpRight size={14} />
-          </Link>
+            <FileDown className="w-4 h-4" /> <span className="hidden sm:inline">Exportar</span> CSV
+          </button>
         </div>
       </div>
 
-      <CarteraKPIs {...portfolioKPIs} onFiltrar={(estado) => setFilters((f) => ({ ...f, estado }))} />
+      <CarteraKPIs {...kpis} onFiltrar={(estado) => setFilters((f) => ({ ...f, estado }))} />
 
-      {/* TABLA PRINCIPAL Y FILTROS */}
-      <Card variant="simple" className="flex flex-col">
-        <CarteraFiltros
-          filters={filters}
-          onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
-          onClear={() => setFilters(EMPTY_FILTERS)}
-          loanTypes={loanTypes}
+      <CarteraFiltros
+        filters={filters}
+        onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+        onClear={() => setFilters(EMPTY_FILTERS)}
+        loanTypes={loanTypes}
+      />
+
+      {/* Escritorio: tabla */}
+      <div className="hidden md:block bg-white border border-slate-200/80 rounded-2xl p-3 shadow-sm">
+        <DataTable
+          data={filteredLoans}
+          columns={columns}
+          pageSize={20}
+          emptyMessage={loading ? "Cargando..." : "No hay préstamos con estos filtros."}
+          showSearch={false}
         />
+      </div>
 
-        {/* TABLA - ESCRITORIO */}
-        <div className="hidden md:block mt-5">
-          <DataTable
-            data={filteredLoans}
-            columns={columns}
-            pageSize={15}
-            renderExpandedRow={(loan) => <CarteraExpandedRow loan={loan} today={today} />}
-            emptyMessage={emptyMessage}
-            showSearch={false}
-          />
-        </div>
-
-        {/* LISTADO DE TARJETAS SWIPEABLES - MÓVIL */}
-        <div className="md:hidden space-y-3 mt-4">
-          {filteredLoans.length === 0 ? (
-            <div className="text-center py-12 text-slate-400 text-xs font-bold bg-white border border-slate-200 rounded-3xl">
-              {loading ? "Cargando base de datos..." : "No se encontraron préstamos."}
-            </div>
-          ) : (
-            filteredLoans.map((loan) => (
-              <CarteraLoanCard
-                key={loan.id}
-                loan={loan}
-                mora={moraById.get(loan.id)}
-                grupo={grupoDe(loan)}
-                today={today}
-                waLink={getWhatsAppLink(loan)}
-                onEdit={setEditingLoan}
-              />
-            ))
-          )}
-        </div>
-      </Card>
-
-      {editingLoan && (
-        <EditarPrestamoModal
-          loan={editingLoan}
-          onClose={() => setEditingLoan(null)}
-          onSaved={() => {
-            setEditingLoan(null);
-            fetchLoans();
-          }}
-        />
-      )}
+      {/* Celular: tarjetas */}
+      <div className="md:hidden">
+        {loading && prestamos.length === 0 ? (
+          <ul className="space-y-2" aria-busy>
+            {[0, 1, 2].map((i) => (
+              <li key={i} className="h-36 bg-white border border-slate-200 rounded-2xl animate-pulse" />
+            ))}
+          </ul>
+        ) : filteredLoans.length === 0 ? (
+          <p className="text-center py-12 text-slate-500 text-sm font-bold bg-white border border-dashed border-slate-200 rounded-2xl">
+            No hay préstamos con estos filtros.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {filteredLoans.map((loan) => (
+              <CarteraLoanCard key={loan.id} loan={loan} resumen={resumenDe(loan)} waLink={getWhatsAppLink(loan)} onEdit={editar} />
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 };

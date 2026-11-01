@@ -17,6 +17,7 @@ export interface ItemCobroApi {
   tasa?: number;
   capital_restante?: number;
   interes_mes?: number;
+  congelado?: boolean;
   /** Solo alquileres */
   renta_mensual?: number;
   proximo_cobro: string | null;
@@ -40,7 +41,10 @@ export interface ItemCobro extends ItemCobroApi {
 
 export function prepararItems(items: ItemCobroApi[], hoy = new Date()): ItemCobro[] {
   return items.map((it) => {
-    const grupo = clasificarCobro({ fechaProxima: it.proximo_cobro, atrasadas: it.atrasado > 0.009 ? it.cuotas_atrasadas || 1 : 0 }, hoy);
+    const atrasadas = it.atrasado > 0.009 ? it.cuotas_atrasadas || 1 : 0;
+    let grupo = clasificarCobro({ fechaProxima: it.proximo_cobro, atrasadas }, hoy);
+    // Sin nada que cobrar en la próxima fecha (ej. interés congelado): no es urgente
+    if (!atrasadas && it.monto_proximo <= 0.009) grupo = "despues";
     const montoACobrar = grupo === "atrasado" || grupo === "estancado" ? it.atrasado : it.monto_proximo;
     return { ...it, grupo, dias: diasHasta(it.proximo_cobro, hoy), montoACobrar };
   });

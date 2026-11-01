@@ -24,7 +24,8 @@ router.get("/home", requireAuth, async (_req: express.Request, res: express.Resp
     const [pRes, aRes, cRes, ajRes, alqRes, pagosAlqRes] = await Promise.all([
       supabase.from("prestamos").select("*").in("estado", ["activo", "estancado"]),
       supabase.from("amortizaciones").select("*"),
-      supabase.from("clientes").select("id, nombre_completo, apodo, telefono, score"),
+      // La vista trae el score calculado (la tabla clientes no tiene columna de score)
+      supabase.from("resumen_financiero_clientes").select("*"),
       supabase.from("ajustes_prestamo").select("*").eq("activo", true),
       supabase.from("alquileres").select("*").eq("estado", "activo"),
       supabase.from("pagos_alquiler").select("*"),
@@ -62,17 +63,18 @@ router.get("/home", requireAuth, async (_req: express.Request, res: express.Resp
         cliente_nombre: cliente?.nombre_completo || "Cliente desconocido",
         cliente_apodo: cliente?.apodo || "",
         cliente_telefono: cliente?.telefono || "",
-        score: cliente?.score || null,
+        score: cliente?.score_efectivo || null,
         tipo: prestamo.tipo_prestamo || "Personal",
         monto_original: toNumber(prestamo.monto_capital),
         tasa,
         capital_restante: resumen.capitalPendiente,
-        // Interés del próximo mes (respeta congelamientos); si aún no está en el cronograma, sobre el capital restante
-        interes_mes: prox.cuota?.interesOriginal ?? round2((resumen.capitalPendiente * tasa) / 100),
+        // Interés del período en curso (0 si está congelado)
+        interes_mes: prox.cuota?.congelada ? 0 : prox.cuota?.interesOriginal ?? round2((resumen.capitalPendiente * tasa) / 100),
+        congelado: !!prox.cuota?.congelada,
         proximo_cobro: prox.fecha,
-        // Lo que debe pagar en esa fecha para quedar al día (interés del mes + lo atrasado)
-        monto_proximo: prox.cuota ? prox.cuota.montoCuotaBase : round2(resumen.moraAcumulada + resumen.interesPendiente),
-        atrasado: prox.atrasado ? resumen.moraAcumulada : 0,
+        // Lo que falta pagar de la cuota en curso (incluye lo atrasado): pagarlo deja la mora en 0
+        monto_proximo: prox.cuota ? prox.cuota.saldoPendiente : resumen.moraAcumulada,
+        atrasado: prox.moraVencida,
         cuotas_atrasadas: prox.cuotasAtrasadas,
         debe_desde: prox.debeDesde,
         saldo_pendiente: resumen.saldoPendiente,
@@ -95,7 +97,7 @@ router.get("/home", requireAuth, async (_req: express.Request, res: express.Resp
         cliente_nombre: cliente?.nombre_completo || "Inquilino desconocido",
         cliente_apodo: cliente?.apodo || "",
         cliente_telefono: cliente?.telefono || "",
-        score: cliente?.score || null,
+        score: cliente?.score_efectivo || null,
         tipo: "Alquiler",
         descripcion_inmueble: alquiler.descripcion_inmueble || "Inmueble",
         renta_mensual: renta,

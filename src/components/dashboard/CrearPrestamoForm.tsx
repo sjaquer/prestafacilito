@@ -11,6 +11,8 @@ interface CrearPrestamoFormProps {
   clientes: Cliente[];
   onPrestamoCreado: (nuevoPrestamo: Prestamo) => void;
   onClienteCreado?: (nuevoCliente: Cliente) => void;
+  /** Cliente preseleccionado (al crear desde la ficha del cliente). */
+  clienteIdInicial?: string;
 }
 
 export const CrearPrestamoForm: React.FC<CrearPrestamoFormProps> = ({
@@ -18,8 +20,9 @@ export const CrearPrestamoForm: React.FC<CrearPrestamoFormProps> = ({
   onPrestamoCreado,
   onClienteCreado,
   bare = false,
+  clienteIdInicial = "",
 }) => {
-  const [clienteId, setClienteId] = useState("");
+  const [clienteId, setClienteId] = useState(clienteIdInicial);
   const [montoCapital, setMontoCapital] = useState("");
   const [tasaInteres, setTasaInteres] = useState("10");
   const [numeroCuotas, setNumeroCuotas] = useState("3");

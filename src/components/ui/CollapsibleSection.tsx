@@ -8,6 +8,8 @@ interface CollapsibleSectionProps {
   aside?: React.ReactNode;
   defaultOpen?: boolean;
   className?: string;
+  /** id del elemento (para enlazar o desplazarse hasta la sección). */
+  id?: string;
   children: React.ReactNode;
 }
 
@@ -21,13 +23,14 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   aside,
   defaultOpen = false,
   className = "",
+  id,
   children,
 }) => {
   const [open, setOpen] = useState(defaultOpen);
   const contentId = useId();
 
   return (
-    <section className={`bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden ${className}`}>
+    <section id={id} className={`bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden scroll-mt-20 ${className}`}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

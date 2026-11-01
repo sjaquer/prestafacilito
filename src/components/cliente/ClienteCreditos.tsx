@@ -1,16 +1,13 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { ArrowUpRight, Loader2 } from "lucide-react";
 import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
-import { formatCurrency } from "../../lib/formatters";
+import { formatCurrency, formatFechaCorta, formatSoles } from "../../lib/formatters";
+import { ESTILO_GRUPO } from "../../lib/cobranza";
+import { resumirPrestamo, ResumenPrestamo } from "../../lib/resumenPrestamo";
+import { hoyISO } from "../../lib/fechas";
 import { DistribucionFinanciera } from "./clienteFinanzas";
-
-const ESTADO_PRESTAMO: Record<string, { label: string; variant: "success" | "neutral" | "danger" }> = {
-  activo: { label: "Activo", variant: "success" },
-  estancado: { label: "Estancado", variant: "danger" },
-  pagado: { label: "Pagado", variant: "neutral" },
-};
 
 const SectionTitle: React.FC<{ title: React.ReactNode; subtitle: string }> = ({ title, subtitle }) => (
   <>
@@ -24,77 +21,92 @@ const SectionTitle: React.FC<{ title: React.ReactNode; subtitle: string }> = ({ 
 
 interface ClienteCreditosProps {
   loans: any[];
+  amortizaciones: any[];
   loading: boolean;
   error: string;
 }
 
-/** Tabla con los préstamos del cliente. */
-export const ClienteCreditos: React.FC<ClienteCreditosProps> = ({ loans, loading, error }) => (
-  <Card variant="simple" className="space-y-4">
-    <SectionTitle title="Cartera de Créditos" subtitle="Historial de financiamientos y saldos exigibles" />
+interface FilaPrestamo extends ResumenPrestamo {
+  loan: any;
+}
 
-    {loading ? (
-      <div className="flex flex-col items-center justify-center py-16">
-        <Loader2 className="animate-spin text-indigo-650 mb-3" size={24} />
-        <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Cargando deudas del prestatario...</p>
-      </div>
-    ) : error ? (
-      <div className="p-4 bg-rose-50 border border-rose-100 text-rose-700 rounded-2xl text-xs font-bold leading-normal">
-        {error}
-      </div>
-    ) : loans.length === 0 ? (
-      <div className="text-center py-16 text-slate-500 text-xs md:text-sm font-semibold bg-slate-50/40 border border-dashed border-slate-200 rounded-3xl p-6 select-none">
-        El cliente no cuenta con deudas u operaciones en el sistema.
-      </div>
-    ) : (
-      <div className="w-full overflow-x-auto border border-slate-200 bg-white rounded-2xl shadow-sm">
-        <table className="w-full border-collapse text-left">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              {["Código", "Monto", "Frecuencia / Tasa", "Estado"].map((h) => (
-                <th key={h} className="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                  {h}
-                </th>
-              ))}
-              <th className="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Ver</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {loans.map((loan) => {
-              const estado = ESTADO_PRESTAMO[loan.estado] || ESTADO_PRESTAMO.pagado;
-              return (
-                <tr key={loan.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="p-3 text-xs font-mono font-bold text-indigo-650">{loan.id.slice(0, 8).toUpperCase()}</td>
-                  <td className="p-3 text-xs font-mono font-extrabold text-slate-800">{formatCurrency(loan.monto_capital)}</td>
-                  <td className="p-3 text-xs font-semibold text-slate-600">
-                    {loan.tipo_prestamo === "Alquiler de Casa" ? (
-                      <span>Alquiler (Día {parseInt(loan.fecha_emision.split("-")[2])} c/mes)</span>
-                    ) : (
-                      <span>
-                        {loan.tipo_prestamo} ({loan.tasa_interes_porcentaje}%)
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-3 text-xs">
-                    <Badge variant={estado.variant}>{estado.label}</Badge>
-                  </td>
-                  <td className="p-3 text-right">
-                    <Link
-                      to={`/prestamos/${loan.id}`}
-                      aria-label="Ver préstamo"
-                      className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition inline-flex items-center justify-center shrink-0 border border-slate-200 decoration-none cursor-pointer"
-                    >
-                      <ArrowUpRight size={13} />
-                    </Link>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    )}
-  </Card>
+/** Préstamos del cliente con lo esencial de cada uno, con los mismos colores que la pantalla de Inicio. */
+export const ClienteCreditos: React.FC<ClienteCreditosProps> = ({ loans, amortizaciones, loading, error }) => {
+  const filas: FilaPrestamo[] = useMemo(() => {
+    const hoy = hoyISO();
+    return loans
+      .map((loan) => ({ loan, ...resumirPrestamo(loan, amortizaciones.filter((a) => a.prestamo_id === loan.id), hoy) }))
+      .sort(
+        (a, b) =>
+          Number(a.grupo === "liquidado") - Number(b.grupo === "liquidado") ||
+          String(b.loan.fecha_emision).localeCompare(String(a.loan.fecha_emision))
+      );
+  }, [loans, amortizaciones]);
+
+  const vigentes = filas.filter((f) => f.grupo !== "liquidado");
+  const liquidados = filas.filter((f) => f.grupo === "liquidado");
+
+  return (
+    <Card variant="simple" className="space-y-3">
+      <SectionTitle title="Préstamos" subtitle={`${vigentes.length} vigente${vigentes.length === 1 ? "" : "s"} · ${liquidados.length} liquidado${liquidados.length === 1 ? "" : "s"}`} />
+
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          <Loader2 className="animate-spin text-indigo-600 mb-3" size={24} />
+          <p className="text-xs text-slate-500 font-semibold">Cargando préstamos...</p>
+        </div>
+      ) : error ? (
+        <div className="p-4 bg-rose-50 border border-rose-100 text-rose-700 rounded-2xl text-xs font-bold">{error}</div>
+      ) : filas.length === 0 ? (
+        <p className="text-center py-10 text-slate-500 text-sm font-semibold border border-dashed border-slate-200 rounded-2xl">
+          Este cliente aún no tiene préstamos.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {filas.map((f) => {
+            const estilo = f.grupo === "liquidado" ? null : ESTILO_GRUPO[f.grupo];
+            const esAtraso = f.grupo === "atrasado" || f.grupo === "estancado";
+            return (
+              <li key={f.loan.id}>
+                <Link
+                  to={`/prestamos/${f.loan.id}`}
+                  className={`block border rounded-2xl p-3 decoration-none ${estilo ? estilo.tarjeta : "bg-slate-50 border-slate-200 opacity-80"}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${estilo ? estilo.pill : "bg-slate-200 text-slate-600"}`}>
+                      {estilo ? estilo.etiqueta : "Liquidado"}
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-500 truncate">
+                      {f.loan.tipo_prestamo} · {formatSoles(f.loan.monto_capital)} al {f.loan.tasa_interes_porcentaje}% · desde {formatFechaCorta(f.loan.fecha_emision)}
+                    </span>
+                    <ArrowUpRight className="w-4 h-4 text-slate-400 shrink-0" />
+                  </div>
+                  {f.grupo !== "liquidado" && (
+                    <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
+                      <Dato label="Capital" valor={formatSoles(f.capitalRestante)} />
+                      <Dato label="Interés/mes" valor={f.congelado ? "Congelado" : formatSoles(f.interesMes)} />
+                      <Dato
+                        label={esAtraso ? `Atrasado (${f.cuotasAtrasadas})` : `Cobrar ${f.fecha ? formatFechaCorta(f.fecha) : ""}`}
+                        valor={formatSoles(f.aCobrar)}
+                        fuerte
+                      />
+                    </div>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
+};
+
+const Dato: React.FC<{ label: string; valor: string; fuerte?: boolean }> = ({ label, valor, fuerte }) => (
+  <div className={`rounded-xl px-2 py-1.5 ${fuerte ? "bg-white shadow-sm" : "bg-white/60"}`}>
+    <p className="text-[9.5px] font-bold text-slate-500 uppercase truncate">{label}</p>
+    <p className={`font-mono leading-tight ${fuerte ? "text-sm font-black text-slate-900" : "text-xs font-bold text-slate-700"}`}>{valor}</p>
+  </div>
 );
 
 /** Lista de contratos de alquiler del cliente. */

@@ -32,7 +32,8 @@ const num: React.CSSProperties = { ...td, textAlign: "right", fontFamily: "Conso
  * agrupado por urgencia, con capital restante e interés de cada préstamo.
  */
 export const ReporteCobrosImagen: React.FC<ReporteCobrosImagenProps> = ({ items }) => {
-  const hoy = new Date().toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const fechaLarga = new Date().toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const hoy = fechaLarga.charAt(0).toUpperCase() + fechaLarga.slice(1);
   const secciones = SECCIONES.map((s) => ({ ...s, filas: items.filter((i) => i.grupo === s.grupo) })).filter((s) => s.filas.length > 0);
   const totalGeneral = items.reduce((sum, i) => sum + i.montoACobrar, 0);
   let n = 0;
@@ -45,7 +46,7 @@ export const ReporteCobrosImagen: React.FC<ReporteCobrosImagenProps> = ({ items 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
         <div>
           <div style={{ fontSize: 20, fontWeight: 800 }}>Cobros pendientes</div>
-          <div style={{ fontSize: 13, color: "#52525b", textTransform: "capitalize" }}>{hoy}</div>
+          <div style={{ fontSize: 13, color: "#52525b" }}>{hoy}</div>
         </div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: 12, color: "#52525b" }}>Total a cobrar</div>
