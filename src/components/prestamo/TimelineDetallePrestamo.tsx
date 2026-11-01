@@ -11,7 +11,7 @@ import {
   Info,
 } from "lucide-react";
 import { subirVoucher } from "../../lib/imageCompression";
-import { formatFechaCorta, formatSoles, resolveVoucherUrl } from "../../lib/formatters";
+import { formatFechaCorta, formatSoles, parseVoucherUrls } from "../../lib/formatters";
 import { hoyISO } from "../../lib/fechas";
 import { useFeedback } from "../ui/Feedback";
 
@@ -62,13 +62,6 @@ const ESTADO_UI: Record<
 const CONGELADO = { label: "Congelado", dot: "bg-sky-500", pill: "bg-sky-100 text-sky-800", Icon: Snowflake };
 const VENCE_HOY = { label: "Vence hoy", dot: "bg-amber-500", pill: "bg-amber-100 text-amber-800", Icon: Clock };
 
-const Dato: React.FC<{ label: string; value: string; className?: string }> = ({ label, value, className = "text-slate-800" }) => (
-  <div>
-    <span className="text-[10px] text-slate-400 block font-semibold">{label}</span>
-    <span className={`font-bold font-mono ${className}`}>{value}</span>
-  </div>
-);
-
 export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = ({
   timeline,
   onVerVoucher,
@@ -77,10 +70,12 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
   const { notify } = useFeedback();
   const hoy = hoyISO();
   const [uploadingPagoId, setUploadingPagoId] = useState<string | null>(null);
-  // Los meses ya pagados empiezan plegados; los pendientes o con problemas, abiertos
-  const [abiertos, setAbiertos] = useState<Set<number>>(
-    () => new Set(timeline.filter((m) => m.estado !== "Saldada").map((m) => m.numero))
-  );
+  // Abiertos al entrar: los meses con atraso y el mes en curso. Pagados y futuros, plegados.
+  const [abiertos, setAbiertos] = useState<Set<number>>(() => {
+    const conAtraso = timeline.filter((m) => m.estado !== "Saldada" && m.fechaVencimiento < hoy && m.saldoPendienteCuota > 0.009);
+    const enCurso = timeline.find((m) => m.estado !== "Saldada" && m.fechaVencimiento >= hoy);
+    return new Set([...conAtraso, ...(enCurso ? [enCurso] : [])].map((m) => m.numero));
+  });
 
   const toggle = (numero: number) =>
     setAbiertos((prev) => {
@@ -119,12 +114,9 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
 
   return (
     <div className="space-y-3">
-      <p className="text-[11px] text-slate-500 leading-relaxed flex gap-1.5 bg-slate-50 border border-slate-200/70 rounded-xl p-2.5">
-        <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-slate-400" />
-        <span>
-          Cada mes se cobra interés sobre el capital pendiente. Cada abono cubre primero el interés atrasado, luego el interés del
-          mes, y el resto reduce el capital.
-        </span>
+      <p className="text-[10px] text-slate-400 leading-snug flex gap-1">
+        <Info className="w-3 h-3 shrink-0 mt-px" />
+        <span>Cada abono cubre primero el interés atrasado, luego el del mes; el resto baja el capital.</span>
       </p>
 
       <ol className="relative space-y-2">
@@ -151,7 +143,9 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
                     Mes {mes.numero}
                     {mes.congelada && <Snowflake className="w-3.5 h-3.5 text-sky-500" aria-label="Interés congelado" />}
                   </span>
-                  <span className="block text-[11px] text-slate-500 font-semibold">Vence {formatFechaCorta(mes.fechaVencimiento)}</span>
+                  <span className="block text-[11px] text-slate-500 font-semibold">
+                    Vence {formatFechaCorta(mes.fechaVencimiento)} · interés {mes.congelada ? "congelado" : formatSoles(mes.interesMes)}
+                  </span>
                 </span>
                 <span className="text-right shrink-0">
                   <span className="block text-xs font-black font-mono text-slate-800">
@@ -173,12 +167,17 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
                     </p>
                   )}
 
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                    <Dato label="Capital al inicio" value={formatSoles(mes.capitalInicioMes)} />
-                    <Dato label="Interés del mes" value={formatSoles(mes.interesMes)} className="text-amber-600" />
-                    <Dato label="Mínimo del mes" value={formatSoles(mes.cuotaEsperada)} className="text-slate-900" />
-                    <Dato label="Abonado a capital" value={formatSoles(mes.amortizacionCapital)} className="text-emerald-600" />
-                  </div>
+                  <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500 font-semibold">
+                    <span>
+                      Capital al inicio <b className="font-mono text-slate-700">{formatSoles(mes.capitalInicioMes)}</b>
+                    </span>
+                    <span>
+                      Interés <b className="font-mono text-amber-700">{formatSoles(mes.interesMes)}</b>
+                    </span>
+                    <span>
+                      A capital <b className="font-mono text-emerald-700">{formatSoles(mes.amortizacionCapital)}</b>
+                    </span>
+                  </p>
 
                   {mes.pagosRecibidos?.length > 0 ? (
                     <ul className="space-y-1.5">
@@ -201,10 +200,13 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
                             {pago.comprobante_url ? (
                               <button
                                 type="button"
-                                onClick={() => onVerVoucher(resolveVoucherUrl(pago.comprobante_url))}
+                                onClick={() => onVerVoucher(pago.comprobante_url)}
                                 className="px-2 py-1 bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
                               >
-                                <FileText className="w-3 h-3" /> Comprobante
+                                <FileText className="w-3 h-3" />
+                                {parseVoucherUrls(pago.comprobante_url).length > 1
+                                  ? `${parseVoucherUrls(pago.comprobante_url).length} comprobantes`
+                                  : "Comprobante"}
                               </button>
                             ) : (
                               <label
@@ -235,8 +237,8 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
                       ))}
                     </ul>
                   ) : (
-                    <p className="p-2.5 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-xs text-slate-500 flex items-center gap-2">
-                      <Clock className="w-3.5 h-3.5 text-slate-400" /> Sin pagos en este mes.
+                    <p className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5" /> Sin pagos en este mes.
                     </p>
                   )}
 

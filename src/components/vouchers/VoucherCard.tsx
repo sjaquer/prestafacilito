@@ -14,15 +14,15 @@ interface VoucherCardProps {
 }
 
 /** Miniatura del primer comprobante (con contador si hay varios). Si no es imagen (PDF), muestra un ícono. */
-const Miniatura: React.FC<{ urls: string[]; onPreview: (url: string) => void }> = ({ urls, onPreview }) => {
+const Miniatura: React.FC<{ urls: string[]; todos: string; onPreview: (url: string) => void }> = ({ urls, todos, onPreview }) => {
   const [noEsImagen, setNoEsImagen] = useState(false);
   const url = resolveVoucherUrl(urls[0]);
   return (
     <button
       type="button"
-      onClick={() => onPreview(url)}
+      onClick={() => onPreview(todos)}
       className="relative h-16 w-16 shrink-0 rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center focus-visible:ring-2 focus-visible:ring-emerald-500"
-      aria-label="Ver comprobante"
+      aria-label={urls.length > 1 ? `Ver los ${urls.length} comprobantes` : "Ver comprobante"}
     >
       {noEsImagen ? (
         <FileText className="w-6 h-6 text-indigo-400" />
@@ -44,7 +44,7 @@ export const VoucherCard: React.FC<VoucherCardProps> = ({ pago, deleting, onPrev
   return (
     <li className={`bg-white border rounded-2xl p-3 flex items-center gap-3 ${tiene ? "border-slate-200/80" : "border-amber-200"}`}>
       {tiene ? (
-        <Miniatura urls={urls} onPreview={onPreview} />
+        <Miniatura urls={urls} todos={pago.comprobante_url} onPreview={onPreview} />
       ) : (
         <button
           type="button"

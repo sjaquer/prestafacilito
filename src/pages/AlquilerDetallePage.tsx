@@ -86,6 +86,7 @@ export const AlquilerDetallePage: React.FC = () => {
     ? { mes: prox.mes, anio: prox.anio, monto: Number(prox.saldoPendiente) || Number(alquiler.monto_mensual) }
     : { mes: hoy.getMonth() + 1, anio: hoy.getFullYear(), monto: Number(alquiler.monto_mensual) };
   const atrasados = Number(estado?.mesesAtrasados) || 0;
+  const ultimoPago = [...pagos].sort((x, y) => String(y.fecha_pago).localeCompare(String(x.fecha_pago)))[0] || null;
 
   return (
     <div className="space-y-4 pb-12 max-w-6xl mx-auto">
@@ -100,7 +101,7 @@ export const AlquilerDetallePage: React.FC = () => {
         {isLoading && <RefreshCw className="w-4 h-4 text-slate-400 animate-spin" aria-label="Actualizando" />}
       </div>
 
-      <AlquilerHero alquiler={alquiler} cliente={data.cliente} estado={estado} />
+      <AlquilerHero alquiler={alquiler} cliente={data.cliente} estado={estado} ultimoPago={ultimoPago} />
 
       {/* Celular: Registrar pago → Meses → Editar. Escritorio: acciones a la izquierda, historial a la derecha. */}
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12 lg:items-start">

@@ -5,6 +5,9 @@ import { subirVoucher } from "../../lib/imageCompression";
 import { round2 } from "../../lib/loanLogic";
 import { hoyISO } from "../../lib/fechas";
 import { formatDate } from "../../lib/formatters";
+
+/** "S/ 3,200.00": con separador de miles, igual que el resto de la app. */
+const soles = (n: number) => `S/ ${(Number(n) || 0).toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 import type { MontosDePago } from "../../lib/proximoCobro";
 
 interface RegistrarPagoPrestamoFormProps {
@@ -157,7 +160,7 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
                     }`}
                   >
                     <span className="block text-[10px] font-bold text-slate-500">{a.label}</span>
-                    <span className="block text-sm font-black font-mono text-slate-900">S/ {a.monto.toFixed(2)}</span>
+                    <span className="block text-sm font-black font-mono text-slate-900">{soles(a.monto)}</span>
                     <span className="block text-[10px] text-slate-400">{a.detalle}</span>
                   </button>
                 );
@@ -173,7 +176,7 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
                 📐 Desglose del Abono
               </span>
               <span className="font-mono font-black text-indigo-700 bg-white px-2 py-0.5 rounded-lg border border-indigo-200">
-                S/ {desglose.nMonto.toFixed(2)}
+                {soles(desglose.nMonto)}
               </span>
             </div>
 
@@ -181,10 +184,10 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
               <div className="flex justify-between items-center text-rose-700 font-semibold">
                 <span>1. Interés atrasado cubierto:</span>
                 <span className="font-mono font-bold">
-                  - S/ {desglose.cubiertoAtrasado.toFixed(2)}
+                  - {soles(desglose.cubiertoAtrasado)}
                   {desglose.interesAtrasadoAntes > 0 && (
                     <span className="text-[9.5px] text-slate-500 font-normal ml-1">
-                      (queda S/ {(desglose.interesAtrasadoAntes - desglose.cubiertoAtrasado).toFixed(2)})
+                      (queda {soles((desglose.interesAtrasadoAntes - desglose.cubiertoAtrasado))})
                     </span>
                   )}
                 </span>
@@ -193,10 +196,10 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
               <div className="flex justify-between items-center text-indigo-700 font-semibold">
                 <span>2. Interés del período cubierto:</span>
                 <span className="font-mono font-bold">
-                  - S/ {desglose.cubiertoInteres.toFixed(2)}
+                  - {soles(desglose.cubiertoInteres)}
                   {desglose.interesAntes > 0 && (
                     <span className="text-[9.5px] text-slate-500 font-normal ml-1">
-                      (queda S/ {(desglose.interesAntes - desglose.cubiertoInteres).toFixed(2)})
+                      (queda {soles((desglose.interesAntes - desglose.cubiertoInteres))})
                     </span>
                   )}
                 </span>
@@ -204,19 +207,19 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
 
               <div className="flex justify-between items-center text-emerald-700 font-bold">
                 <span>3. Reducción directa a Capital:</span>
-                <span className="font-mono font-black">- S/ {desglose.cubiertoCapital.toFixed(2)}</span>
+                <span className="font-mono font-black">- {soles(desglose.cubiertoCapital)}</span>
               </div>
 
               {desglose.excedenteLibre > 0 && (
                 <div className="flex justify-between items-center text-indigo-900 font-extrabold bg-indigo-100/80 p-1.5 rounded-lg">
                   <span>⚠️ Excedente sin deuda pendiente:</span>
-                  <span className="font-mono">+ S/ {desglose.excedenteLibre.toFixed(2)}</span>
+                  <span className="font-mono">+ {soles(desglose.excedenteLibre)}</span>
                 </div>
               )}
 
               {desglose.esIncompleto && (
                 <div className="p-2 bg-rose-100/90 border border-rose-200 rounded-xl text-rose-900 text-[10.5px] font-bold">
-                  ⚠️ Pago incompleto: faltan S/ {desglose.interesNoPagadoFuturo.toFixed(2)} de la cuota mínima. Esta
+                  ⚠️ Pago incompleto: faltan {soles(desglose.interesNoPagadoFuturo)} de la cuota mínima. Esta
                   diferencia queda como interés atrasado para el mes siguiente.
                 </div>
               )}
@@ -225,7 +228,7 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
             <div className="pt-2 border-t border-indigo-200/80 flex justify-between items-center font-black text-slate-900 text-xs">
               <span>NUEVO CAPITAL RESTANTE:</span>
               <span className="font-mono text-xs text-emerald-700 bg-white px-2 py-0.5 rounded-lg border border-emerald-300">
-                S/ {desglose.nuevoCapital.toFixed(2)}
+                {soles(desglose.nuevoCapital)}
               </span>
             </div>
           </div>

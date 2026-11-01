@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Edit2, FileText, Loader2, Trash2 } from "lucide-react";
-import { formatCurrency, formatDate, parseVoucherUrls, resolveVoucherUrl } from "../../lib/formatters";
+import { formatCurrency, formatDate, parseVoucherUrls } from "../../lib/formatters";
 import { usePagos } from "../../hooks/usePagos";
 import { useFeedback } from "../ui/Feedback";
 import { EditarPagoModal } from "../vouchers/EditarPagoModal";
@@ -56,7 +56,8 @@ export const PagosPrestamoList: React.FC<PagosPrestamoListProps> = ({
     <>
       <ul className="divide-y divide-slate-100">
         {ordenados.map((pago) => {
-          const voucher = parseVoucherUrls(pago.comprobante_url)[0];
+          const vouchers = parseVoucherUrls(pago.comprobante_url);
+          const voucher = vouchers[0];
           return (
             <li key={pago.id} className="py-3 flex items-center gap-3">
               <div className="flex-1 min-w-0">
@@ -69,12 +70,15 @@ export const PagosPrestamoList: React.FC<PagosPrestamoListProps> = ({
                 {voucher && (
                   <button
                     type="button"
-                    onClick={() => onVerVoucher(resolveVoucherUrl(voucher))}
-                    className="p-2.5 rounded-xl text-indigo-600 hover:bg-indigo-50 transition"
-                    title="Ver comprobante"
-                    aria-label="Ver comprobante"
+                    onClick={() => onVerVoucher(pago.comprobante_url)}
+                    className="relative p-2.5 rounded-xl text-indigo-600 hover:bg-indigo-50 transition"
+                    title={vouchers.length > 1 ? `Ver ${vouchers.length} comprobantes` : "Ver comprobante"}
+                    aria-label={vouchers.length > 1 ? `Ver ${vouchers.length} comprobantes` : "Ver comprobante"}
                   >
                     <FileText className="w-4 h-4" />
+                    {vouchers.length > 1 && (
+                      <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-indigo-600 text-white text-[10px] font-black leading-4 text-center">{vouchers.length}</span>
+                    )}
                   </button>
                 )}
                 <button

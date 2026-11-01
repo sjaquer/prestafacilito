@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Download, FileText, Home as HomeIcon, Landmark, RefreshCw, Search } from "lucide-react";
 import { hoyISO } from "../lib/fechas";
 import { ResumenMensualTitulares } from "../components/cuentas/ResumenMensualTitulares";
-import { formatCurrency, formatDate, parseVoucherUrls, resolveVoucherUrl } from "../lib/formatters";
+import { formatCurrency, formatDate, parseVoucherUrls } from "../lib/formatters";
 import { agruparPorCuenta, agruparPorTitular, esMetodoAntiguo, resolverCuenta, SIN_IDENTIFICAR_ID } from "../lib/cuentas";
 import { filtrarPorPeriodo, Periodo, PERIODOS, useMovimientosCuentas } from "../hooks/useMovimientosCuentas";
 import { CuentasDesglose } from "../components/cuentas/CuentasDesglose";
@@ -190,7 +190,7 @@ export const CuentasPage: React.FC = () => {
                     {voucher && (
                       <button
                         type="button"
-                        onClick={() => setLightbox(resolveVoucherUrl(voucher))}
+                        onClick={() => setLightbox(m.comprobante_url)}
                         className="p-2 rounded-xl text-indigo-600 hover:bg-indigo-50"
                         aria-label="Ver comprobante"
                       >

@@ -125,6 +125,7 @@ export const PrestamoDetalle: React.FC = () => {
   ).length;
   const FlashIcon = flash ? FLASH_STYLES[flash.type].icon : null;
   const clienteNombre = cliente?.nombre_completo || prestamo.cliente_nombre;
+  const ultimoPago = [...pagosRealizados].sort((x: any, y: any) => String(y.fecha_pago).localeCompare(String(x.fecha_pago)))[0] || null;
 
   return (
     <div className="space-y-4 pb-12 max-w-6xl mx-auto">
@@ -143,7 +144,9 @@ export const PrestamoDetalle: React.FC = () => {
         prestamo={prestamo}
         cliente={cliente}
         deuda={deuda}
+        cuotas={data.cuotas || []}
         montos={montos}
+        ultimoPago={ultimoPago}
         ajustesActivos={ajustesActivos}
         isLiquidado={isLiquidado}
         isEstancado={isEstancado}
