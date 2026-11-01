@@ -254,8 +254,9 @@ export const buildPaymentSchedule = (
 
   const cuotasPendientes = cuotas.filter((c) => c.estado !== "Saldada").length;
   const cuotasVencidas = cuotasVencidasDetalle.length;
-  // Un préstamo se considera estancado si tiene 3 o más cuotas vencidas/incompletas
-  const esEstancado = cuotasVencidas >= 3;
+  // Un préstamo se considera estancado si tiene 3 o más cuotas vencidas/incompletas.
+  // Regla de negocio: un préstamo al 0 % nunca es estancado (no genera interés mensual que se deba).
+  const esEstancado = tasaMensual > 0 && cuotasVencidas >= 3;
 
   return {
     resumen: {

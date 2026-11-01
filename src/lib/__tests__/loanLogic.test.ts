@@ -85,6 +85,15 @@ describe("buildPaymentSchedule — Modelo de Crédito Abierto (Cuotas Infinitas)
     assert.equal(resultado.resumen.capitalPendiente, 1000);
   });
 
+  it("Un préstamo al 0 % sin abonos nunca es estancado", () => {
+    const refDate = new Date("2026-06-15T00:00:00");
+    const resultado = buildPaymentSchedule({ ...basePrestamo, tasa_interes_porcentaje: 0 }, [], { referenceDate: refDate });
+
+    assert.equal(resultado.resumen.esEstancado, false);
+    assert.equal(resultado.resumen.moraAcumulada, 0);
+    assert.equal(resultado.resumen.capitalPendiente, 1000);
+  });
+
   it("Capital en cero indica préstamo liquidado", () => {
     const pagos: Amortizacion[] = [
       {

@@ -233,7 +233,8 @@ prestamosRouter.put("/:id", requireAuth, async (req: AuthRequest, res: express.R
         .from("prestamos")
         .update({ estado: "liquidado" })
         .eq("id", prestamoId);
-    } else if ((deudaDespues.resumen.mesesSinPago ?? 0) > 2) {
+    } else if (toNumber(updated.tasa_interes_porcentaje) > 0 && (deudaDespues.resumen.mesesSinPago ?? 0) > 2) {
+      // Al 0 % nunca es estancado: si lo estaba, la rama siguiente lo devuelve a "activo"
       nuevoEstado = "estancado";
       await supabase
         .from("prestamos")
@@ -354,7 +355,8 @@ prestamosRouter.post("/:id/pagos", requireAuth, async (req: AuthRequest, res: ex
         .from("prestamos")
         .update({ estado: "liquidado" })
         .eq("id", prestamoId);
-    } else if ((deudaDespues.resumen.mesesSinPago ?? 0) > 2) {
+    } else if (toNumber(prestamo.tasa_interes_porcentaje) > 0 && (deudaDespues.resumen.mesesSinPago ?? 0) > 2) {
+      // Al 0 % nunca es estancado: si lo estaba, la rama siguiente lo devuelve a "activo"
       nuevoEstado = "estancado";
       await supabase
         .from("prestamos")

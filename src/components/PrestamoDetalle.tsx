@@ -116,7 +116,9 @@ export const PrestamoDetalle: React.FC = () => {
   const timeline: TimelineMesItem[] = data.timeline || [];
   const montos = montosDePago({ ...data, resumen: deuda, cuotas: data.cuotas || [] }, prestamo.fecha_emision, hoyISO());
   const isLiquidado = prestamo.estado === "pagado" || prestamo.estado === "liquidado" || (resumen && resumen.saldoPendiente <= 0.01);
-  const isEstancado = !isLiquidado && (deuda?.esEstancado || prestamo.estado === "estancado");
+  // Al 0 % nunca es estancado, aunque la BD lo tenga marcado de antes
+  const esTasaCero = Number(prestamo.tasa_interes_porcentaje) === 0;
+  const isEstancado = !isLiquidado && !esTasaCero && (deuda?.esEstancado || prestamo.estado === "estancado");
   const ajustesActivos = ajustes.filter((a: any) => a.activo).length;
   const mesesConProblema = timeline.filter(
     (m) => ["SinPago", "Vencida", "PagoIncompleto"].includes(m.estado) && m.fechaVencimiento < hoyISO() && m.saldoPendienteCuota > 0.009

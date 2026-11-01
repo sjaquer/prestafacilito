@@ -34,11 +34,8 @@ Verificado con los datos reales (25 préstamos con estado `activo` en la BD, 114
   - **George Jhonatan**: tiene 2 congelamientos de interés que Reportes no aplica (no carga `ajustes_prestamo`).
 
 **Errores reales encontrados (de criterio o de etiqueta, no del motor):**
-1. **Regla: un préstamo al 0 % no puede ser estancado** (no genera interés mensual). Hoy no se respeta en tres lugares, que cuentan meses sin pago sin mirar la tasa:
-   - `esEstancado` del motor (3 o más meses incompletos, además históricos): Mario Rojas sale como "estancado" en su detalle.
-   - `routes/prestamos.routes.ts` (al editar o registrar un pago): guarda `estado = "estancado"` si hay más de 2 meses sin pago.
-   - Aviso de `PrestamoDetalle.tsx` ("más de 2 meses consecutivos sin abonos").
-   Inicio y Calendario ya lo cumplen (con 0 % no hay mora, así que nunca lo marcan atrasado). Hay tres definiciones de estancado: el motor (3 o más históricos), Inicio/Calendario (5 o más vigentes) y el estado de la BD. Préstamos al 0 % hoy: Teddy Paredes, Tuty Paredes, Mario Rojas, Carlos Gonzales (Cayo) y Fabrizio.
+1. ✅ **Regla aplicada (2026-10-31): un préstamo al 0 % nunca es estancado.** Se aplicó en el motor (`esEstancado`), en el estado que se guarda al editar o registrar un pago (si un 0 % estaba como estancado, vuelve a "activo") y en el aviso de `PrestamoDetalle`. Hay un test que la fija. Verificado con los datos reales: ningún monto ni cuota cambia; solo Mario Rojas y Teddy Paredes dejan de figurar como estancados.
+   - Sigue pendiente: `esEstancado` del motor cuenta meses incompletos *históricos* (3 o más, aunque ya se puso al día), y hay tres definiciones de estancado (motor: 3 o más históricos; Inicio/Calendario: 5 o más vigentes; estado de la BD). Préstamos al 0 % hoy: Teddy Paredes, Tuty Paredes, Mario Rojas, Carlos Gonzales (Cayo) y Fabrizio.
 2. **6 préstamos ya pagados siguen como `activo` en la BD** (Jesús Steven, Diego Santti, Fabrizio, 3 de Lizbeth). Reportes los cuenta en "25 préstamos activos" (en realidad son 19) y suma su capital a "Capital prestado".
 3. **Reportes, "Quién debe más"**: usa `capital_total_prestado` (todo lo prestado alguna vez, incluidos los préstamos pagados), no lo que debe hoy. Marcos Espinosa aparece con S/ 21,000, pero su préstamo vigente es de S/ 7,000.
 4. **Reportes calcula "hoy" con la hora del servidor (UTC en Vercel)**: desde las 19:00 de Lima ya es el día siguiente, y el último día del mes "cobrado este mes" se reinicia antes de tiempo. Inicio sí usa la hora de Lima.
