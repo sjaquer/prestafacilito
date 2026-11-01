@@ -23,12 +23,12 @@ describe("montosDePago (coherente con el cálculo de préstamos)", () => {
       assert.equal(m.atrasado, c.atrasado);
     });
 
-    it(`${c.nombre}: pagar 'liquidar' deja el saldo en 0 y pagar 'cuota' deja la mora en 0`, () => {
+    it(`${c.nombre}: pagar 'liquidar' deja el saldo en 0 y pagar 'cuota' deja el interés atrasado en 0`, () => {
       const m = montosDePago(buildPaymentSchedule(c.p as any, c.pg, { referenceDate: ref }), c.p.fecha_emision, hoy);
       const tras = (monto: number) =>
         buildPaymentSchedule(c.p as any, [...c.pg, { id: "n", prestamo_id: c.p.id, monto, fecha_pago: hoy }], { referenceDate: ref }).resumen;
       assert.equal(tras(m.liquidar).saldoPendiente, 0);
-      assert.equal(tras(m.cuota).moraAcumulada, 0);
+      assert.equal(tras(m.cuota).interesAtrasado, 0);
     });
   }
 

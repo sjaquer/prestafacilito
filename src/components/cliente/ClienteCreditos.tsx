@@ -162,7 +162,7 @@ const BarraProgreso: React.FC<{ label: string; parte: number; total: number; pct
   </div>
 );
 
-/** Barras de recuperación de capital, interés y mora del cliente. */
+/** Barras de recuperación de capital, interés e interés atrasado del cliente. */
 export const ClienteDistribucionCard: React.FC<{ data: DistribucionFinanciera | null }> = ({ data }) => {
   if (!data || data.capitalTotal <= 0) return null;
   return (
@@ -170,7 +170,7 @@ export const ClienteDistribucionCard: React.FC<{ data: DistribucionFinanciera | 
       <div>
         <h3 className="font-black text-slate-800 text-sm tracking-tight leading-none">📊 Distribución de Amortización Acumulada</h3>
         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
-          Estado total de recuperación de capital, intereses y mora del cliente (excluye Alquileres)
+          Estado total de recuperación de capital, intereses e interés atrasado del cliente (excluye Alquileres)
         </p>
       </div>
       <div className="border-t border-slate-200/60 pt-3 grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -191,10 +191,10 @@ export const ClienteDistribucionCard: React.FC<{ data: DistribucionFinanciera | 
           barClass="bg-indigo-500"
         />
         <BarraProgreso
-          label="Mora Cobrada"
-          parte={data.moraPagado}
-          total={data.moraTotal}
-          pct={data.moraPct}
+          label="Interés atrasado cobrado"
+          parte={data.interesAtrasadoPagado}
+          total={data.interesAtrasadoTotal}
+          pct={data.atrasadoPct}
           textClass="text-amber-700"
           barClass="bg-amber-500"
         />

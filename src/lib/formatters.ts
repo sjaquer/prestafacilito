@@ -195,14 +195,14 @@ function mensajeCobroBase({
     ? diasAtraso
     : (diffDays < 0 ? Math.abs(diffDays) : 0);
 
-  const esMora = (estadoCuotaMes && ["mora_mes", "mora_acumulada"].includes(estadoCuotaMes)) || diasVencidos > 0;
+  const esAtraso = (estadoCuotaMes && ["atraso_mes", "interes_atrasado"].includes(estadoCuotaMes)) || diasVencidos > 0;
 
-  if (esMora && diasVencidos > 0) {
+  if (esAtraso && diasVencidos > 0) {
     const diasTexto = diasVencidos === 1 ? "1 día" : `${diasVencidos} días`;
     return `Hola, ${saludo.toLowerCase()}. Le escribo para coordinar el cobro ${asunto}. Le recuerdo que ${unidad} venció hace ${diasTexto}.`;
   }
 
-  if (esMora) {
+  if (esAtraso) {
     return `Hola, ${saludo.toLowerCase()}. Le escribo para coordinar el cobro ${asunto}. Le recuerdo que ${unidad} se encuentra vencida.`;
   }
 

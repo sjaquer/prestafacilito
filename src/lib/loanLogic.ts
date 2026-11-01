@@ -82,7 +82,7 @@ export const buildPaymentSchedule = (
 
   const cuotas: CuotaPrestamo[] = [];
   let capitalRestante = capitalInicial;
-  let moraAcumulada = 0;
+  let interesAtrasado = 0;
   let totalPagado = 0;
   let mesesSinPagoConsec = 0;
   let tieneAjustesActivos = false;
@@ -91,7 +91,7 @@ export const buildPaymentSchedule = (
   let totalBeneficioAplicado = 0;
 
   for (let i = 0; i < totalMonthsToCalculate; i++) {
-    if (capitalRestante <= EPSILON && moraAcumulada <= EPSILON && i > 0) {
+    if (capitalRestante <= EPSILON && interesAtrasado <= EPSILON && i > 0) {
       // El préstamo fue saldado en un mes previo
       break;
     }
@@ -127,8 +127,8 @@ export const buildPaymentSchedule = (
       }
     }
 
-    const moraMesInicio = moraAcumulada;
-    const cuotaMinima = round2(interesEfectivo + moraMesInicio);
+    const atrasadoInicioMes = interesAtrasado;
+    const cuotaMinima = round2(interesEfectivo + atrasadoInicioMes);
 
     // Pagos pertenecientes a este período (entre startDatePeriod y endDatePeriod inclusive)
     const pagosMes = pagosOrdenados.filter((p) => {
@@ -145,22 +145,22 @@ export const buildPaymentSchedule = (
     const abonoMes = round2(pagosMes.reduce((sum, p) => sum + p.montoVal, 0));
     totalPagado = round2(totalPagado + abonoMes);
 
-    let aplicadoMora = 0;
+    let aplicadoAtrasado = 0;
     let aplicadoInteres = 0;
     let aplicadoCapital = 0;
-    let moraGenerada = 0;
+    let interesNoPagado = 0;
     let estadoCuota: "Saldada" | "Pendiente" | "Vencida" | "Parcial" | "SinPago" | "PagoIncompleto" = "Pendiente";
 
     if (abonoMes <= EPSILON) {
       // Sin abono en este mes
       const isPeriodoVencido = endDatePeriod.getTime() <= now.getTime();
       if (isPeriodoVencido) {
-        moraGenerada = interesEfectivo;
-        moraAcumulada = round2(moraAcumulada + interesEfectivo);
+        interesNoPagado = interesEfectivo;
+        interesAtrasado = round2(interesAtrasado + interesEfectivo);
         mesesSinPagoConsec++;
         estadoCuota = "SinPago";
       } else {
-        moraGenerada = 0;
+        interesNoPagado = 0;
         estadoCuota = "Pendiente";
       }
     } else {
@@ -168,10 +168,10 @@ export const buildPaymentSchedule = (
 
       let restanteAbono = abonoMes;
 
-      // 1. Cubrir mora acumulada previa
-      if (moraMesInicio > EPSILON) {
-        aplicadoMora = round2(Math.min(moraMesInicio, restanteAbono));
-        restanteAbono = round2(restanteAbono - aplicadoMora);
+      // 1. Cubrir el interés atrasado de meses anteriores
+      if (atrasadoInicioMes > EPSILON) {
+        aplicadoAtrasado = round2(Math.min(atrasadoInicioMes, restanteAbono));
+        restanteAbono = round2(restanteAbono - aplicadoAtrasado);
       }
 
       // 2. Cubrir interés del período actual
@@ -187,11 +187,11 @@ export const buildPaymentSchedule = (
         capitalRestante = round2(Math.max(0, capitalRestante - aplicadoCapital));
       }
 
-      // Calcular nueva mora acumulada para el próximo mes
-      const moraNoCubierta = round2(moraMesInicio - aplicadoMora);
+      // Interés que queda atrasado para el próximo mes (no hay recargo: es solo el interés no pagado)
+      const atrasadoNoCubierto = round2(atrasadoInicioMes - aplicadoAtrasado);
       const interesNoCubierto = round2(interesEfectivo - aplicadoInteres);
-      moraGenerada = interesNoCubierto;
-      moraAcumulada = round2(moraNoCubierta + interesNoCubierto);
+      interesNoPagado = interesNoCubierto;
+      interesAtrasado = round2(atrasadoNoCubierto + interesNoCubierto);
 
       if (abonoMes < cuotaMinima - EPSILON) {
         estadoCuota = "PagoIncompleto";
@@ -220,7 +220,7 @@ export const buildPaymentSchedule = (
       fechaVencimiento: formatIsoDate(endDatePeriod),
       capitalPendiente: capitalInicioMes,
       interesPendiente: round2(Math.max(0, interesEfectivo - aplicadoInteres)),
-      moraPendiente: moraAcumulada,
+      interesAtrasadoPendiente: interesAtrasado,
       penalidad: 0,
       cargosAdicionales: 0,
       montoCuotaBase: cuotaMinima,
@@ -233,19 +233,19 @@ export const buildPaymentSchedule = (
       ajustesAplicados: isCongelada && congelarTemp ? [congelarTemp.id] : [],
       interesOriginal: interesMes,
       congelada: isCongelada,
-      moraOriginal: moraMesInicio,
+      atrasadoOriginal: atrasadoInicioMes,
       capitalAmortizado: aplicadoCapital,
       capitalAmortizadoPagado: aplicadoCapital,
       interesPagado: aplicadoInteres,
-      moraPagado: aplicadoMora,
+      interesAtrasadoPagado: aplicadoAtrasado,
       esPagoIncompleto: abonoMes > EPSILON && abonoMes < cuotaMinima - EPSILON,
-      moraGenerada,
+      interesNoPagado,
     });
   }
 
   const capitalPendiente = capitalRestante;
   const interesPendiente = cuotas.length > 0 ? cuotas[cuotas.length - 1].interesPendiente : 0;
-  const totalExigible = round2(capitalPendiente + moraAcumulada);
+  const totalExigible = round2(capitalPendiente + interesAtrasado);
 
   const cuotaSiguiente = cuotas.find((c) => c.estado !== "Saldada") || null;
   const cuotasVencidasDetalle = cuotas.filter(
@@ -265,7 +265,7 @@ export const buildPaymentSchedule = (
       cuotasVencidas,
       capitalPendiente,
       interesPendiente,
-      moraAcumulada,
+      interesAtrasado,
       penalidadesAcumuladas: 0,
       cargosAdicionalesAcumulados: 0,
       totalExigible,
@@ -282,7 +282,7 @@ export const buildPaymentSchedule = (
       tieneAjustesActivos,
       interesCongelado,
       fechaCongelamientoHasta,
-      moraEliminada: false,
+      atrasoCondonado: false,
       totalBeneficioAplicado,
     },
   };

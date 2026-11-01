@@ -15,11 +15,11 @@ export interface ProximoCobroPrestamo {
   fecha: string | null;
   /** Cuota de esa fecha, si ya está en el cronograma. */
   cuota: CuotaPrestamo | null;
-  /** Hay dinero vencido sin pagar (mora). Es el criterio de "atrasado" para la vista. */
+  /** Hay interés vencido sin pagar. Es el criterio de "atrasado" para la vista. */
   atrasado: boolean;
   /** Interés vencido antes de hoy sin pagar (lo que hay que cobrar por atraso). */
-  moraVencida: number;
-  /** Cuotas vencidas sin cubrir (solo cuenta si hay mora pendiente). */
+  interesVencido: number;
+  /** Cuotas vencidas sin cubrir (solo cuenta si hay interés atrasado). */
   cuotasAtrasadas: number;
   /** Fecha de la cuota impaga más antigua (para "debe desde"). */
   debeDesde: string | null;
@@ -42,18 +42,18 @@ export function proximoCobroPrestamo(deuda: EstadoDeudaPrestamo, fechaEmision: s
     }
   }
 
-  // El cálculo de préstamos genera mora desde el mismo día del vencimiento. Para la vista,
+  // El cálculo de préstamos marca el interés como atrasado desde el mismo día del vencimiento. Para la vista,
   // "atrasado" es solo lo vencido ANTES de hoy: la cuota de hoy todavía se puede pagar a tiempo.
-  const moraDeHoy = cuota && cuota.fechaVencimiento === hoy ? cuota.moraGenerada || 0 : 0;
-  const moraVencida = round2(Math.max(0, resumen.moraAcumulada - moraDeHoy));
-  const atrasado = !liquidado && moraVencida > 0.009;
+  const atrasoDeHoy = cuota && cuota.fechaVencimiento === hoy ? cuota.interesNoPagado || 0 : 0;
+  const interesVencido = round2(Math.max(0, resumen.interesAtrasado - atrasoDeHoy));
+  const atrasado = !liquidado && interesVencido > 0.009;
   const impagas = cuotas.filter((c) => c.estado !== "Saldada" && c.fechaVencimiento < hoy);
 
   return {
     fecha: liquidado ? null : fecha,
     cuota: liquidado ? null : cuota,
     atrasado,
-    moraVencida: atrasado ? moraVencida : 0,
+    interesVencido: atrasado ? interesVencido : 0,
     cuotasAtrasadas: atrasado ? Math.max(1, impagas.length) : 0,
     debeDesde: atrasado ? impagas[0]?.fechaVencimiento || null : null,
     liquidado,
@@ -101,28 +101,28 @@ export function proximoCobroAlquiler(estado: EstadoAlquiler, hoy: string, fechaF
 }
 
 export interface MontosDePago {
-  /** Lo que cubre la cuota del período actual (incluye lo atrasado): pagarlo deja la mora en 0. */
+  /** Lo que cubre la cuota del período actual (incluye lo atrasado): pagarlo deja el interés atrasado en 0. */
   cuota: number;
   /** Fecha de vencimiento de esa cuota. */
   fechaCuota: string | null;
   /** Capital restante + cuota: pagarlo hoy liquida el préstamo. */
   liquidar: number;
-  moraVencida: number;
+  interesVencido: number;
   atrasado: boolean;
 }
 
 /**
  * Montos de referencia para cobrar, coherentes con cómo el cálculo reparte un pago
- * (primero mora, luego interés del período en curso, luego capital).
+ * (primero interés atrasado, luego interés del período en curso, luego capital).
  */
 export function montosDePago(deuda: EstadoDeudaPrestamo, fechaEmision: string, hoy: string): MontosDePago {
   const prox = proximoCobroPrestamo(deuda, fechaEmision, hoy);
-  const cuota = prox.cuota ? prox.cuota.saldoPendiente : round2(deuda.resumen.moraAcumulada);
+  const cuota = prox.cuota ? prox.cuota.saldoPendiente : round2(deuda.resumen.interesAtrasado);
   return {
     cuota: round2(cuota),
     fechaCuota: prox.fecha,
     liquidar: round2(deuda.resumen.capitalPendiente + cuota),
-    moraVencida: prox.moraVencida,
+    interesVencido: prox.interesVencido,
     atrasado: prox.atrasado,
   };
 }

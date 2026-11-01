@@ -143,7 +143,7 @@ export const AjustesPrestamoPanel: React.FC<AjustesPrestamoPanelProps> = ({
       title: "Quitar ajuste",
       message:
         aj.tipo === "congelar_interes_temporal"
-          ? `Se volverá a cobrar el interés de la ${rangoTexto(cubiertas)}. El saldo y la mora se recalculan.`
+          ? `Se volverá a cobrar el interés de la ${rangoTexto(cubiertas)}. El saldo y el interés atrasado se recalculan.`
           : "El acuerdo quedará en el historial como inactivo.",
       confirmLabel: "Quitar",
       danger: true,

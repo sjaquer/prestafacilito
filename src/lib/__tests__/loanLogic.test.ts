@@ -15,7 +15,7 @@ describe("buildPaymentSchedule — Modelo de Crédito Abierto (Cuotas Infinitas)
     tipo_prestamo: "Personal",
   };
 
-  it("Pago exacto del interés mensual mantiene el capital sin reducir y no genera mora", () => {
+  it("Pago exacto del interés mensual mantiene el capital sin reducir y no deja interés atrasado", () => {
     const pagos: Amortizacion[] = [
       {
         id: "pago-1",
@@ -31,11 +31,11 @@ describe("buildPaymentSchedule — Modelo de Crédito Abierto (Cuotas Infinitas)
     const resultado = buildPaymentSchedule(basePrestamo, pagos, { referenceDate: refDate });
 
     assert.equal(resultado.resumen.capitalPendiente, 1000);
-    assert.equal(resultado.resumen.moraAcumulada, 0);
+    assert.equal(resultado.resumen.interesAtrasado, 0);
     assert.equal(resultado.cuotas[0].estado, "Saldada");
   });
 
-  it("Pago menor al interés genera mora para el mes siguiente y no reduce capital", () => {
+  it("Pago menor al interés deja interés atrasado para el mes siguiente y no reduce capital", () => {
     const pagos: Amortizacion[] = [
       {
         id: "pago-1",
@@ -51,9 +51,9 @@ describe("buildPaymentSchedule — Modelo de Crédito Abierto (Cuotas Infinitas)
     const resultado = buildPaymentSchedule(basePrestamo, pagos, { referenceDate: refDate });
 
     assert.equal(resultado.resumen.capitalPendiente, 1000);
-    assert.equal(resultado.resumen.moraAcumulada, 40); // 100 - 60 = 40 de mora
+    assert.equal(resultado.resumen.interesAtrasado, 40); // 100 - 60 = 40 de interés atrasado
     assert.equal(resultado.cuotas[0].esPagoIncompleto, true);
-    assert.equal(resultado.cuotas[0].moraGenerada, 40);
+    assert.equal(resultado.cuotas[0].interesNoPagado, 40);
   });
 
   it("Pago mayor al interés reduce el capital global directamente por el excedente", () => {
@@ -72,7 +72,7 @@ describe("buildPaymentSchedule — Modelo de Crédito Abierto (Cuotas Infinitas)
     const resultado = buildPaymentSchedule(basePrestamo, pagos, { referenceDate: refDate });
 
     assert.equal(resultado.resumen.capitalPendiente, 800); // 1000 - 200
-    assert.equal(resultado.resumen.moraAcumulada, 0);
+    assert.equal(resultado.resumen.interesAtrasado, 0);
     assert.equal(resultado.cuotas[0].capitalAmortizado, 200);
   });
 
@@ -90,7 +90,7 @@ describe("buildPaymentSchedule — Modelo de Crédito Abierto (Cuotas Infinitas)
     const resultado = buildPaymentSchedule({ ...basePrestamo, tasa_interes_porcentaje: 0 }, [], { referenceDate: refDate });
 
     assert.equal(resultado.resumen.esEstancado, false);
-    assert.equal(resultado.resumen.moraAcumulada, 0);
+    assert.equal(resultado.resumen.interesAtrasado, 0);
     assert.equal(resultado.resumen.capitalPendiente, 1000);
   });
 

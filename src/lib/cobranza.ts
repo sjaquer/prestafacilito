@@ -61,7 +61,7 @@ export function linkCobroWhatsApp(
     tipoPrestamo: datos.esAlquiler ? "Alquiler de Casa" : "Préstamo",
     fechaVencimiento: datos.fechaVencimiento,
     diasAtraso: datos.diasAtraso,
-    estadoCuotaMes: datos.atrasado ? "mora_mes" : undefined,
+    estadoCuotaMes: datos.atrasado ? "atraso_mes" : undefined,
     monto: datos.monto,
   });
   return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;

@@ -198,7 +198,7 @@ export const EditarPrestamoForm: React.FC<EditarPrestamoFormProps> = ({
       {cambiaCalculo && (
         <p className="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-2.5 flex gap-1.5">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-          Cambiar capital, tasa o fechas recalcula el cronograma, la mora y el saldo con los pagos ya registrados.
+          Cambiar capital, tasa o fechas recalcula el cronograma, el interés atrasado y el saldo con los pagos ya registrados.
         </p>
       )}
 

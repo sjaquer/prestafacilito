@@ -2,22 +2,15 @@
 
 Estado al 2026-10-31. Lo marcado **[tú]** requiere acceso a Supabase, Vercel o Google y no se puede hacer desde el código.
 
-## 1. Activar Storage, la copia en Drive y la seguridad (en este orden)
+## 1. Storage, copia en Drive y seguridad — ✅ completado el 2026-11-01
 
-Cómo queda: **Drive = fuente de confianza** (toda foto se copia ahí al subirla) · **Supabase Storage = carga rápida**. Si Storage falla, la app sirve la foto desde Drive sola; con `ARCHIVOS_MODO="solo_drive"` funciona entera sin Storage, y al volver a `normal` el cron copia de vuelta a Storage lo que quedó solo en Drive.
+- Migraciones aplicadas vía MCP: Storage y respaldos, índices en claves foráneas, RLS por defecto para tablas nuevas y **RLS en todas las tablas**.
+- Producción usa la clave service_role (verificado en los logs de Supabase); la clave anon no puede leer tablas, vista ni Storage.
+- Fotos migradas: **118 archivos, 3.38 MB en total (29 KB de promedio)**, todos con su original en Drive. No queda nada solo en Drive.
 
-1. **[tú]** Reiniciar Claude Code en el proyecto, aprobar el MCP `supabase` y autenticarlo (`/mcp` → supabase → Authenticate). Con eso, Claude puede ejecutar los SQL de los pasos 5 y 6.
-2. **[tú]** Supabase → Project Settings → API Keys → copiar la clave **service_role** (secret). Pegarla en `.env.local` (`SUPABASE_KEY="..."`, quitando el `#`) y en Vercel (Production). El MCP no puede leer claves secretas.
-3. **[tú]** En Vercel, agregar `CRON_SECRET` (el mismo valor que ya quedó en `.env.local`) y `ARCHIVOS_MODO=normal`. Borrar de Vercel/`.env` las variables sin uso: `SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
-4. **[tú]** Desplegar y comprobar en los logs: `[DB] Conectado con rol service_role`.
-5. SQL: `supabase/migrations/20261031_storage_y_respaldos.sql` (bucket privado, columnas, tabla `respaldos_archivos` con `en_storage`).
-6. SQL: `supabase/migrations/20261015_enable_rls.sql` (RLS en todas las tablas).
-7. **[tú]** Probar: subir un comprobante (debe quedar en Storage y en la carpeta del mes en Drive) y pulsar **Sistema → Respaldar ahora en Drive**.
-8. **[tú]** **Sistema → "Migrar fotos a Storage"**: copia a Storage, ya comprimidas, las ~96 fotos que hoy están solo en Drive. El original queda en Drive en calidad completa.
-9. **[tú]** Rotar la clave anon (Settings → API): estuvo en uso con acceso total.
-10. Local: para probar Drive desde tu equipo, **Sistema → Reconectar**; el token se guarda solo en `.env.local`.
-
-Hasta el paso 5, subir comprobantes en producción falla ("Bucket not found"): desplegar el código y aplicar el SQL el mismo día.
+Pendiente manual:
+- **[tú]** Rotar la clave anon (Supabase → Settings → API Keys): estuvo en uso con acceso total.
+- **[tú]** Opcional, para probar Drive en local: pegar `GOOGLE_REFRESH_TOKEN` en `.env.local` (en Vercel ya está y funciona).
 
 ### Ahorro de espacio y egress (ya aplicado)
 - Fotos comprimidas en el navegador antes de subir (vouchers en grises WebP, ~20–120 KB).

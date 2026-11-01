@@ -23,7 +23,7 @@ export interface ItemCobroApi {
   proximo_cobro: string | null;
   /** Lo que debe pagar en la próxima fecha para quedar al día. */
   monto_proximo: number;
-  /** Dinero vencido sin pagar (mora en préstamos, mensualidades vencidas en alquileres). */
+  /** Dinero vencido sin pagar (interés atrasado en préstamos, mensualidades vencidas en alquileres). */
   atrasado: number;
   cuotas_atrasadas: number;
   debe_desde: string | null;

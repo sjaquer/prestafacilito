@@ -4,7 +4,7 @@ import { estandarizarTelefono } from "../../../helpers/telefono";
 import { Card } from "../ui/Card";
 import { Cliente } from "../../types";
 import { formatCurrency, formatDate, getSaludoPorHora } from "../../lib/formatters";
-import { ClienteMoraResumen } from "./clienteFinanzas";
+import { ClienteAtrasoResumen } from "./clienteFinanzas";
 
 const DatoContacto: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div className="space-y-0.5 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
@@ -95,8 +95,8 @@ export const ClientePerfilHeader: React.FC<ClientePerfilHeaderProps> = ({ client
 };
 
 /** Banner con el estado de cobro del cliente: cuotas vencidas o próximo vencimiento. */
-export const ClienteMoraBanner: React.FC<{ resumen: ClienteMoraResumen }> = ({ resumen }) => {
-  if (resumen.tieneMora) {
+export const ClienteAtrasoBanner: React.FC<{ resumen: ClienteAtrasoResumen }> = ({ resumen }) => {
+  if (resumen.tieneAtraso) {
     return (
       <div className="bg-rose-50 border border-rose-200 rounded-3xl p-5 flex items-start gap-4 shadow-sm animate-fadeIn">
         <div className="w-10 h-10 rounded-2xl bg-rose-100/80 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">

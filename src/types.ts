@@ -81,7 +81,7 @@ export interface CuotaPrestamo {
   fechaVencimiento: string;
   capitalPendiente: number;
   interesPendiente: number;
-  moraPendiente: number;
+  interesAtrasadoPendiente: number;
   penalidad: number;
   cargosAdicionales: number;
   montoCuotaBase: number;
@@ -93,16 +93,16 @@ export interface CuotaPrestamo {
   ajustesAplicados?: string[];
   interesOriginal?: number;
   congelada?: boolean;
-  moraOriginal?: number;
+  atrasadoOriginal?: number;
   capitalAmortizado?: number;
   capitalAmortizadoPagado?: number;
   interesPagado?: number;
-  moraPagado?: number;
-  ultimoCalculoMoraDate?: Date;
+  interesAtrasadoPagado?: number;
+  ultimoCalculoAtrasoDate?: Date;
   expressLiquidacion?: boolean;
   pagosRecibidos?: any[];
   esPagoIncompleto?: boolean;
-  moraGenerada?: number;
+  interesNoPagado?: number;
 }
 
 export interface ResumenDeudaPrestamo {
@@ -111,7 +111,7 @@ export interface ResumenDeudaPrestamo {
   cuotasVencidas: number;
   capitalPendiente: number;
   interesPendiente: number;
-  moraAcumulada: number;
+  interesAtrasado: number;
   penalidadesAcumuladas: number;
   cargosAdicionalesAcumulados: number;
   totalExigible: number;
@@ -142,7 +142,7 @@ export interface PlanAyudaCliente {
   tieneAjustesActivos: boolean;
   interesCongelado: boolean;
   fechaCongelamientoHasta?: string | null;
-  moraEliminada: boolean;
+  atrasoCondonado: boolean;
   totalBeneficioAplicado: number;
 }
 

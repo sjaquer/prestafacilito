@@ -146,7 +146,7 @@ prestamosRouter.get("/:id", requireAuth, async (req: express.Request, res: expre
         saldo_pendiente: debtState.resumen.saldoPendiente,
         capital_pendiente: debtState.resumen.capitalPendiente,
         interes_pendiente: debtState.resumen.interesPendiente,
-        mora_acumulada: debtState.resumen.moraAcumulada,
+        interes_atrasado: debtState.resumen.interesAtrasado,
         cuotas_totales: debtState.resumen.totalCuotas,
         cuotas_pendientes: debtState.resumen.cuotasPendientes,
         cuotas_vencidas: debtState.resumen.cuotasVencidas,

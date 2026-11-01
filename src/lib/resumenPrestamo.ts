@@ -14,7 +14,7 @@ export interface ResumenPrestamo {
   interesMes: number;
   /** El interés de la cuota en curso está congelado por un ajuste. */
   congelado: boolean;
-  /** Atrasados: mora pendiente. Resto: lo que vence en la próxima fecha. */
+  /** Atrasados: interés atrasado. Resto: lo que vence en la próxima fecha. */
   aCobrar: number;
   /** Atrasados: desde cuándo debe. Resto: próxima fecha de cobro. */
   fecha: string | null;
@@ -35,7 +35,7 @@ export function resumirPrestamo(prestamo: any, pagos: any[], hoy: string): Resum
     capitalRestante: deuda.resumen.capitalPendiente,
     interesMes: prox.cuota?.congelada ? 0 : prox.cuota?.interesOriginal ?? (deuda.resumen.capitalPendiente * tasa) / 100,
     congelado: !!prox.cuota?.congelada,
-    aCobrar: prox.atrasado ? prox.moraVencida : prox.cuota?.saldoPendiente ?? 0,
+    aCobrar: prox.atrasado ? prox.interesVencido : prox.cuota?.saldoPendiente ?? 0,
     fecha: prox.atrasado ? prox.debeDesde : prox.fecha,
     cuotasAtrasadas: prox.cuotasAtrasadas,
     saldoPendiente: deuda.resumen.saldoPendiente,

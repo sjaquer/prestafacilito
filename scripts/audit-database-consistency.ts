@@ -90,7 +90,7 @@ async function runAudit() {
 
     totalCapitalCirculacionCalculado += res.capitalPendiente;
 
-    if (res.capitalPendiente <= 0.01 && res.moraAcumulada <= 0.01) {
+    if (res.capitalPendiente <= 0.01 && res.interesAtrasado <= 0.01) {
       prestamosLiquidadosCalculados++;
     } else if (res.esEstancado) {
       prestamosEstancadosCalculados++;
@@ -100,7 +100,7 @@ async function runAudit() {
 
     // Verificar si el estado del préstamo en la BD coincide con el calculado por la regla de negocio
     let estadoEsperadoBD = "activo";
-    if (res.capitalPendiente <= 0.01 && res.moraAcumulada <= 0.01) {
+    if (res.capitalPendiente <= 0.01 && res.interesAtrasado <= 0.01) {
       estadoEsperadoBD = "liquidado";
     } else if (res.esEstancado) {
       estadoEsperadoBD = "estancado";
@@ -114,7 +114,7 @@ async function runAudit() {
         campo: "estado",
         valorCalculado: estadoEsperadoBD,
         valorRegistrado: p.estado,
-        descripcion: `El préstamo figura como '${p.estado}' en BD pero su cálculo financiero indica '${estadoEsperadoBD}' (Capital pendiente: S/ ${res.capitalPendiente.toFixed(2)}, Mora: S/ ${res.moraAcumulada.toFixed(2)})`
+        descripcion: `El préstamo figura como '${p.estado}' en BD pero su cálculo financiero indica '${estadoEsperadoBD}' (Capital pendiente: S/ ${res.capitalPendiente.toFixed(2)}, Interés atrasado: S/ ${res.interesAtrasado.toFixed(2)})`
       });
     }
   }

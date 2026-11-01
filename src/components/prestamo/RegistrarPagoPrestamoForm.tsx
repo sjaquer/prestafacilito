@@ -20,19 +20,19 @@ interface RegistrarPagoPrestamoFormProps {
 const inputClass =
   "w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all";
 
-/** Vista previa (solo informativa) de cómo se distribuye el abono: mora → interés → capital. */
+/** Vista previa (solo informativa) de cómo se distribuye el abono: interés atrasado → interés del mes → capital. */
 const useDesglose = (montoPago: string, prestamo: any, resumen: any, deuda: any, cuotaAPagar: number) =>
   useMemo(() => {
     const nMonto = round2(parseFloat(montoPago) || 0);
     if (nMonto <= 0 || !prestamo) return null;
 
     const capitalAntes = round2(resumen?.capitalRestante ?? prestamo.monto_capital ?? 0);
-    const moraAntes = round2(resumen?.moraAcumulada ?? deuda?.moraAcumulada ?? 0);
+    const interesAtrasadoAntes = round2(resumen?.interesAtrasado ?? deuda?.interesAtrasado ?? 0);
     const interesAntes = round2(resumen?.interesPendiente ?? deuda?.interesPendiente ?? 0);
 
     let restante = nMonto;
-    const cubiertoMora = round2(Math.min(moraAntes, restante));
-    restante = round2(restante - cubiertoMora);
+    const cubiertoAtrasado = round2(Math.min(interesAtrasadoAntes, restante));
+    restante = round2(restante - cubiertoAtrasado);
     const cubiertoInteres = round2(Math.min(interesAntes, restante));
     restante = round2(restante - cubiertoInteres);
     const cubiertoCapital = round2(Math.min(capitalAntes, restante));
@@ -44,15 +44,15 @@ const useDesglose = (montoPago: string, prestamo: any, resumen: any, deuda: any,
 
     return {
       nMonto,
-      moraAntes,
+      interesAtrasadoAntes,
       interesAntes,
-      cubiertoMora,
+      cubiertoAtrasado,
       cubiertoInteres,
       cubiertoCapital,
       excedenteLibre: round2(restante),
       nuevoCapital: round2(Math.max(0, capitalAntes - cubiertoCapital)),
       esIncompleto,
-      moraGeneradaFutura: esIncompleto ? round2(cuotaMinima - nMonto) : 0,
+      interesNoPagadoFuturo: esIncompleto ? round2(cuotaMinima - nMonto) : 0,
     };
   }, [montoPago, prestamo, resumen, deuda, cuotaAPagar]);
 
@@ -179,12 +179,12 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
 
             <div className="space-y-1.5 text-[11px]">
               <div className="flex justify-between items-center text-rose-700 font-semibold">
-                <span>1. Mora acumulada cubierta:</span>
+                <span>1. Interés atrasado cubierto:</span>
                 <span className="font-mono font-bold">
-                  - S/ {desglose.cubiertoMora.toFixed(2)}
-                  {desglose.moraAntes > 0 && (
+                  - S/ {desglose.cubiertoAtrasado.toFixed(2)}
+                  {desglose.interesAtrasadoAntes > 0 && (
                     <span className="text-[9.5px] text-slate-500 font-normal ml-1">
-                      (queda S/ {(desglose.moraAntes - desglose.cubiertoMora).toFixed(2)})
+                      (queda S/ {(desglose.interesAtrasadoAntes - desglose.cubiertoAtrasado).toFixed(2)})
                     </span>
                   )}
                 </span>
@@ -216,8 +216,8 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
 
               {desglose.esIncompleto && (
                 <div className="p-2 bg-rose-100/90 border border-rose-200 rounded-xl text-rose-900 text-[10.5px] font-bold">
-                  ⚠️ Pago incompleto: faltan S/ {desglose.moraGeneradaFutura.toFixed(2)} de la cuota mínima. Esta
-                  diferencia pasará como mora al mes siguiente.
+                  ⚠️ Pago incompleto: faltan S/ {desglose.interesNoPagadoFuturo.toFixed(2)} de la cuota mínima. Esta
+                  diferencia queda como interés atrasado para el mes siguiente.
                 </div>
               )}
             </div>

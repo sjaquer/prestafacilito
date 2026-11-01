@@ -122,7 +122,7 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
       <p className="text-[11px] text-slate-500 leading-relaxed flex gap-1.5 bg-slate-50 border border-slate-200/70 rounded-xl p-2.5">
         <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-slate-400" />
         <span>
-          Cada mes se cobra interés sobre el capital pendiente. Cada abono cubre primero la mora, luego el interés del
+          Cada mes se cobra interés sobre el capital pendiente. Cada abono cubre primero el interés atrasado, luego el interés del
           mes, y el resto reduce el capital.
         </span>
       </p>

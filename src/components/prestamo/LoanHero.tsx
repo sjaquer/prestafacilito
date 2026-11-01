@@ -111,7 +111,7 @@ export const LoanHero: React.FC<LoanHeroProps> = ({
             <p className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-slate-900">{formatCurrency(montos.cuota)}</p>
             {montos.atrasado && (
               <p className="mt-1 text-xs font-bold text-rose-700 flex items-center gap-1">
-                <AlertTriangle className="w-3.5 h-3.5" /> Incluye {formatCurrency(montos.moraVencida)} de interés atrasado
+                <AlertTriangle className="w-3.5 h-3.5" /> Incluye {formatCurrency(montos.interesVencido)} de interés atrasado
               </p>
             )}
           </div>

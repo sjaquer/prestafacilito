@@ -12,11 +12,11 @@ import { useClientes } from "../hooks/useClientes";
 import { Cliente } from "../types";
 import { ClientFinancialSummary } from "../components/cliente/ClientFinancialSummary";
 import { ClientNotes } from "../components/cliente/ClientNotes";
-import { ClientePerfilHeader, ClienteMoraBanner } from "../components/cliente/ClientePerfilHeader";
+import { ClientePerfilHeader, ClienteAtrasoBanner } from "../components/cliente/ClientePerfilHeader";
 import { ClienteScoreCard } from "../components/cliente/ClienteScoreCard";
 import { ClienteDocumentos } from "../components/cliente/ClienteDocumentos";
 import { ClienteCreditos, ClienteAlquileres, ClienteDistribucionCard } from "../components/cliente/ClienteCreditos";
-import { calcularDistribucionFinanciera, resumirMoraCliente } from "../components/cliente/clienteFinanzas";
+import { calcularDistribucionFinanciera, resumirAtrasoCliente } from "../components/cliente/clienteFinanzas";
 
 export const ClienteDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -70,7 +70,7 @@ export const ClienteDetallePage: React.FC = () => {
     fetchClientLoans();
   }, [fetchClientLoans]);
 
-  const moraResumen = useMemo(() => resumirMoraCliente(clientLoans, amortizaciones), [clientLoans, amortizaciones]);
+  const atrasoResumen = useMemo(() => resumirAtrasoCliente(clientLoans, amortizaciones), [clientLoans, amortizaciones]);
   const distribucion = useMemo(
     () => calcularDistribucionFinanciera(clientLoans, amortizaciones),
     [clientLoans, amortizaciones]
@@ -123,7 +123,7 @@ export const ClienteDetallePage: React.FC = () => {
 
       <ClientePerfilHeader cliente={cliente} onNuevoPrestamo={() => setModal("prestamo")} onEditar={() => setModal("editar")} />
 
-      {!loadingLoans && <ClienteMoraBanner resumen={moraResumen} />}
+      {!loadingLoans && <ClienteAtrasoBanner resumen={atrasoResumen} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         <div className="lg:col-span-2 space-y-4">

@@ -2,8 +2,8 @@ import { proximoCobroPrestamo } from "../../lib/proximoCobro";
 import { hoyISO } from "../../lib/fechas";
 import { buildPaymentSchedule } from "../../lib/loanLogic";
 
-export interface ClienteMoraResumen {
-  tieneMora: boolean;
+export interface ClienteAtrasoResumen {
+  tieneAtraso: boolean;
   totalCuotasAtrasadas: number;
   totalMontoAtrasado: number;
   proximaCuotaFecha: string;
@@ -12,7 +12,7 @@ export interface ClienteMoraResumen {
 }
 
 /** Resume lo atrasado y el próximo cobro del cliente (misma regla que Inicio). */
-export const resumirMoraCliente = (clientLoans: any[], amortizaciones: any[]): ClienteMoraResumen => {
+export const resumirAtrasoCliente = (clientLoans: any[], amortizaciones: any[]): ClienteAtrasoResumen => {
   const hoy = hoyISO();
   const estados = clientLoans
     .filter((l) => l.estado !== "pagado" && l.estado !== "liquidado")
@@ -29,9 +29,9 @@ export const resumirMoraCliente = (clientLoans: any[], amortizaciones: any[]): C
     .sort((a, b) => String(a.prox.fecha).localeCompare(String(b.prox.fecha)))[0];
 
   return {
-    tieneMora: atrasados.length > 0,
+    tieneAtraso: atrasados.length > 0,
     totalCuotasAtrasadas: atrasados.reduce((sum, e) => sum + e.prox.cuotasAtrasadas, 0),
-    totalMontoAtrasado: atrasados.reduce((sum, e) => sum + e.prox.moraVencida, 0),
+    totalMontoAtrasado: atrasados.reduce((sum, e) => sum + e.prox.interesVencido, 0),
     proximaCuotaFecha: atrasados.length ? "" : proxima?.prox.fecha || "",
     proximaCuotaMonto: proxima?.prox.cuota?.saldoPendiente || 0,
     proximaCuotaTipo: proxima?.tipo || "",
@@ -45,12 +45,12 @@ export interface DistribucionFinanciera {
   interesTotal: number;
   interesPagado: number;
   interesPct: number;
-  moraTotal: number;
-  moraPagado: number;
-  moraPct: number;
+  interesAtrasadoTotal: number;
+  interesAtrasadoPagado: number;
+  atrasadoPct: number;
 }
 
-/** Distribución agregada de capital, interés y mora cobrados del cliente (excluye alquileres). */
+/** Distribución agregada de capital, interés e interés atrasado cobrados del cliente (excluye alquileres). */
 export const calcularDistribucionFinanciera = (
   clientLoans: any[],
   amortizaciones: any[]
@@ -61,8 +61,8 @@ export const calcularDistribucionFinanciera = (
   let capitalAmortizado = 0;
   let interesTotal = 0;
   let interesPagado = 0;
-  let moraTotal = 0;
-  let moraPagado = 0;
+  let interesAtrasadoTotal = 0;
+  let interesAtrasadoPagado = 0;
 
   clientLoans.forEach((loan) => {
     if (loan.tipo_prestamo === "Alquiler de Casa") return;
@@ -76,15 +76,15 @@ export const calcularDistribucionFinanciera = (
     const intPagado = computed.cuotas?.reduce((sum: number, c: any) => sum + (c.interesPagado || 0), 0) || 0;
     const intPendiente = Number(computed.resumen?.interesPendiente) || 0;
 
-    const morPagado = computed.cuotas?.reduce((sum: number, c: any) => sum + (c.moraPagado || 0), 0) || 0;
-    const morPendiente = Number(computed.resumen?.moraAcumulada) || 0;
+    const morPagado = computed.cuotas?.reduce((sum: number, c: any) => sum + (c.interesAtrasadoPagado || 0), 0) || 0;
+    const morPendiente = Number(computed.resumen?.interesAtrasado) || 0;
 
     capitalTotal += capTotal;
     capitalAmortizado += Math.max(0, capTotal - capPendiente);
     interesTotal += intPagado + intPendiente;
     interesPagado += intPagado;
-    moraTotal += morPagado + morPendiente;
-    moraPagado += morPagado;
+    interesAtrasadoTotal += morPagado + morPendiente;
+    interesAtrasadoPagado += morPagado;
   });
 
   const pct = (part: number, total: number) => Math.min(100, total > 0 ? (part / total) * 100 : 0);
@@ -96,8 +96,8 @@ export const calcularDistribucionFinanciera = (
     interesTotal,
     interesPagado,
     interesPct: pct(interesPagado, interesTotal),
-    moraTotal,
-    moraPagado,
-    moraPct: pct(moraPagado, moraTotal),
+    interesAtrasadoTotal,
+    interesAtrasadoPagado,
+    atrasadoPct: pct(interesAtrasadoPagado, interesAtrasadoTotal),
   };
 };

@@ -46,7 +46,7 @@ export function eventoPrestamo(prestamo: any, cliente: any, pagos: any[], ajuste
 
   const { resumen } = deuda;
   const atrasadas = prox.cuotasAtrasadas;
-  const monto = prox.cuota ? prox.cuota.saldoPendiente : resumen.moraAcumulada;
+  const monto = prox.cuota ? prox.cuota.saldoPendiente : resumen.interesAtrasado;
   const nombre = cliente?.nombre_completo || "Cliente";
   const enlace = enlaceApp(`/prestamos/${prestamo.id}`);
   return {
@@ -57,7 +57,7 @@ export function eventoPrestamo(prestamo: any, cliente: any, pagos: any[], ajuste
       `Préstamo ${prestamo.tipo_prestamo || "Personal"} de ${dinero(toNumber(prestamo.monto_capital))} al ${prestamo.tasa_interes_porcentaje}%`,
       `Capital restante: ${dinero(resumen.capitalPendiente)}`,
       `Mínimo a pagar ese día: ${dinero(monto)}`,
-      atrasadas > 0 ? `Atrasado: ${atrasadas} cuota(s), ${dinero(prox.moraVencida)} de interés vencido` : null,
+      atrasadas > 0 ? `Atrasado: ${atrasadas} cuota(s), ${dinero(prox.interesVencido)} de interés vencido` : null,
       cliente?.telefono ? `Teléfono: ${cliente.telefono}` : null,
       enlace ? `\nAbrir en la app: ${enlace}` : null,
     ]

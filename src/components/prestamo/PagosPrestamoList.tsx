@@ -31,7 +31,7 @@ export const PagosPrestamoList: React.FC<PagosPrestamoListProps> = ({
   const handleDelete = async (pago: any) => {
     const ok = await confirm({
       title: "Eliminar abono",
-      message: `¿Eliminar el abono de ${formatCurrency(pago.monto)} del ${formatDate(pago.fecha_pago)}?\n\nEl saldo, los intereses y la mora del préstamo se recalcularán.`,
+      message: `¿Eliminar el abono de ${formatCurrency(pago.monto)} del ${formatDate(pago.fecha_pago)}?\n\nEl saldo y los intereses del préstamo se recalcularán.`,
       confirmLabel: "Eliminar",
       danger: true,
     });

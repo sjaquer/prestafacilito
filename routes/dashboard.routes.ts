@@ -73,9 +73,9 @@ router.get("/home", requireAuth, async (_req: express.Request, res: express.Resp
         interes_mes: prox.cuota?.congelada ? 0 : prox.cuota?.interesOriginal ?? round2((resumen.capitalPendiente * tasa) / 100),
         congelado: !!prox.cuota?.congelada,
         proximo_cobro: prox.fecha,
-        // Lo que falta pagar de la cuota en curso (incluye lo atrasado): pagarlo deja la mora en 0
-        monto_proximo: prox.cuota ? prox.cuota.saldoPendiente : resumen.moraAcumulada,
-        atrasado: prox.moraVencida,
+        // Lo que falta pagar de la cuota en curso (incluye lo atrasado): pagarlo deja el interés atrasado en 0
+        monto_proximo: prox.cuota ? prox.cuota.saldoPendiente : resumen.interesAtrasado,
+        atrasado: prox.interesVencido,
         cuotas_atrasadas: prox.cuotasAtrasadas,
         debe_desde: prox.debeDesde,
         saldo_pendiente: resumen.saldoPendiente,
