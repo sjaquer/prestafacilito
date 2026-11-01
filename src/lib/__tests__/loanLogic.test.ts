@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { buildPaymentSchedule, classifyPayment } from "../loanLogic.js";
+import { buildPaymentSchedule } from "../loanLogic.js";
 import { Prestamo, Amortizacion } from "../../types.js";
 
 describe("buildPaymentSchedule — Modelo de Crédito Abierto (Cuotas Infinitas)", () => {
@@ -158,17 +158,6 @@ describe("buildPaymentSchedule — Modelo de Crédito Abierto (Cuotas Infinitas)
     assert.equal(resultado.cuotas[1].pagosRecibidos?.[0].fecha, "2026-07-16");
   });
 
-  it("classifyPayment clasifica correctamente montos menores, iguales y mayores a la deuda", () => {
-    const refDate = new Date("2026-01-31T00:00:00");
-    const debtState = buildPaymentSchedule(basePrestamo, [], { referenceDate: refDate });
-
-    assert.equal(classifyPayment(0, debtState), "Pago inválido");
-    assert.equal(classifyPayment(50, debtState), "Pago incompleto");
-    assert.equal(classifyPayment(100, debtState), "Pago mínimo");
-    assert.equal(classifyPayment(500, debtState), "Pago con amortización");
-    assert.equal(classifyPayment(1000, debtState), "Liquidación total");
-    assert.equal(classifyPayment(2000, debtState), "Pago con excedente");
-  });
 });
 
 describe("buildPaymentSchedule — Congelamiento de interés", () => {

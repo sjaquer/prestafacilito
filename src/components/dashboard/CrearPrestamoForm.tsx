@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { PlusCircle, Calculator, CheckCircle, AlertCircle } from "lucide-react";
+import { PlusCircle, CheckCircle, AlertCircle } from "lucide-react";
 import { Cliente, Prestamo } from "../../types";
 import { ClienteAutocomplete } from "../common/ClienteAutocomplete";
-import { usePreviewCuotas } from "../../hooks/usePreviewCuotas";
+import { GuiaPagos } from "../prestamo/GuiaPagos";
 import { hoyISO } from "../../lib/fechas";
 
 interface CrearPrestamoFormProps {
@@ -25,7 +25,6 @@ export const CrearPrestamoForm: React.FC<CrearPrestamoFormProps> = ({
   const [clienteId, setClienteId] = useState(clienteIdInicial);
   const [montoCapital, setMontoCapital] = useState("");
   const [tasaInteres, setTasaInteres] = useState("10");
-  const [numeroCuotas, setNumeroCuotas] = useState("3");
   const [fechaEmision, setFechaEmision] = useState(hoyISO());
   const [tipoPrestamo, setTipoPrestamo] = useState("Personal");
   const [notas, setNotas] = useState("");
@@ -36,9 +35,6 @@ export const CrearPrestamoForm: React.FC<CrearPrestamoFormProps> = ({
 
   const capitalNum = parseFloat(montoCapital) || 0;
   const tasaNum = parseFloat(tasaInteres) || 0;
-  const cuotasNum = parseInt(numeroCuotas, 10) || 0;
-
-  const preview = usePreviewCuotas(capitalNum, tasaNum, cuotasNum);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,21 +162,6 @@ export const CrearPrestamoForm: React.FC<CrearPrestamoFormProps> = ({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-semibold text-slate-700 block mb-1">
-              Cuotas Mensuales *
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="120"
-              value={numeroCuotas}
-              onChange={(e) => setNumeroCuotas(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50/50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50 transition-all"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1">
               Fecha de Emisión
             </label>
             <input
@@ -223,33 +204,8 @@ export const CrearPrestamoForm: React.FC<CrearPrestamoFormProps> = ({
           />
         </div>
 
-        {/* Previsualización Reactiva de Cuotas (TAREA 4.3.1.A) */}
-        {preview && (
-          <div className="p-3 bg-slate-50 border border-slate-200/90 rounded-xl space-y-2 text-xs">
-            <div className="flex items-center justify-between font-bold text-slate-700 border-b border-slate-200/60 pb-1.5">
-              <span className="flex items-center gap-1">
-                <Calculator className="w-3.5 h-3.5 text-emerald-600" />
-                Previsualización de Cuotas
-              </span>
-              <span className="text-[11px] font-normal text-slate-500">Modelo Francés</span>
-            </div>
-
-            <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
-              {preview.cuotas.map((c) => (
-                <div key={c.numero} className="flex justify-between items-center py-1 px-2 bg-white rounded border border-slate-100 text-[11px]">
-                  <span className="font-semibold text-slate-700">Cuota {c.numero}</span>
-                  <span className="text-slate-500">Amort. S/{c.amortizacion.toFixed(2)} + Int. S/{c.interes.toFixed(2)}</span>
-                  <span className="font-bold text-emerald-700">S/ {c.cuotaTotal.toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="pt-1 border-t border-slate-200/60 flex justify-between font-bold text-slate-800 text-[11px]">
-              <span>Total Intereses: <span className="text-amber-600">S/ {preview.totalIntereses.toFixed(2)}</span></span>
-              <span>Total a Pagar: <span className="text-emerald-700">S/ {preview.totalAPagar.toFixed(2)}</span></span>
-            </div>
-          </div>
-        )}
+        {/* Guía de pagos para el cliente (no se guarda ni limita los pagos) */}
+        <GuiaPagos capital={capitalNum} tasa={tasaNum} />
 
         <button
           type="submit"

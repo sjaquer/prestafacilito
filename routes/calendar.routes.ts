@@ -5,6 +5,7 @@ import { OAuth2Client } from "google-auth-library";
 import crypto from "crypto";
 import { requireAuth, cookieOptions, clearCookieOptions } from "../middleware/auth.js";
 import { requireCron } from "../middleware/cron.js";
+import { recalcularScores } from "../services/score.js";
 import { isGoogleCalendarConfigured, sincronizarCalendario } from "../services/google-calendar.js";
 import {
   getGoogleClientId,
@@ -177,8 +178,10 @@ router.post("/calendar/sincronizar", requireAuth, handlerSincronizar);
 router.get("/cron/calendario", requireCron, async (_req: express.Request, res: express.Response) => {
   try {
     const r = await sincronizarCalendario();
-    console.log("[Cron calendario]", r);
-    res.json({ success: true, ...r });
+    // Una vez al día también se recalcula el score A/B/C de todos los clientes
+    const score = await recalcularScores().catch((err) => ({ actualizados: 0, error: err.message }));
+    console.log("[Cron calendario]", r, "[Score]", score);
+    res.json({ success: true, ...r, score });
   } catch (err: any) {
     console.error("[Cron calendario] Error:", err);
     res.status(500).json({ success: false, detail: err.message });

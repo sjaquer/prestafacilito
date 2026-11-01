@@ -15,6 +15,8 @@ export interface AlquilerItemCalculado extends Alquiler {
   mes_actual_pendiente?: number;
   meses_atrasados?: number;
   total_pendiente?: number;
+  /** Solo lo ya vencido. */
+  total_vencido?: number;
 }
 
 export type EstadoAlquiler = "atrasado" | "pendiente" | "parcial" | "pagado" | "finalizado";
@@ -62,7 +64,7 @@ interface AlquilerCardProps {
 export const AlquilerCard: React.FC<AlquilerCardProps> = ({ alquiler: a, onCobrar }) => {
   const estado = estadoDeAlquiler(a);
   const estilo = ESTILO_ALQUILER[estado];
-  const debe = Number(a.total_pendiente) || 0;
+  const debe = Number(a.total_vencido ?? a.total_pendiente) || 0;
   const aCobrar = estado === "atrasado" ? debe : Number(a.mes_actual_pendiente) || 0;
   const activo = estado !== "finalizado";
   const wa =

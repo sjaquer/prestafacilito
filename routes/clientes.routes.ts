@@ -7,7 +7,7 @@ import { rutaDocumentoCliente } from "../src/lib/archivos.js";
 import { ArchivoInvalidoError, decodificarArchivo, eliminarArchivo } from "../services/storage.js";
 import { guardarArchivo, quitarDeStorage } from "../services/almacen.js";
 
-import { calcularScoreCliente } from "../src/lib/scoreLogic.js";
+import { recalcularScores } from "../services/score.js";
 
 const router = express.Router();
 
@@ -211,56 +211,28 @@ router.delete("/:id/documentos/:docId", requireAuth, async (req: AuthRequest, re
   }
 });
 
-// Obtener / Calcular Score del Cliente (Fase 6)
+// Score del cliente: se recalcula al consultarlo (además del recálculo diario y tras cada pago)
 router.get("/:id/score", requireAuth, async (req: express.Request, res: express.Response) => {
   try {
     const clienteId = req.params.id;
-
-    const [prestamosRes, amortRes, scoreRes] = await Promise.all([
-      supabase.from("prestamos").select("*").eq("cliente_id", clienteId),
-      todas(() => supabase.from("amortizaciones").select("*")),
-      supabase.from("score_clientes").select("*").eq("cliente_id", clienteId).maybeSingle()
-    ]);
-
-    const prestamos = prestamosRes.data || [];
-    const amortizaciones = amortRes.data || [];
-    const scoreExistente = scoreRes.data;
-
-    const scoreCalculado = calcularScoreCliente(prestamos, amortizaciones);
-
-    // Persistir o actualizar en score_clientes
-    await supabase.from("score_clientes").upsert(
-      {
-        cliente_id: clienteId,
-        score_numerico: scoreCalculado.scoreNumerico,
-        score_letra: scoreCalculado.scoreLetra,
-        cuotas_totales: scoreCalculado.cuotasTotales,
-        cuotas_a_tiempo: scoreCalculado.cuotasPagadasATiempo,
-        cuotas_completas: scoreCalculado.cuotasPagadasCompletas,
-        prestamos_liquidados: scoreCalculado.prestamosLiquidados,
-        prestamos_totales: scoreCalculado.prestamosTotales,
-        dias_atraso_promedio: scoreCalculado.diasAtrasoPromedio,
-        ultima_actualizacion: new Date().toISOString()
-      },
-      { onConflict: "cliente_id" }
-    );
-
-    const scoreEfectivo = scoreExistente?.score_manual || scoreCalculado.scoreLetra;
+    await recalcularScores([clienteId]);
+    const { data: s, error } = await supabase.from("score_clientes").select("*").eq("cliente_id", clienteId).maybeSingle();
+    if (error) throw error;
 
     res.json({
-      scoreNumerico: scoreCalculado.scoreNumerico,
-      scoreLetra: scoreCalculado.scoreLetra,
-      scoreEfectivo,
-      sobreescrito: !!scoreExistente?.score_manual,
-      scoreManual: scoreExistente?.score_manual || null,
-      motivoOverride: scoreExistente?.motivo_override || "",
+      scoreNumerico: Number(s?.score_numerico) || 0,
+      scoreLetra: s?.score_letra || null,
+      scoreEfectivo: s?.score_manual || s?.score_letra || null,
+      sobreescrito: !!s?.score_manual,
+      scoreManual: s?.score_manual || null,
+      motivoOverride: s?.motivo_override || "",
       detalle: {
-        cuotasTotales: scoreCalculado.cuotasTotales,
-        cuotasPagadasATiempo: scoreCalculado.cuotasPagadasATiempo,
-        cuotasPagadasCompletas: scoreCalculado.cuotasPagadasCompletas,
-        prestamosLiquidados: scoreCalculado.prestamosLiquidados,
-        prestamosTotales: scoreCalculado.prestamosTotales,
-        diasAtrasoPromedio: scoreCalculado.diasAtrasoPromedio
+        cuotasTotales: s?.cuotas_totales || 0,
+        cuotasPagadasATiempo: s?.cuotas_a_tiempo || 0,
+        cuotasPagadasCompletas: s?.cuotas_completas || 0,
+        prestamosLiquidados: s?.prestamos_liquidados || 0,
+        prestamosTotales: s?.prestamos_totales || 0,
+        diasAtrasoPromedio: Number(s?.dias_atraso_promedio) || 0
       }
     });
   } catch (err: any) {

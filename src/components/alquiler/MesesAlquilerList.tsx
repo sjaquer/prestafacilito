@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { ChevronDown, Edit2, FileText, Loader2, Trash2 } from "lucide-react";
-import { formatCurrency, formatDate, parseVoucherUrls } from "../../lib/formatters";
+import { formatCurrency, formatDate, formatFechaCorta, formatSoles, parseVoucherUrls } from "../../lib/formatters";
 import { useFeedback } from "../ui/Feedback";
 import { EditarPagoAlquilerModal } from "./EditarPagoAlquilerModal";
 import { nombreMes } from "./alquilerUtils";
@@ -132,15 +132,15 @@ export const MesesAlquilerList: React.FC<MesesAlquilerListProps> = ({
                 >
                   <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${ui.dot}`} />
                   <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-extrabold text-slate-900">
+                    <span className="block text-sm font-extrabold text-slate-900 truncate">
                       {nombreMes(m.mes)} {m.anio}
                     </span>
-                    <span className="block text-[11px] text-slate-500 font-semibold">Vence {formatDate(m.fechaVencimiento)}</span>
+                    <span className="block text-[11px] text-slate-500 font-semibold truncate">Vence {formatFechaCorta(m.fechaVencimiento)}</span>
                   </span>
                   <span className="text-right shrink-0">
-                    <span className="block text-xs font-black font-mono text-slate-800">
-                      {formatCurrency(m.montoPagado)}
-                      <span className="text-slate-400 font-bold"> / {formatCurrency(m.montoEsperado)}</span>
+                    <span className="block text-xs font-black font-mono text-slate-800 whitespace-nowrap">
+                      {formatSoles(m.montoPagado)}
+                      <span className="text-slate-400 font-bold"> / {formatSoles(m.montoEsperado)}</span>
                     </span>
                     <span className={`inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-black ${ui.pill}`}>
                       {m.estado === "Vencida" && m.diasVencidos > 0 ? `Vencido ${m.diasVencidos}d` : ui.label}
@@ -164,8 +164,24 @@ export const MesesAlquilerList: React.FC<MesesAlquilerListProps> = ({
                         ))}
                       </ul>
                     ) : (
-                      <p className="py-3 text-xs text-slate-500">Sin pagos para este mes.</p>
+                      <p className="py-3 text-xs text-slate-500">
+                        {m.cubiertoConExcedente > 0.009 ? "Sin pagos registrados para este mes." : "Sin pagos para este mes."}
+                      </p>
                     )}
+                    {m.cubiertoConExcedente > 0.009 && (
+                      <p className="pb-2 text-[11px] font-semibold text-indigo-700">
+                        Cubierto con {formatCurrency(m.cubiertoConExcedente)} pagados de más en otro mes.
+                      </p>
+                    )}
+                    {(() => {
+                      const registrado = (m.pagos || []).reduce((s: number, p: any) => s + Number(p.monto || 0), 0);
+                      const deMas = registrado - Number(m.montoEsperado || 0);
+                      return deMas > 0.009 ? (
+                        <p className="pb-2 text-[11px] font-semibold text-indigo-700">
+                          Pagado {formatCurrency(deMas)} de más: cubre el mes impago más antiguo.
+                        </p>
+                      ) : null;
+                    })()}
                     {m.saldoPendiente > 0.009 && (
                       <p className="pb-2 text-[11px] font-bold text-amber-700">Falta {formatCurrency(m.saldoPendiente)}</p>
                     )}

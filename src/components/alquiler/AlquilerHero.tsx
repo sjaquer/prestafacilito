@@ -32,7 +32,8 @@ const Dato: React.FC<{ label: string; valor: React.ReactNode; detalle?: React.Re
  */
 export const AlquilerHero: React.FC<AlquilerHeroProps> = ({ alquiler, cliente, estado, ultimoPago }) => {
   const isFinalizado = alquiler.estado === "finalizado";
-  const pendiente = Number(estado?.totalPendiente) || 0;
+  // "A la fecha": solo lo vencido (la mensualidad del mes en curso todavía no se debe)
+  const pendiente = Number(estado?.totalVencido ?? estado?.totalPendiente) || 0;
   const atrasados = Number(estado?.mesesAtrasados) || 0;
   const prox = estado?.mesSiguiente;
   // Días desde la fecha real de vencimiento (negativo = vencido). `diasRestantes` del cálculo nunca baja de 0.

@@ -20,7 +20,8 @@ function textoCuando(item: ItemCobro) {
     const unidad = item.es_alquiler ? "mes" : "cuota";
     return `${n} ${unidad}${n > 1 ? "s" : ""} sin pagar`;
   }
-  return item.proximo_cobro ? `${textoRelativo(item.dias)} · ${formatFechaCorta(item.proximo_cobro)}` : "Sin fecha";
+  const fecha = item.proximo_cobro ? `${textoRelativo(item.dias)} · ${formatFechaCorta(item.proximo_cobro)}` : "Sin fecha";
+  return item.sinCobro && item.congelado ? `${fecha} · interés congelado` : fecha;
 }
 
 const Celda: React.FC<{ label: string; valor: string; destacado?: boolean }> = ({ label, valor, destacado }) => (
@@ -49,7 +50,9 @@ export const CobroCard: React.FC<CobroCardProps> = ({ item, onCobrar }) => {
     <li className={`border rounded-2xl overflow-hidden ${estilo.tarjeta}`}>
       <Link to={detalle} className="block px-3.5 pt-3 pb-2.5 decoration-none">
         <div className="flex items-center justify-between gap-2">
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${estilo.pill}`}>{estilo.etiqueta}</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${item.sinCobro ? "bg-sky-100 text-sky-800" : estilo.pill}`}>
+            {item.sinCobro ? "Sin cobro" : estilo.etiqueta}
+          </span>
           <span className={`text-[11px] font-bold ${estilo.texto} truncate`}>{textoCuando(item)}</span>
         </div>
 

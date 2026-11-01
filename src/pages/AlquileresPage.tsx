@@ -96,10 +96,10 @@ export const AlquileresPage: React.FC = () => {
     () => ({
       rentaMensual: activos.reduce((s, x) => s + (Number(x.a.monto_mensual) || 0), 0),
       porCobrar: porCobrar.reduce(
-        (s, x) => s + (x.estado === "atrasado" ? Number(x.a.total_pendiente) || 0 : Number(x.a.mes_actual_pendiente) || 0),
+        (s, x) => s + (x.estado === "atrasado" ? Number(x.a.total_vencido ?? x.a.total_pendiente) || 0 : Number(x.a.mes_actual_pendiente) || 0),
         0
       ),
-      atrasado: atrasados.reduce((s, x) => s + (Number(x.a.total_pendiente) || 0), 0),
+      atrasado: atrasados.reduce((s, x) => s + (Number(x.a.total_vencido ?? x.a.total_pendiente) || 0), 0),
     }),
     [activos, porCobrar, atrasados]
   );

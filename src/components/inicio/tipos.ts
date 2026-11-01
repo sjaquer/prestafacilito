@@ -37,16 +37,19 @@ export interface ItemCobro extends ItemCobroApi {
   dias: number | null;
   /** Atrasados: lo vencido. Resto: lo que vence en la próxima fecha. */
   montoACobrar: number;
+  /** No hay nada que cobrar en la próxima fecha (ej. cuota con interés congelado). */
+  sinCobro: boolean;
 }
 
 export function prepararItems(items: ItemCobroApi[], hoy = new Date()): ItemCobro[] {
   return items.map((it) => {
     const atrasadas = it.atrasado > 0.009 ? it.cuotas_atrasadas || 1 : 0;
     let grupo = clasificarCobro({ fechaProxima: it.proximo_cobro, atrasadas }, hoy);
-    // Sin nada que cobrar en la próxima fecha (ej. interés congelado): no es urgente
-    if (!atrasadas && it.monto_proximo <= 0.009) grupo = "despues";
+    // Sin nada que cobrar en la próxima fecha (ej. interés congelado): va al final, pero se rotula "Sin cobro"
+    const sinCobro = !atrasadas && it.monto_proximo <= 0.009;
+    if (sinCobro) grupo = "despues";
     const montoACobrar = grupo === "atrasado" || grupo === "estancado" ? it.atrasado : it.monto_proximo;
-    return { ...it, grupo, dias: diasHasta(it.proximo_cobro, hoy), montoACobrar };
+    return { ...it, grupo, dias: diasHasta(it.proximo_cobro, hoy), montoACobrar, sinCobro };
   });
 }
 

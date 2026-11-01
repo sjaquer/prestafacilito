@@ -43,6 +43,7 @@ router.get("/", requireAuth, async (req: express.Request, res: express.Response)
         ) : 'pagado',
         mes_actual_pendiente: estadoAlquiler.mesSiguiente?.saldoPendiente || 0,
         total_pendiente: estadoAlquiler.totalPendiente,
+        total_vencido: estadoAlquiler.totalVencido,
         estado_calculado: estadoAlquiler
       };
     });

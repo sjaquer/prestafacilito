@@ -2,8 +2,9 @@ import express from "express";
 import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { supabase } from "../src/lib/supabase.js";
 import { todas } from "../services/consultas.js";
-import { buildPaymentSchedule, classifyPayment, toNumber, round2 } from "../src/lib/loanLogic.js";
+import { buildPaymentSchedule, toNumber, round2 } from "../src/lib/loanLogic.js";
 import { programarSync } from "../services/google-calendar.js";
+import { programarScore } from "../services/score.js";
 
 export const prestamosRouter = express.Router();
 export const amortizacionesRouter = express.Router();
@@ -40,6 +41,8 @@ prestamosRouter.post("/", requireAuth, async (req: AuthRequest, res: express.Res
     if (error) throw error;
 
     programarSync(`prestamo:${data.id}`);
+
+    programarScore(data.id);
 
     res.status(201).json(data);
   } catch (err: any) {
@@ -251,6 +254,8 @@ prestamosRouter.put("/:id", requireAuth, async (req: AuthRequest, res: express.R
 
     programarSync(`prestamo:${prestamoId}`);
 
+    programarScore(prestamoId);
+
     res.json({
       ...updated,
       estado: nuevoEstado,
@@ -274,7 +279,7 @@ prestamosRouter.delete("/:id", requireAuth, async (_req: express.Request, res: e
 prestamosRouter.post("/:id/pagos", requireAuth, async (req: AuthRequest, res: express.Response) => {
   try {
     const prestamoId = req.params.id;
-    const { monto, tipo_movimiento, metodo_pago, fecha_pago, comprobante_url, voucher_drive_file_id } = req.body;
+    const { monto, metodo_pago, fecha_pago, comprobante_url, voucher_drive_file_id } = req.body;
 
     const montoPago = parseFloat(monto);
     if (!montoPago || montoPago <= 0) {
@@ -300,8 +305,6 @@ prestamosRouter.post("/:id/pagos", requireAuth, async (req: AuthRequest, res: ex
 
     const pagosAnteriores = aRes.data || [];
     const ajustes = ajRes.data || [];
-    const deudaAntes = buildPaymentSchedule(prestamo, pagosAnteriores, { ajustes, referenceDate: new Date(fecha_pago || new Date()) });
-
     const referenceDate = new Date();
     const fechaPagoDate = new Date(fecha_pago || new Date());
     const queryDate = fechaPagoDate.getTime() > referenceDate.getTime() ? fechaPagoDate : referenceDate;
@@ -310,27 +313,10 @@ prestamosRouter.post("/:id/pagos", requireAuth, async (req: AuthRequest, res: ex
     const esExcedente = montoPago > deudaValidacion.resumen.saldoPendiente + 0.01;
     const montoExcedente = esExcedente ? round2(montoPago - deudaValidacion.resumen.saldoPendiente) : 0;
 
-    const clasificacionAutomatica = classifyPayment(montoPago, deudaAntes, fecha_pago);
-
-    const validTypes = [
-      "Liquidación total",
-      "Pago mínimo",
-      "Pago incompleto",
-      "Pago con amortización",
-      "Amortización a capital",
-      "Pago con excedente",
-      "Amortización de Capital",
-      "Amortizacion de Capital",
-      "Liquidación Express",
-      "Liquidacion Express"
-    ];
-    const tipoMovimientoFinal = (tipo_movimiento && validTypes.includes(tipo_movimiento))
-      ? tipo_movimiento
-      : clasificacionAutomatica;
-
+    // La etiqueta automática de cada pago ("Pago mínimo", "Liquidación total"...) se quitó: no influía en
+    // ningún cálculo. La columna tipo_movimiento conserva los registros antiguos.
     const nuevaAmortizacion = {
       prestamo_id: prestamoId,
-      tipo_movimiento: tipoMovimientoFinal,
       monto: montoPago,
       fecha_pago: fecha_pago || new Date().toISOString().split("T")[0],
       metodo_pago: metodo_pago || "Efectivo",
@@ -373,11 +359,12 @@ prestamosRouter.post("/:id/pagos", requireAuth, async (req: AuthRequest, res: ex
 
     programarSync(`prestamo:${prestamoId}`);
 
+    programarScore(prestamoId);
+
 
     res.status(201).json({
       success: true,
       nuevaAmortizacion: insertedAmort,
-      clasificacion_automatica: clasificacionAutomatica,
       excedente_aplicado: montoExcedente,
       es_excedente: esExcedente,
       saldo_pendiente: deudaDespues.resumen.saldoPendiente,
@@ -409,7 +396,8 @@ prestamosRouter.get("/:id/ajustes", requireAuth, async (req: express.Request, re
   }
 });
 
-const TIPOS_AJUSTE = ["congelar_interes_temporal", "acuerdo_especial"];
+/** Única ayuda al cliente: congelar el interés de un rango de cuotas (los "acuerdos" se quitaron). */
+const TIPOS_AJUSTE = ["congelar_interes_temporal"];
 
 prestamosRouter.post("/:id/ajustes", requireAuth, async (req: AuthRequest, res: express.Response) => {
   try {
@@ -419,7 +407,11 @@ prestamosRouter.post("/:id/ajustes", requireAuth, async (req: AuthRequest, res: 
     if (!TIPOS_AJUSTE.includes(tipo)) {
       return res.status(400).json({ error: "Tipo de ajuste no válido" });
     }
-    if (fecha_inicio && fecha_fin && fecha_fin < fecha_inicio) {
+    // Siempre de la cuota X a la Y: nada congelado sin fin
+    if (!fecha_inicio || !fecha_fin) {
+      return res.status(400).json({ error: "Indica desde qué cuota y hasta qué cuota se congela el interés" });
+    }
+    if (fecha_fin < fecha_inicio) {
       return res.status(400).json({ error: "La fecha fin no puede ser anterior a la fecha de inicio" });
     }
 
@@ -440,6 +432,7 @@ prestamosRouter.post("/:id/ajustes", requireAuth, async (req: AuthRequest, res: 
 
     if (error) throw error;
     programarSync(`prestamo:${prestamoId}`);
+    programarScore(prestamoId);
     res.status(201).json(newAdj);
   } catch (err: any) {
     console.error("Error al crear ajuste:", err);
@@ -463,11 +456,17 @@ prestamosRouter.patch("/:id/ajustes/:ajusteId", requireAuth, async (req: AuthReq
       cambios.fecha_inicio = fecha_inicio;
     }
     if (fecha_fin !== undefined) {
-      if (fecha_fin !== null && !esFecha(fecha_fin)) return res.status(400).json({ error: "Fecha de fin inválida" });
+      // Nunca se puede dejar un congelamiento sin fin
+      if (!esFecha(fecha_fin)) return res.status(400).json({ error: "Fecha de fin inválida: indica hasta qué cuota" });
       cambios.fecha_fin = fecha_fin;
     }
     if (cuota_numero !== undefined) cambios.cuota_numero = cuota_numero ? parseInt(cuota_numero, 10) : null;
     if (Object.keys(cambios).length === 0) return res.status(400).json({ error: "No hay cambios" });
+
+    if (cambios.activo === true && cambios.fecha_fin === undefined) {
+      const { data: actual } = await supabase.from("ajustes_prestamo").select("fecha_fin").eq("id", ajusteId).single();
+      if (!actual?.fecha_fin) return res.status(400).json({ error: "Este congelamiento no tiene cuota final: crea uno nuevo con rango" });
+    }
 
     if (cambios.fecha_inicio || cambios.fecha_fin) {
       const { data: actual } = await supabase.from("ajustes_prestamo").select("fecha_inicio, fecha_fin").eq("id", ajusteId).single();
@@ -486,6 +485,7 @@ prestamosRouter.patch("/:id/ajustes/:ajusteId", requireAuth, async (req: AuthReq
 
     if (error) throw error;
     programarSync(`prestamo:${id}`);
+    programarScore(id);
     res.json(updatedAdj);
   } catch (err: any) {
     console.error("Error al actualizar ajuste:", err);
@@ -609,6 +609,8 @@ amortizacionesRouter.put("/:id", requireAuth, async (req: express.Request, res: 
 
       programarSync(`prestamo:${pId}`);
 
+      programarScore(pId);
+
       recalculateResults[pId] = {
         estado_prestamo: nuevoEstado,
         deuda_actualizada: deudaDespues.resumen,
@@ -688,6 +690,8 @@ amortizacionesRouter.delete("/:id", requireAuth, async (req: express.Request, re
     }
 
     programarSync(`prestamo:${prestamoId}`);
+
+    programarScore(prestamoId);
 
     res.json({
       success: true,

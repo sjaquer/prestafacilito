@@ -72,7 +72,6 @@ export async function generarExcelRespaldo(): Promise<Buffer> {
       "ID Pago": a.id,
       "ID Préstamo": a.prestamo_id,
       Cliente: nombreCliente.get(clienteDePrestamo.get(a.prestamo_id)) || "",
-      "Tipo Movimiento": a.tipo_movimiento || "Pago Ordinario",
       "Monto Pagado (S/)": a.monto,
       "Fecha Pago": a.fecha_pago,
       "Método Pago": a.metodo_pago || "Efectivo",

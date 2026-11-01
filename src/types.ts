@@ -127,7 +127,8 @@ export interface ResumenDeudaPrestamo {
 export interface AjustePrestamo {
   id: string;
   prestamo_id: string;
-  tipo: 'congelar_interes_temporal' | 'acuerdo_especial';
+  /** Única ayuda: congelar el interés de un rango de cuotas. */
+  tipo: 'congelar_interes_temporal';
   cuota_numero?: number;
   fecha_inicio: string;
   fecha_fin?: string;

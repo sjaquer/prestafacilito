@@ -287,39 +287,3 @@ export const buildPaymentSchedule = (
     },
   };
 };
-
-export const classifyPayment = (
-  paymentAmount: number,
-  debtState: EstadoDeudaPrestamo,
-  _paymentDateStr?: string
-) => {
-  const amount = toNumber(paymentAmount);
-  if (amount <= EPSILON) {
-    return "Pago inválido";
-  }
-
-  const totalExigible = debtState.resumen.totalExigible;
-  const nextQuota = debtState.cuotaSiguiente;
-  const cuotaMinima = nextQuota ? nextQuota.montoCuotaBase : debtState.resumen.interesPendiente;
-
-  if (amount >= totalExigible - EPSILON && totalExigible > EPSILON) {
-    if (amount > totalExigible + EPSILON) {
-      return "Pago con excedente";
-    }
-    return "Liquidación total";
-  }
-
-  if (amount < cuotaMinima - EPSILON) {
-    return "Pago incompleto";
-  }
-
-  if (Math.abs(amount - cuotaMinima) <= EPSILON) {
-    return "Pago mínimo";
-  }
-
-  if (amount > cuotaMinima) {
-    return "Pago con amortización";
-  }
-
-  return "Amortización a capital";
-};

@@ -61,6 +61,12 @@ Verificado con los datos reales (25 préstamos con estado `activo` en la BD, 114
 - `routes/prestamos.routes.ts` (731 líneas) mezcla HTTP con reglas de negocio (el registro de pago recalcula el cronograma 3 veces).
 - El criterio de "atrasado/estancado/al día" está repetido en `proximoCobro`, `cobranza`, `bi.routes`, `calendario-eventos` y el motor. Debería existir un solo módulo `estadoCobranza` que usen Inicio, Cartera, Reportes y Calendario.
 
+### Correcciones del 2026-11-01
+- ✅ **George Villacorta**: sus ajustes "Condonación Cuota #8/#9" congelaban todo desde junio sin fin. Corregido en la BD para congelar solo las cuotas 8 (01/04) y 9 (01/05): se perdonan S/ 207.06 (antes S/ 526.17). Valores anteriores: fecha_inicio 2026-05-25 y fecha_fin NULL en ambos.
+- ✅ **Alquileres**: cada pago cuenta para el mes elegido; lo pagado de más cubre el mes impago más antiguo (totales verificados iguales en los 4 contratos). "Debe a la fecha" ya no suma la mensualidad que aún no vence.
+- **[revisar con la clienta] Natali Reátegui**: el contrato figura desde el 07/12/2025, pero no hay pagos registrados de febrero a mayo de 2026 y julio tiene dos pagos de S/ 330. Puede ser que la fecha de inicio esté mal, que falten pagos o que un pago de julio fuera de otro mes. Debe S/ 1,450.
+- ✅ **Score A/B/C**: recalculado para los 20 clientes con préstamos; se actualiza cada día y después de cada pago.
+
 ## 4. Deuda técnica restante
 
 Resuelto el 2026-10-31: consultas por páginas (sin límite de 1000 filas; se verificó que todos los endpoints devuelven exactamente lo mismo), `'unsafe-eval'` solo en desarrollo, carga por página (paquete principal de 715 a 508 KB) y token de Google en memoria (antes se pedía uno por llamada).
