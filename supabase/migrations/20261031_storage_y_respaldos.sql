@@ -2,8 +2,8 @@
 -- Supabase Storage para fotos/documentos + control de respaldos semanales en Drive
 -- ============================================================================
 --
--- Requisito: el backend debe usar la clave service_role (ver 20261015_enable_rls.sql).
--- Ejecutar en Supabase → SQL Editor. Es idempotente: se puede correr más de una vez.
+-- Aplicada el 2026-11-01 vía MCP. Es idempotente: se puede correr más de una vez.
+-- (El backend necesita la clave service_role para usar el bucket; ver 20261015_enable_rls.sql.)
 -- ============================================================================
 
 BEGIN;
@@ -14,6 +14,9 @@ BEGIN;
 INSERT INTO storage.buckets (id, name, public, file_size_limit)
 VALUES ('archivos', 'archivos', false, 10485760)
 ON CONFLICT (id) DO UPDATE SET public = false, file_size_limit = EXCLUDED.file_size_limit;
+
+-- Bucket antiguo "vouchers" (vacío y sin uso): deja de ser público.
+UPDATE storage.buckets SET public = false WHERE id = 'vouchers';
 
 -- 2. Documentos de clientes: la ruta en Storage pasa a ser la referencia principal.
 --    drive_file_id / drive_url quedan solo para los documentos antiguos (y como respaldo).

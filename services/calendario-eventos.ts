@@ -31,7 +31,11 @@ export interface EventoDeseado {
   colorId: string;
 }
 
-const enlaceApp = (ruta: string) => (process.env.APP_URL ? `${process.env.APP_URL.replace(/\/$/, "")}${ruta}` : "");
+/** URL pública de la app: APP_URL si se define; si no, la de producción que Vercel entrega automáticamente. */
+const urlApp = () =>
+  process.env.APP_URL?.trim() ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "");
+const enlaceApp = (ruta: string) => (urlApp() ? `${urlApp().replace(/\/$/, "")}${ruta}` : "");
 
 const dinero = (n: number) => `S/ ${round2(n).toFixed(2)}`;
 

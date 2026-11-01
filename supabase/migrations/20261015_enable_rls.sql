@@ -2,19 +2,16 @@
 -- Activar Row Level Security (RLS) en todo el esquema público
 -- ============================================================================
 --
--- ⚠️  NO EJECUTAR hasta que el backend use la clave service_role.
+-- ⚠️  PENDIENTE: ejecutar SOLO cuando producción (Vercel) use la clave service_role.
 --
--- Hoy el backend se conecta con la clave "anon" (pública). Con RLS activo y sin
--- políticas, la clave anon pierde todo acceso y la app deja de funcionar.
--- La clave service_role ignora RLS, así que el backend seguirá funcionando igual.
+-- Al 2026-11-01: local ya usa service_role; los logs de Supabase muestran que Vercel
+-- todavía usa la clave anon. Activar esto antes deja a la app de producción sin datos.
 --
--- Orden correcto:
---   1. Supabase → Project Settings → API → copiar la clave "service_role" (secreta).
---   2. Reemplazar SUPABASE_KEY con esa clave en .env local y en Vercel (Production).
---   3. Redesplegar y verificar en el log de arranque: "[DB] Conectado con rol service_role".
---   4. Recién entonces, ejecutar este script en Supabase → SQL Editor.
---   5. Rotar la clave anon (Settings → API → Generate new anon key), porque estuvo
---      en uso con acceso total y pudo haberse copiado.
+-- Orden:
+--   1. Vercel → variables importadas desde .env.local (SUPABASE_KEY = service_role) y redespliegue.
+--   2. Confirmar en los logs de Supabase que las peticiones desde Vercel llegan con rol service_role.
+--   3. Ejecutar este script (Claude lo hace vía MCP) y verificar que la app sigue funcionando.
+--   4. Rotar la clave anon (Settings → API): estuvo en uso con acceso total.
 --
 -- Efecto: nadie puede leer ni escribir datos con la clave anon/authenticated
 -- (por ejemplo, alguien que obtenga la URL del proyecto y la clave pública).
