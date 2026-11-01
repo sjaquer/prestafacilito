@@ -5,6 +5,7 @@ import { ClienteAutocomplete } from "../common/ClienteAutocomplete";
 import { ImagePasteDropzone } from "../common/ImagePasteDropzone";
 import { CuentaSelector } from "../cuentas/CuentaSelector";
 import { subirVoucher } from "../../lib/imageCompression";
+import { serializarUrls } from "../../lib/archivos";
 import { round2 } from "../../lib/loanLogic";
 import { hoyISO } from "../../lib/fechas";
 
@@ -169,39 +170,10 @@ export const RegistrarPagoForm: React.FC<RegistrarPagoFormProps> = ({
     setSuccessMsg("");
 
     try {
-      const comprobanteUrls: string[] = [];
-      const voucherDriveFileIds: string[] = [];
-
-      if (comprobanteFiles.length > 0) {
-        const uploads = await Promise.all(
-          comprobanteFiles.map(async (file) => {
-            const result = await subirVoucher(file);
-            return {
-              url: result.url,
-              fileId: result.driveFileId
-            };
-          })
-        );
-
-        uploads.forEach((item) => {
-          if (item) {
-            if (item.url) comprobanteUrls.push(item.url);
-            if (item.fileId) voucherDriveFileIds.push(item.fileId);
-          }
-        });
-      }
-
-      const finalUrl = comprobanteUrls.length === 1 
-        ? comprobanteUrls[0] 
-        : comprobanteUrls.length > 1 
-        ? JSON.stringify(comprobanteUrls) 
-        : null;
-
-      const finalDriveId = voucherDriveFileIds.length === 1 
-        ? voucherDriveFileIds[0] 
-        : voucherDriveFileIds.length > 1 
-        ? JSON.stringify(voucherDriveFileIds) 
-        : null;
+      const comprobanteUrls = await Promise.all(
+        comprobanteFiles.map(async (file) => (await subirVoucher(file)).url)
+      );
+      const finalUrl = serializarUrls(comprobanteUrls);
 
       const res = await fetch(`/api/prestamos/${prestamoId}/pagos`, {
         method: "POST",
@@ -210,8 +182,7 @@ export const RegistrarPagoForm: React.FC<RegistrarPagoFormProps> = ({
           monto: montoNum,
           fecha_pago: fechaPago,
           metodo_pago: metodoPago,
-          comprobante_url: finalUrl,
-          voucher_drive_file_id: finalDriveId
+          comprobante_url: finalUrl
         })
       });
 

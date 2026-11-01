@@ -1,6 +1,6 @@
 /**
- * Compresión de imágenes en el cliente (Browser Canvas) para optimizar
- * los archivos subidos a Google Drive (<500 KB).
+ * Compresión de imágenes en el cliente (Browser Canvas) para que los archivos
+ * guardados en Storage pesen poco (<500 KB).
  */
 
 export async function comprimirImagen(
@@ -51,22 +51,19 @@ export async function comprimirImagen(
 }
 
 /**
- * Prepara y sube un comprobante a /api/upload-voucher como JSON
- * (fileName, mimeType, base64Data), devolviendo la URL pública y el fileId.
- * Lanza un Error si el servidor rechaza la subida.
+ * Comprime y sube un comprobante a /api/upload-voucher y devuelve su URL
+ * (`/api/archivos/comprobantes/...`). Lanza un Error si el servidor rechaza la subida.
  */
-export async function subirVoucher(file: File): Promise<{ url: string; driveFileId: string }> {
+export async function subirVoucher(file: File): Promise<{ url: string }> {
   const compressedDataUrl = await comprimirImagen(file, 1024, 0.7);
   const base64Data = compressedDataUrl.replace(/^data:[^;]+;base64,/, "");
+  // Las imágenes se re-codifican como JPEG al comprimirse: el tipo debe coincidir con el contenido
+  const mimeType = compressedDataUrl.match(/^data:([^;]+);/)?.[1] || file.type || "image/jpeg";
 
   const res = await fetch("/api/upload-voucher", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      fileName: `Voucher_${Date.now()}_${file.name}`,
-      mimeType: file.type || "image/jpeg",
-      base64Data
-    })
+    body: JSON.stringify({ fileName: file.name || "comprobante", mimeType, base64Data })
   });
 
   if (!res.ok) {
@@ -75,8 +72,6 @@ export async function subirVoucher(file: File): Promise<{ url: string; driveFile
   }
 
   const data = await res.json();
-  return {
-    url: data.publicUrl || data.directUrl || data.fileUrl || "",
-    driveFileId: data.driveFileId || ""
-  };
+  if (!data.publicUrl) throw new Error("El servidor no devolvió la URL del comprobante");
+  return { url: data.publicUrl };
 }

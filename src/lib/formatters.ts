@@ -1,6 +1,7 @@
 /**
  * Utilidades de formateo para toda la aplicación PrestaFacilito
  */
+import { ARCHIVOS_PREFIX, driveIdDeUrl, esUrlDeProxyDrive, urlDeRuta } from "./archivos";
 
 /**
  * Formatea un valor numérico a moneda en Soles Peruanos (S/.)
@@ -72,60 +73,11 @@ export function formatDateShort(dateValue: string | Date): string {
 }
 
 /**
- * Formatea una fecha de manera relativa (ej: "hace 2 días", "en 3 días", "hoy")
- */
-export function formatRelativeDate(dateValue: string | Date): string {
-  if (!dateValue) return "";
-  const date = aFecha(dateValue);
-  if (Number.isNaN(date.getTime())) return "";
-
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
-  const diffTime = target.getTime() - today.getTime();
-  const diffDays = Math.round(diffTime / (24 * 60 * 60 * 1000));
-
-  if (diffDays === 0) return "hoy";
-  if (diffDays === 1) return "mañana";
-  if (diffDays === -1) return "ayer";
-  if (diffDays > 1) return `en ${diffDays} días`;
-  return `hace ${Math.abs(diffDays)} días`;
-}
-
-/**
- * Limpia y formatea un número de teléfono agregando prefijo +51 si corresponde
- */
-export function formatPhone(phone: string): string {
-  if (!phone) return "";
-  const cleaned = phone.replace(/\D/g, "");
-  if (cleaned.length === 9 && cleaned.startsWith("9")) {
-    return `+51 ${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6, 9)}`;
-  }
-  if (cleaned.length === 11 && cleaned.startsWith("51")) {
-    return `+51 ${cleaned.slice(2, 5)} ${cleaned.slice(5, 8)} ${cleaned.slice(8, 11)}`;
-  }
-  return phone;
-}
-
-/**
  * Redondea un número a 2 decimales para evitar problemas de precisión en coma flotante.
  */
 export const round2 = (n: number): number => {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 };
-
-/**
- * Mapea el usuario actual a su nombre real para mensajes y saludos.
- */
-export function getNombreUsuario(username: string | null): string {
-  if (!username) return "Sebastián";
-  const nameMap: Record<string, string> = {
-    sjaquer: "Sebastián",
-    rjaque: "Roberto"
-  };
-  return nameMap[username.toLowerCase()] || "Sebastián";
-}
 
 /**
  * Parsea un string que puede contener una URL única, una lista separada por comas, 
@@ -155,85 +107,28 @@ export function parseVoucherUrls(comprobanteUrl: string | null | undefined): str
 }
 
 /**
- * Resuelve y normaliza la URL de un comprobante para poder visualizarlo en el navegador.
- * Convierte enlaces directos de Google Drive a través del proxy seguro del backend (/api/vouchers/proxy/:fileId).
+ * URL para ver un comprobante en el navegador. Acepta el valor guardado en comprobante_url
+ * (una URL o varias en JSON) y devuelve la primera: los archivos de Storage (/api/archivos/...)
+ * se usan tal cual; los enlaces antiguos de Google Drive pasan por el proxy del backend.
  */
 export function resolveVoucherUrl(url: string | null | undefined): string {
-  if (!url) return "";
-  const trimmed = url.trim();
-  if (!trimmed) return "";
-
-  // Si viene serializado en JSON o lista separada por comas, tomar el primero
-  const urls = parseVoucherUrls(trimmed);
-  const target = (urls[0] || trimmed).trim();
-
+  const target = (parseVoucherUrls(url)[0] || "").trim();
   if (!target) return "";
-
-  // Si ya es un proxy local, un data URI o un blob URL
-  if (
-    target.startsWith("/api/vouchers/proxy/") || 
-    target.startsWith("/api/documentos/proxy/") ||
-    target.startsWith("data:") ||
-    target.startsWith("blob:")
-  ) {
+  if (target.startsWith(ARCHIVOS_PREFIX) || esUrlDeProxyDrive(target) || target.startsWith("data:") || target.startsWith("blob:")) {
     return target;
   }
-
-  // Extraer File ID de enlaces de Google Drive (ej: /file/d/ID, ?id=ID, /d/ID)
-  const match = target.match(/(?:\/file\/d\/|\?id=|&id=|\/d\/)([a-zA-Z0-9_-]+)/);
-  if (match && match[1]) {
-    return `/api/vouchers/proxy/${match[1]}`;
-  }
-
-  // Si es un ID de archivo de Google Drive puro
-  if (/^[a-zA-Z0-9_-]{25,55}$/.test(target)) {
-    return `/api/vouchers/proxy/${target}`;
-  }
-
-  return target;
+  const driveId = driveIdDeUrl(target);
+  return driveId ? `/api/vouchers/proxy/${driveId}` : target;
 }
 
-/**
- * Resuelve y normaliza la URL de un documento de cliente para poder visualizarlo o descargarlo.
- */
-export function resolveDocumentUrl(doc: { drive_file_id?: string; drive_url?: string } | string | null | undefined): string {
+/** URL para ver o descargar un documento de cliente (Storage primero; Drive para los antiguos). */
+export function resolveDocumentUrl(
+  doc: { storage_path?: string | null; drive_file_id?: string | null; drive_url?: string | null } | null | undefined
+): string {
   if (!doc) return "";
-  if (typeof doc === "string") {
-    const trimmed = doc.trim();
-    if (!trimmed) return "";
-    if (
-      trimmed.startsWith("/api/documentos/proxy/") || 
-      trimmed.startsWith("/api/vouchers/proxy/") ||
-      trimmed.startsWith("data:") ||
-      trimmed.startsWith("blob:")
-    ) {
-      return trimmed;
-    }
-    const match = trimmed.match(/(?:\/file\/d\/|\?id=|&id=|\/d\/)([a-zA-Z0-9_-]+)/);
-    if (match && match[1]) return `/api/documentos/proxy/${match[1]}`;
-    if (/^[a-zA-Z0-9_-]{25,55}$/.test(trimmed)) return `/api/documentos/proxy/${trimmed}`;
-    return trimmed;
-  }
-  if (doc.drive_file_id) {
-    return `/api/documentos/proxy/${doc.drive_file_id}`;
-  }
-  if (doc.drive_url) {
-    return resolveDocumentUrl(doc.drive_url);
-  }
-  return "";
-}
-
-/**
- * Normaliza el nombre del cliente a Title Case (primera letra de cada palabra en mayúscula, el resto minúscula)
- */
-export function normalizeClientName(name: string): string {
-  if (!name) return "";
-  return name
-    .toLowerCase()
-    .trim()
-    .split(/\s+/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  if (doc.storage_path) return urlDeRuta(doc.storage_path);
+  const driveId = doc.drive_file_id || driveIdDeUrl(doc.drive_url);
+  return driveId ? `/api/documentos/proxy/${driveId}` : doc.drive_url || "";
 }
 
 /**

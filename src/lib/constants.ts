@@ -5,4 +5,3 @@ import { CUENTAS } from "./cuentas";
 
 export const METODOS_PAGO: readonly string[] = CUENTAS.map((c) => c.nombre);
 
-export type MetodoPago = string;

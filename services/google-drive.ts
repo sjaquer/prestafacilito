@@ -1,15 +1,34 @@
 import { OAuth2Client } from "google-auth-library";
 
+/**
+ * Google Drive: solo copia de seguridad (los archivos de la app viven en Supabase Storage).
+ *
+ * Estructura en Drive:
+ *   GOOGLE_DRIVE_FOLDER_ID            → comprobantes, en subcarpetas AAAA-MM
+ *   GOOGLE_DRIVE_CLIENTES_FOLDER_ID   → "Documentos - <cliente>" por cliente
+ *   GOOGLE_DRIVE_RESPALDOS_FOLDER_ID  → Excel semanal
+ * Si una carpeta no está configurada, se crea (o reutiliza) una con nombre fijo en la raíz.
+ */
+
 function getEnv(name: string) {
   return process.env[name]?.trim() || "";
 }
 
 export const getDriveFolderId = () => getEnv("GOOGLE_DRIVE_FOLDER_ID");
-export const getClientesFolderId = () => getEnv("GOOGLE_DRIVE_CLIENTES_FOLDER_ID") || getDriveFolderId();
+export const getClientesFolderId = () => getEnv("GOOGLE_DRIVE_CLIENTES_FOLDER_ID");
+export const getRespaldosFolderId = () => getEnv("GOOGLE_DRIVE_RESPALDOS_FOLDER_ID");
 
 export const getGoogleClientId = () => getEnv("GOOGLE_CLIENT_ID");
 export const getGoogleClientSecret = () => getEnv("GOOGLE_CLIENT_SECRET");
 export const getGoogleRefreshToken = () => getEnv("GOOGLE_REFRESH_TOKEN");
+
+const DRIVE_API = "https://www.googleapis.com/drive/v3/files";
+const DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name";
+const MIME_CARPETA = "application/vnd.google-apps.folder";
+
+export function isDriveConfigured(): boolean {
+  return !!getGoogleClientId() && !!getGoogleClientSecret() && !!getGoogleRefreshToken();
+}
 
 export async function getGoogleDriveAccessToken() {
   const clientId = getGoogleClientId();
@@ -17,7 +36,7 @@ export async function getGoogleDriveAccessToken() {
   const refreshToken = getGoogleRefreshToken();
 
   if (!clientId || !clientSecret || !refreshToken) {
-    throw new Error("Faltan credenciales de Google Drive OAuth 2.0. Revisa GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y GOOGLE_REFRESH_TOKEN en el archivo .env o en Vercel.");
+    throw new Error("Faltan credenciales de Google OAuth 2.0. Revisa GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y GOOGLE_REFRESH_TOKEN en el archivo .env o en Vercel.");
   }
 
   try {
@@ -26,220 +45,110 @@ export async function getGoogleDriveAccessToken() {
 
     const response = await oauth2Client.getAccessToken();
     if (!response.token) {
-      throw new Error("No se pudo obtener un access token para Google Drive. Revisa si tu GOOGLE_REFRESH_TOKEN es válido.");
+      throw new Error("No se pudo obtener un access token de Google. Revisa si tu GOOGLE_REFRESH_TOKEN es válido.");
     }
 
     return response.token;
   } catch (err: any) {
     if (err.message && err.message.includes("invalid_grant")) {
-      throw new Error("El token de actualización de Google Drive ha expirado o fue revocado (invalid_grant). Por favor haz clic en 'Reconectar' en el encabezado de la aplicación o visita /api/auth/google/login para volver a vincular tu cuenta de Google.");
+      throw new Error("El token de Google expiró o fue revocado (invalid_grant). Pulsa 'Reconectar' en el menú de Sistema para volver a vincular la cuenta de Google.");
     }
     throw err;
   }
 }
 
-export async function uploadVoucherToDrive(fileName: string, mimeType: string, buffer: Buffer) {
+/** Escapa un valor para usarlo dentro de una consulta `q` de la API de Drive. */
+const escaparQ = (v: string) => v.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+
+/** Busca una carpeta por nombre dentro de `parentId` (o en la raíz) y la crea si no existe. */
+export async function buscarOCrearCarpeta(nombre: string, parentId?: string): Promise<string> {
   const accessToken = await getGoogleDriveAccessToken();
-  const folderId = getDriveFolderId();
-  const uniqueName = `${Date.now()}-${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+  const padre = parentId || "root";
+  const q = `name = '${escaparQ(nombre)}' and '${escaparQ(padre)}' in parents and mimeType = '${MIME_CARPETA}' and trashed = false`;
+
+  const busqueda = await fetch(`${DRIVE_API}?q=${encodeURIComponent(q)}&fields=files(id)&pageSize=1`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!busqueda.ok) {
+    throw new Error(`No se pudo buscar la carpeta "${nombre}" en Drive: ${await busqueda.text()}`);
+  }
+  const encontrados = (await busqueda.json()) as { files?: { id: string }[] };
+  if (encontrados.files?.[0]?.id) return encontrados.files[0].id;
+
+  const creacion = await fetch(`${DRIVE_API}?fields=id`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ name: nombre, mimeType: MIME_CARPETA, parents: [padre] }),
+  });
+  if (!creacion.ok) {
+    throw new Error(`No se pudo crear la carpeta "${nombre}" en Drive: ${await creacion.text()}`);
+  }
+  return ((await creacion.json()) as { id: string }).id;
+}
+
+/** Nombre de la carpeta de respaldo de un cliente: "Documentos - <nombre>". */
+export function nombreCarpetaCliente(nombreCliente: string) {
+  const limpio = nombreCliente.replace(/[^\w\s\-áéíóúñÁÉÍÓÚÑ]/g, "").trim();
+  return `Documentos - ${limpio || "Sin nombre"}`;
+}
+
+/** Sube un archivo a la carpeta indicada. Falla (sin caer en la raíz) si la carpeta no es válida. */
+export async function subirArchivoDrive(
+  nombre: string,
+  mimeType: string,
+  buffer: Buffer,
+  folderId: string
+): Promise<{ fileId: string; fileName: string }> {
+  const accessToken = await getGoogleDriveAccessToken();
   const boundary = `----prestafacilito-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const metadata = { name: nombre, parents: [folderId] };
 
-  const metadata: Record<string, unknown> = {
-    name: uniqueName
-  };
+  const cuerpo = Buffer.concat([
+    Buffer.from(
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+        `--${boundary}\r\nContent-Type: ${mimeType || "application/octet-stream"}\r\n\r\n`,
+      "utf8"
+    ),
+    buffer,
+    Buffer.from(`\r\n--${boundary}--`, "utf8"),
+  ]);
 
-  if (folderId) {
-    metadata.parents = [folderId];
+  const res = await fetch(DRIVE_UPLOAD, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": `multipart/related; boundary=${boundary}`,
+    },
+    body: cuerpo,
+  });
+
+  if (!res.ok) {
+    throw new Error(`No se pudo subir "${nombre}" a Google Drive: ${await res.text()}`);
   }
+  const file = (await res.json()) as { id: string; name: string };
+  return { fileId: file.id, fileName: file.name };
+}
 
-  const prefix = `--${boundary}\r\n` +
-    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
-    `${JSON.stringify(metadata)}\r\n` +
-    `--${boundary}\r\n` +
-    `Content-Type: ${mimeType}\r\n\r\n`;
+/** Descarga un archivo de Drive (contenido, tipo y nombre). Devuelve null si no existe. */
+export async function descargarArchivoDrive(
+  fileId: string
+): Promise<{ buffer: Buffer; contentType: string; nombre: string } | null> {
+  const accessToken = await getGoogleDriveAccessToken();
+  const headers = { Authorization: `Bearer ${accessToken}` };
+  const id = encodeURIComponent(fileId);
 
-  const prefixBuffer = Buffer.from(prefix, "utf8");
-  const suffixBuffer = Buffer.from(`\r\n--${boundary}--`, "utf8");
-  const multipartBody = Buffer.concat([prefixBuffer, buffer, suffixBuffer]);
+  const meta = await fetch(`${DRIVE_API}/${id}?fields=name,mimeType`, { headers });
+  if (meta.status === 404) return null;
+  if (!meta.ok) throw new Error(`Drive respondió ${meta.status} al consultar ${fileId}`);
+  const { name, mimeType } = (await meta.json()) as { name: string; mimeType: string };
 
-  let uploadResponse = await fetch(
-    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink,mimeType",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": `multipart/related; boundary=${boundary}`
-      },
-      body: multipartBody
-    }
-  );
-
-  // Si falló por carpeta parent inválida o eliminada, reintentar subida en la raíz
-  if (!uploadResponse.ok && folderId) {
-    console.warn(`Upload de voucher con folderId ${folderId} falló (${uploadResponse.status}), reintentando subida en raíz de Google Drive...`);
-    const fallbackMetadata = { name: uniqueName };
-    const fallbackPrefix = `--${boundary}\r\n` +
-      `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
-      `${JSON.stringify(fallbackMetadata)}\r\n` +
-      `--${boundary}\r\n` +
-      `Content-Type: ${mimeType}\r\n\r\n`;
-    const fallbackBody = Buffer.concat([Buffer.from(fallbackPrefix, "utf8"), buffer, suffixBuffer]);
-
-    uploadResponse = await fetch(
-      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink,mimeType",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": `multipart/related; boundary=${boundary}`
-        },
-        body: fallbackBody
-      }
-    );
-  }
-
-  if (!uploadResponse.ok) {
-    const errorText = await uploadResponse.text();
-    throw new Error(`No se pudo subir el archivo a Google Drive: ${errorText}`);
-  }
-
-  const uploadedFile = await uploadResponse.json();
+  const contenido = await fetch(`${DRIVE_API}/${id}?alt=media`, { headers });
+  if (contenido.status === 404) return null;
+  if (!contenido.ok) throw new Error(`Drive respondió ${contenido.status} al descargar ${fileId}`);
 
   return {
-    fileId: uploadedFile.id as string,
-    fileName: uploadedFile.name as string,
-    webViewLink: uploadedFile.webViewLink as string | undefined,
-    webContentLink: uploadedFile.webContentLink as string | undefined,
-    publicUrl: `/api/vouchers/proxy/${uploadedFile.id}`,
-    directUrl: `https://drive.google.com/uc?export=view&id=${uploadedFile.id}`,
-    folderId: folderId || ""
-  };
-}
-
-export function isDriveConfigured(): boolean {
-  return !!getGoogleClientId() && !!getGoogleClientSecret() && !!getGoogleRefreshToken();
-}
-
-export async function createDriveSubfolder(clientName: string, parentFolderId?: string): Promise<string> {
-  const accessToken = await getGoogleDriveAccessToken();
-  const safeName = clientName.replace(/[^\w\s\-áéíóúñÁÉÍÓÚÑ]/g, '').trim();
-  const folderName = `Documentos - ${safeName}`;
-
-  const metadata: Record<string, unknown> = {
-    name: folderName,
-    mimeType: 'application/vnd.google-apps.folder'
-  };
-
-  if (parentFolderId) {
-    metadata.parents = [parentFolderId];
-  }
-
-  let response = await fetch(
-    'https://www.googleapis.com/drive/v3/files?fields=id,name',
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(metadata)
-    }
-  );
-
-  // Si falló por parentFolderId inválido, reintentar crear en la raíz
-  if (!response.ok && parentFolderId) {
-    console.warn(`Creación de subcarpeta con parent ${parentFolderId} falló, reintentando en raíz...`);
-    const fallbackMetadata = {
-      name: folderName,
-      mimeType: 'application/vnd.google-apps.folder'
-    };
-    response = await fetch(
-      'https://www.googleapis.com/drive/v3/files?fields=id,name',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(fallbackMetadata)
-      }
-    );
-  }
-
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`No se pudo crear la subcarpeta en Google Drive: ${err}`);
-  }
-
-  const folder = await response.json() as { id: string };
-  return folder.id;
-}
-
-export async function uploadDocumentToDrive(fileName: string, mimeType: string, buffer: Buffer, folderId?: string) {
-  const accessToken = await getGoogleDriveAccessToken();
-  const uniqueName = `${Date.now()}-${fileName.replace(/[^a-zA-Z0-9._\-]/g, '_')}`;
-  const boundary = `----prestafacilito-doc-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
-  const metadata: Record<string, unknown> = { name: uniqueName };
-  if (folderId) {
-    metadata.parents = [folderId];
-  }
-
-  const prefix = `--${boundary}\r\n` +
-    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
-    `${JSON.stringify(metadata)}\r\n` +
-    `--${boundary}\r\n` +
-    `Content-Type: ${mimeType || 'application/octet-stream'}\r\n\r\n`;
-
-  const prefixBuffer = Buffer.from(prefix, "utf8");
-  const suffixBuffer = Buffer.from(`\r\n--${boundary}--`, "utf8");
-  const body = Buffer.concat([prefixBuffer, buffer, suffixBuffer]);
-
-  let uploadResponse = await fetch(
-    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': `multipart/related; boundary=${boundary}`
-      },
-      body
-    }
-  );
-
-  // Si falló por carpeta parent inválida o eliminada (404 / 400), reintentar subida en raíz de Drive
-  if (!uploadResponse.ok && folderId) {
-    console.warn(`Upload de documento con folderId ${folderId} falló (${uploadResponse.status}), reintentando subida en raíz de Google Drive...`);
-    const fallbackMetadata = { name: uniqueName };
-    const fallbackPrefix = `--${boundary}\r\n` +
-      `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
-      `${JSON.stringify(fallbackMetadata)}\r\n` +
-      `--${boundary}\r\n` +
-      `Content-Type: ${mimeType || 'application/octet-stream'}\r\n\r\n`;
-    const fallbackBody = Buffer.concat([Buffer.from(fallbackPrefix, "utf8"), buffer, suffixBuffer]);
-
-    uploadResponse = await fetch(
-      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': `multipart/related; boundary=${boundary}`
-        },
-        body: fallbackBody
-      }
-    );
-  }
-
-  if (!uploadResponse.ok) {
-    const err = await uploadResponse.text();
-    throw new Error(`Error al subir documento a Drive: ${err}`);
-  }
-
-  const file = await uploadResponse.json() as { id: string; name: string; webViewLink?: string };
-  return {
-    fileId: file.id,
-    fileName: file.name,
-    publicUrl: `/api/documentos/proxy/${file.id}`
+    buffer: Buffer.from(await contenido.arrayBuffer()),
+    contentType: contenido.headers.get("content-type") || mimeType || "application/octet-stream",
+    nombre: name,
   };
 }

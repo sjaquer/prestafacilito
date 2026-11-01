@@ -4,6 +4,7 @@ import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { ImagePasteDropzone } from "../common/ImagePasteDropzone";
 import { subirVoucher } from "../../lib/imageCompression";
+import { serializarUrls } from "../../lib/archivos";
 import { formatCurrency, formatDateShort, parseVoucherUrls } from "../../lib/formatters";
 
 interface UploadVoucherModalProps {
@@ -52,27 +53,16 @@ export const UploadVoucherModal: React.FC<UploadVoucherModalProps> = ({
     setSuccessMsg("");
     try {
       const urls: string[] = [];
-      const ids: string[] = [];
       for (const file of files) {
-        const result = await subirVoucher(file);
-        if (result.url) urls.push(result.url);
-        if (result.driveFileId) ids.push(result.driveFileId);
+        urls.push((await subirVoucher(file)).url);
       }
 
-      if (urls.length === 0) throw new Error("No se pudo subir el comprobante a Google Drive.");
-
-      const prevUrls = parseVoucherUrls(selectedPago?.comprobante_url);
-      const prevIds = parseVoucherUrls(selectedPago?.voucher_drive_file_id);
-      const mergedUrls = [...prevUrls, ...urls];
-      const mergedIds = [...prevIds, ...ids];
+      const mergedUrls = [...parseVoucherUrls(selectedPago?.comprobante_url), ...urls];
 
       const res = await fetch(`/api/amortizaciones/${selectedPagoId}/voucher`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          comprobante_url: mergedUrls.length === 1 ? mergedUrls[0] : JSON.stringify(mergedUrls),
-          voucher_drive_file_id: mergedIds.length === 1 ? mergedIds[0] : JSON.stringify(mergedIds)
-        })
+        body: JSON.stringify({ comprobante_url: serializarUrls(mergedUrls) })
       });
 
       if (!res.ok) {
@@ -154,7 +144,7 @@ export const UploadVoucherModal: React.FC<UploadVoucherModalProps> = ({
         )}
         {uploading && (
           <div className="flex items-center justify-center gap-2 text-xs font-bold text-indigo-600">
-            <Loader2 size={14} className="animate-spin" /> Subiendo comprobante a Google Drive...
+            <Loader2 size={14} className="animate-spin" /> Subiendo comprobante...
           </div>
         )}
       </div>

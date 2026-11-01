@@ -24,7 +24,7 @@
 BEGIN;
 
 -- 1. RLS en todas las tablas del esquema público (incluye las que no figuran en
---    supabase_schema.sql, como configuracion_sistema o score_clientes).
+--    el esquema base, como configuracion_sistema, score_clientes o respaldos_archivos).
 DO $$
 DECLARE
   t record;

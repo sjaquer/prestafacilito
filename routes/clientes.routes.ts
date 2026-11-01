@@ -2,12 +2,8 @@ import express from "express";
 import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { supabase } from "../src/lib/supabase.js";
 import { estandarizarTelefono } from "../helpers/telefono.js";
-import {
-  isDriveConfigured,
-  createDriveSubfolder,
-  uploadDocumentToDrive,
-  getClientesFolderId
-} from "../services/google-drive.js";
+import { rutaDocumentoCliente } from "../src/lib/archivos.js";
+import { ArchivoInvalidoError, decodificarArchivo, eliminarArchivo, subirArchivo } from "../services/storage.js";
 
 import { calcularScoreCliente } from "../src/lib/scoreLogic.js";
 
@@ -57,20 +53,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: express.Response) =>
       .single();
 
     if (error) throw error;
-
-    if (isDriveConfigured()) {
-      try {
-        const parentFolder = getClientesFolderId();
-        const folderId = await createDriveSubfolder(nombre_completo, parentFolder || undefined);
-        if (folderId) {
-          await supabase.from('clientes').update({ drive_folder_id: folderId }).eq('id', data.id);
-          data.drive_folder_id = folderId;
-        }
-      } catch (driveErr: any) {
-        console.warn('No se pudo crear la carpeta de Drive para el cliente:', driveErr.message);
-      }
-    }
-
+    // La carpeta del cliente en Drive se crea en el primer respaldo semanal que tenga documentos suyos
     res.status(201).json(data);
   } catch (err: any) {
     console.error("Error al crear cliente:", err);
@@ -133,7 +116,7 @@ router.get("/:id/documentos", requireAuth, async (req: express.Request, res: exp
   }
 });
 
-// Subir documento de cliente a Google Drive
+// Subir documento de cliente (Supabase Storage; Drive recibe la copia en el respaldo semanal)
 router.post("/:id/documentos", requireAuth, async (req: AuthRequest, res: express.Response) => {
   try {
     const clienteId = req.params.id;
@@ -144,48 +127,35 @@ router.post("/:id/documentos", requireAuth, async (req: AuthRequest, res: expres
       return;
     }
 
-    if (!isDriveConfigured()) {
-      res.status(503).json({ error: 'Google Drive no está configurado.', driveConfigured: false });
-      return;
-    }
-
     const { data: cliente, error: clienteErr } = await supabase
       .from('clientes')
-      .select('nombre_completo, drive_folder_id')
+      .select('id')
       .eq('id', clienteId)
-      .single();
+      .maybeSingle();
 
-    if (clienteErr || !cliente) {
+    if (clienteErr) throw clienteErr;
+    if (!cliente) {
       res.status(404).json({ error: 'Cliente no encontrado.' });
       return;
     }
 
-    let folderId = cliente.drive_folder_id;
-    const rootFolder = getClientesFolderId();
-    if (!folderId && rootFolder) {
-      try {
-        folderId = await createDriveSubfolder(cliente.nombre_completo, rootFolder);
-        await supabase.from('clientes').update({ drive_folder_id: folderId }).eq('id', clienteId);
-      } catch (folderErr: any) {
-        console.warn('No se pudo crear la subcarpeta del cliente, usando carpeta principal de Drive:', folderErr.message);
-        folderId = rootFolder;
-      }
-    } else if (!folderId) {
-      folderId = rootFolder;
-    }
-
-    const cleanBase64 = String(base64Data).replace(/^data:[^;]+;base64,/, '');
-    const buffer = Buffer.from(cleanBase64, 'base64');
-    if (buffer.length === 0) {
-      res.status(400).json({ error: 'El archivo recibido está vacío o es inválido.' });
-      return;
-    }
-
-    let uploaded;
+    const tipo = mimeType || 'application/octet-stream';
+    let buffer: Buffer;
     try {
-      uploaded = await uploadDocumentToDrive(fileName, mimeType || 'application/octet-stream', buffer, folderId);
+      buffer = decodificarArchivo(base64Data, tipo);
+    } catch (err: any) {
+      if (err instanceof ArchivoInvalidoError) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
+
+    const ruta = rutaDocumentoCliente(clienteId, fileName, tipo);
+    try {
+      await subirArchivo(ruta, buffer, tipo);
     } catch (uploadErr: any) {
-      res.status(502).json({ error: 'No se pudo subir el documento a Drive.', detail: uploadErr.message });
+      res.status(502).json({ error: 'No se pudo guardar el documento.', detail: uploadErr.message });
       return;
     }
 
@@ -195,15 +165,18 @@ router.post("/:id/documentos", requireAuth, async (req: AuthRequest, res: expres
         cliente_id: clienteId,
         tipo_documento,
         nombre_archivo: fileName,
-        drive_file_id: uploaded.fileId,
-        drive_url: uploaded.publicUrl,
-        mime_type: mimeType || 'application/octet-stream',
+        storage_path: ruta,
+        mime_type: tipo,
         observacion: observacion || ''
       })
       .select()
       .single();
 
-    if (docErr) throw docErr;
+    if (docErr) {
+      // Sin registro en la BD el archivo quedaría huérfano
+      await eliminarArchivo(ruta).catch(() => undefined);
+      throw docErr;
+    }
 
     res.status(201).json(docData);
   } catch (err: any) {
@@ -212,16 +185,24 @@ router.post("/:id/documentos", requireAuth, async (req: AuthRequest, res: expres
   }
 });
 
-// Eliminar documento de cliente
+// Eliminar documento de cliente (la copia en Drive, si existe, se conserva como respaldo)
 router.delete("/:id/documentos/:docId", requireAuth, async (req: AuthRequest, res: express.Response) => {
   try {
-    const { docId } = req.params;
-    const { error } = await supabase
+    const { id: clienteId, docId } = req.params;
+    const { data: doc, error } = await supabase
       .from('documentos_cliente')
       .delete()
-      .eq('id', docId);
+      .eq('id', docId)
+      .eq('cliente_id', clienteId)
+      .select('storage_path')
+      .maybeSingle();
 
     if (error) throw error;
+    if (doc?.storage_path) {
+      await eliminarArchivo(doc.storage_path).catch((err) =>
+        console.warn('Documento eliminado de la BD, pero no de Storage:', err.message)
+      );
+    }
     res.json({ success: true });
   } catch (err: any) {
     console.error('Error al eliminar documento:', err);

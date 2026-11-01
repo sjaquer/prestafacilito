@@ -4,12 +4,14 @@ import path from "path";
 import { OAuth2Client } from "google-auth-library";
 import crypto from "crypto";
 import { requireAuth, cookieOptions, clearCookieOptions } from "../middleware/auth.js";
+import { requireCron } from "../middleware/cron.js";
 import { isGoogleCalendarConfigured, sincronizarCalendario } from "../services/google-calendar.js";
 import {
   getGoogleClientId,
   getGoogleClientSecret
 } from "../services/google-drive.js";
 
+/** OAuth de Google y Calendar (se monta en /api). */
 const router = express.Router();
 
 const getRedirectUri = (req: express.Request) => {
@@ -21,7 +23,7 @@ const getRedirectUri = (req: express.Request) => {
 const OAUTH_STATE_COOKIE = "google_oauth_state";
 
 // Solo un usuario con sesión puede vincular la cuenta de Google de la app
-router.get("/google/login", requireAuth, (req: express.Request, res: express.Response) => {
+router.get("/auth/google/login", requireAuth, (req: express.Request, res: express.Response) => {
   const clientId = getGoogleClientId();
   const clientSecret = getGoogleClientSecret();
 
@@ -50,7 +52,7 @@ router.get("/google/login", requireAuth, (req: express.Request, res: express.Res
   res.redirect(authUrl);
 });
 
-router.get("/google/callback", requireAuth, async (req: express.Request, res: express.Response) => {
+router.get("/auth/google/callback", requireAuth, async (req: express.Request, res: express.Response) => {
   const code = req.query.code as string;
   const state = String(req.query.state || "");
   const expectedState = req.cookies?.[OAUTH_STATE_COOKIE];
@@ -168,22 +170,8 @@ const handlerSincronizar = async (_req: express.Request, res: express.Response) 
 
 router.post("/calendar/sincronizar", requireAuth, handlerSincronizar);
 
-/**
- * Sincronización diaria automática (Vercel Cron, ver vercel.json).
- * Vercel envía `Authorization: Bearer <CRON_SECRET>`; sin CRON_SECRET configurado, la ruta queda deshabilitada.
- */
-router.get("/cron/calendario", async (req: express.Request, res: express.Response) => {
-  const secreto = process.env.CRON_SECRET;
-  const recibido = String(req.headers.authorization || "");
-  const esperado = `Bearer ${secreto}`;
-  if (
-    !secreto ||
-    recibido.length !== esperado.length ||
-    !crypto.timingSafeEqual(Buffer.from(recibido), Buffer.from(esperado))
-  ) {
-    res.status(401).json({ error: "No autorizado" });
-    return;
-  }
+/** Sincronización diaria automática (Vercel Cron, ver vercel.json). */
+router.get("/cron/calendario", requireCron, async (_req: express.Request, res: express.Response) => {
   try {
     const r = await sincronizarCalendario();
     console.log("[Cron calendario]", r);

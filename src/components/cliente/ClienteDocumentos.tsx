@@ -4,6 +4,7 @@ import { Card } from "../ui/Card";
 import { useFeedback } from "../ui/Feedback";
 import { comprimirImagen } from "../../lib/imageCompression";
 import { resolveDocumentUrl } from "../../lib/formatters";
+import { DocumentoCliente } from "../../types";
 
 const TIPOS_DOCUMENTO = [
   { value: "DNI", label: "DNI / Documento Identidad" },
@@ -18,10 +19,10 @@ interface ClienteDocumentosProps {
   driveFolderId?: string | null;
 }
 
-/** Documentos del cliente almacenados en Google Drive: listado, subida y eliminación. */
+/** Documentos del cliente (guardados en Storage, con copia semanal en Drive): listado, subida y eliminación. */
 export const ClienteDocumentos: React.FC<ClienteDocumentosProps> = ({ clienteId, driveFolderId }) => {
   const { notify, confirm } = useFeedback();
-  const [documentos, setDocumentos] = useState<any[]>([]);
+  const [documentos, setDocumentos] = useState<DocumentoCliente[]>([]);
   const [tipoDoc, setTipoDoc] = useState("DNI");
   const [isUploading, setIsUploading] = useState(false);
 
@@ -100,7 +101,7 @@ export const ClienteDocumentos: React.FC<ClienteDocumentosProps> = ({ clienteId,
             <FileText className="w-4 h-4 text-indigo-600" /> Documentos del Cliente
           </h3>
           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1.5">
-            DNI, Recibos y Contratos almacenados en Google Drive
+            DNI, recibos y contratos · copia semanal en Drive
           </p>
         </div>
 
@@ -110,9 +111,9 @@ export const ClienteDocumentos: React.FC<ClienteDocumentosProps> = ({ clienteId,
             target="_blank"
             rel="noopener noreferrer"
             className="p-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1"
-            title="Abrir Carpeta en Google Drive"
+            title="Abrir la copia de respaldo en Google Drive"
           >
-            <FolderOpen className="w-3.5 h-3.5" /> Drive
+            <FolderOpen className="w-3.5 h-3.5" /> Respaldo
           </a>
         )}
       </div>

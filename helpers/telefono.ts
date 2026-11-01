@@ -10,17 +10,3 @@ export function estandarizarTelefono(tel: string): string {
   return soloDigitos;
 }
 
-/**
- * Helper para comparación de diferencias en ediciones.
- */
-export function getDiffDescription(oldObj: any, newObj: any, fields: Record<string, string>): string {
-  const changes: string[] = [];
-  for (const [key, label] of Object.entries(fields)) {
-    const oldVal = oldObj[key] !== undefined && oldObj[key] !== null ? String(oldObj[key]) : "";
-    const newVal = newObj[key] !== undefined && newObj[key] !== null ? String(newObj[key]) : "";
-    if (oldVal.trim() !== newVal.trim()) {
-      changes.push(`${label}: "${oldVal}" ➔ "${newVal}"`);
-    }
-  }
-  return changes.length > 0 ? `Cambios: ${changes.join(" | ")}` : "Sin modificaciones relevantes.";
-}

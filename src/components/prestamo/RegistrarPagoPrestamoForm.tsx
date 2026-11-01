@@ -96,12 +96,8 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
     setIsSubmitting(true);
     try {
       let comprobanteUrl = "";
-      let driveFileId = "";
-
       if (comprobanteFiles.length > 0) {
-        const result = await subirVoucher(comprobanteFiles[0]);
-        comprobanteUrl = result.url;
-        driveFileId = result.driveFileId;
+        comprobanteUrl = (await subirVoucher(comprobanteFiles[0])).url;
       }
 
       const res = await fetch(`/api/prestamos/${prestamoId}/pagos`, {
@@ -112,7 +108,6 @@ export const RegistrarPagoPrestamoForm: React.FC<RegistrarPagoPrestamoFormProps>
           fecha_pago: fechaPago,
           metodo_pago: metodoPago,
           comprobante_url: comprobanteUrl || null,
-          voucher_drive_file_id: driveFileId || null,
         }),
       });
 

@@ -3,7 +3,6 @@ import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { supabase } from "../src/lib/supabase.js";
 import { buildPaymentSchedule, classifyPayment, toNumber, round2 } from "../src/lib/loanLogic.js";
 import { programarSync } from "../services/google-calendar.js";
-import { isDriveConfigured, uploadVoucherToDrive } from "../services/google-drive.js";
 
 export const prestamosRouter = express.Router();
 export const amortizacionesRouter = express.Router();
@@ -81,70 +80,6 @@ prestamosRouter.get("/", requireAuth, async (req: express.Request, res: express.
   } catch (err: any) {
     console.error("Error al obtener lista de préstamos:", err);
     res.status(500).json({ error: "Error en el servidor", detail: err.message });
-  }
-});
-
-// Autoseleccionar préstamo
-prestamosRouter.post("/autoseleccionar", requireAuth, async (req: express.Request, res: express.Response) => {
-  try {
-    const { cliente_id, monto, fecha_pago } = req.body;
-
-    if (!cliente_id || !monto) {
-      res.status(400).json({ error: "El cliente y el monto son obligatorios." });
-      return;
-    }
-
-    const montoPago = toNumber(monto);
-    const [prestamosRes, amortRes, ajustesRes] = await Promise.all([
-      supabase.from("prestamos").select("*").eq("cliente_id", cliente_id).eq("estado", "activo"),
-      supabase.from("amortizaciones").select("*"),
-      supabase.from("ajustes_prestamo").select("*")
-    ]);
-
-    if (prestamosRes.error) throw prestamosRes.error;
-    if (amortRes.error) throw amortRes.error;
-    if (ajustesRes.error) throw ajustesRes.error;
-
-    const prestamosActivos = prestamosRes.data || [];
-    const amortizaciones = amortRes.data || [];
-    const todosAjustes = ajustesRes.data || [];
-    const candidatos = prestamosActivos.map((prestamo) => {
-      const pagosDelPrestamo = amortizaciones.filter((pago) => pago.prestamo_id === prestamo.id);
-      const ajustesDelPrestamo = todosAjustes.filter((aj) => aj.prestamo_id === prestamo.id);
-      const debtState = buildPaymentSchedule(prestamo, pagosDelPrestamo, { ajustes: ajustesDelPrestamo, referenceDate: new Date(fecha_pago || new Date()) });
-      const cuotaSiguiente = debtState.cuotaSiguiente;
-      const diferenciaCuota = cuotaSiguiente ? Math.abs(montoPago - cuotaSiguiente.montoExigible) : Math.abs(montoPago - debtState.resumen.totalExigible);
-      const scoreBase = Math.max(0, 100 - Math.round(diferenciaCuota));
-      const scoreMorosidad = debtState.resumen.cuotasVencidas > 0 ? 12 : 0;
-      const scoreExactitud = cuotaSiguiente && Math.abs(montoPago - cuotaSiguiente.montoExigible) <= 0.01 ? 15 : 0;
-      const scoreLiquidacion = montoPago >= debtState.resumen.totalExigible - 0.01 ? 20 : 0;
-
-      return {
-        prestamo_id: prestamo.id,
-        cliente_id: prestamo.cliente_id,
-        cliente_nombre: prestamo.cliente_nombre || cliente_id,
-        tipo_prestamo: prestamo.tipo_prestamo,
-        monto_capital: toNumber(prestamo.monto_capital),
-        fecha_emision: prestamo.fecha_emision,
-        fecha_vencimiento: prestamo.fecha_vencimiento,
-        deuda: debtState.resumen,
-        clasificacion_sugerida: classifyPayment(montoPago, debtState),
-        score: scoreBase + scoreMorosidad + scoreExactitud + scoreLiquidacion
-      };
-    }).sort((a, b) => b.score - a.score);
-
-    const mejorCoincidencia = candidatos[0] || null;
-    const sugerencias = candidatos.slice(0, 3);
-
-    res.json({
-      success: true,
-      mejorCoincidencia,
-      sugerencias,
-      totalCandidatos: candidatos.length
-    });
-  } catch (err: any) {
-    console.error("Error al autoseleccionar préstamo:", err);
-    res.status(500).json({ error: "No se pudo autoseleccionar la deuda", detail: err.message });
   }
 });
 
@@ -763,115 +698,32 @@ amortizacionesRouter.delete("/:id", requireAuth, async (req: express.Request, re
   }
 });
 
+/** Vincula a un pago los comprobantes ya subidos con /api/upload-voucher. */
 amortizacionesRouter.post("/:id/voucher", requireAuth, async (req: express.Request, res: express.Response) => {
   try {
-    const amortizacionId = req.params.id;
-    const { comprobante_url, voucher_drive_file_id, fileName, mimeType, base64Data } = req.body;
-
-    const { data: amortizacion, error: amortErr } = await supabase
-      .from("amortizaciones")
-      .select("*")
-      .eq("id", amortizacionId)
-      .single();
-
-    if (amortErr || !amortizacion) {
-      res.status(404).json({ error: "No se encontró la amortización solicitada." });
-      return;
-    }
-
-    // Caso 1: Se envían la URL y/o fileId directamente (previamente subidos)
-    if (comprobante_url !== undefined || voucher_drive_file_id !== undefined) {
-      const { data: updated, error: updateErr } = await supabase
-        .from("amortizaciones")
-        .update({
-          comprobante_url: comprobante_url || null,
-          voucher_drive_file_id: voucher_drive_file_id || null
-        })
-        .eq("id", amortizacionId)
-        .select()
-        .single();
-
-      if (updateErr) {
-        res.status(500).json({ error: "Error al actualizar comprobante en base de datos", detail: updateErr.message });
-        return;
-      }
-
-      res.json({
-        success: true,
-        amortizacion: updated
-      });
-      return;
-    }
-
-    // Caso 2: Se envían los datos crudos en base64 para subir desde el servidor
-    if (!fileName || !mimeType || !base64Data) {
-      res.status(400).json({ error: "Datos del comprobante incompletos. Se requieren fileName, mimeType y base64Data o comprobante_url." });
-      return;
-    }
-
-    if (!isDriveConfigured()) {
-      res.status(503).json({
-        error: "El almacenamiento de comprobantes (Google Drive) no está configurado en este servidor.",
-        detail: "Configura GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y GOOGLE_REFRESH_TOKEN en el archivo .env.",
-        driveConfigured: false
-      });
-      return;
-    }
-
-    let buffer: Buffer;
-    try {
-      const cleanBase64 = String(base64Data).replace(/^data:[^;]+;base64,/, "");
-      buffer = Buffer.from(cleanBase64, "base64");
-      if (buffer.length === 0) throw new Error("Buffer vacío");
-    } catch {
-      res.status(400).json({ error: "El contenido base64 del comprobante es inválido o está vacío." });
-      return;
-    }
-
-    let uploaded;
-    try {
-      uploaded = await uploadVoucherToDrive(fileName, mimeType || "image/jpeg", buffer);
-    } catch (driveErr: any) {
-      console.error("Error al subir voucher a Google Drive:", driveErr.message);
-      res.status(502).json({
-        error: "No se pudo subir el comprobante a Google Drive.",
-        detail: driveErr.message,
-        driveConfigured: true
-      });
+    const { comprobante_url } = req.body;
+    if (comprobante_url === undefined) {
+      res.status(400).json({ error: "Falta comprobante_url. Sube primero el archivo con /api/upload-voucher." });
       return;
     }
 
     const { data: updated, error: updateErr } = await supabase
       .from("amortizaciones")
-      .update({
-        comprobante_url: uploaded.publicUrl,
-        voucher_drive_file_id: uploaded.fileId
-      })
-      .eq("id", amortizacionId)
+      .update({ comprobante_url: comprobante_url || null })
+      .eq("id", req.params.id)
       .select()
-      .single();
+      .maybeSingle();
 
     if (updateErr) {
-      res.status(500).json({
-        error: "El comprobante se subió a Drive pero no se pudo guardar la referencia en la base de datos.",
-        detail: updateErr.message,
-        driveFileId: uploaded.fileId,
-        driveUrl: uploaded.publicUrl
-      });
+      res.status(500).json({ error: "Error al actualizar comprobante en base de datos", detail: updateErr.message });
+      return;
+    }
+    if (!updated) {
+      res.status(404).json({ error: "No se encontró la amortización solicitada." });
       return;
     }
 
-    res.json({
-      success: true,
-      amortizacion: updated,
-      voucher: {
-        publicUrl: uploaded.publicUrl,
-        directUrl: uploaded.directUrl,
-        driveFileId: uploaded.fileId,
-        driveWebViewLink: uploaded.webViewLink,
-        driveWebContentLink: uploaded.webContentLink
-      }
-    });
+    res.json({ success: true, amortizacion: updated });
   } catch (err: any) {
     console.error("Error inesperado al adjuntar voucher:", err);
     res.status(500).json({ error: "Error interno al adjuntar el voucher", detail: err.message });

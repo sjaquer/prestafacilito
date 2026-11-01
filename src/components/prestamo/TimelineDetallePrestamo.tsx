@@ -96,11 +96,11 @@ export const TimelineDetallePrestamo: React.FC<TimelineDetallePrestamoProps> = (
 
     setUploadingPagoId(pagoId);
     try {
-      const { url, driveFileId } = await subirVoucher(file);
+      const { url } = await subirVoucher(file);
       const res = await fetch(`/api/amortizaciones/${pagoId}/voucher`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ comprobante_url: url, voucher_drive_file_id: driveFileId }),
+        body: JSON.stringify({ comprobante_url: url }),
       });
       if (!res.ok) throw new Error("El archivo se subió pero no se pudo vincular al pago");
       notify("Comprobante adjuntado", "success");

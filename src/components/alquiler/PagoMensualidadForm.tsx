@@ -44,11 +44,8 @@ export const PagoMensualidadForm: React.FC<PagoMensualidadFormProps> = ({ alquil
     setIsSubmitting(true);
     try {
       let comprobante_url: string | null = null;
-      let voucher_drive_file_id: string | null = null;
       if (files.length > 0) {
-        const up = await subirVoucher(files[0]);
-        comprobante_url = up.url || null;
-        voucher_drive_file_id = up.driveFileId || null;
+        comprobante_url = (await subirVoucher(files[0])).url;
       }
 
       const res = await fetch(`/api/alquileres/${alquilerId}/pagos`, {
@@ -61,7 +58,6 @@ export const PagoMensualidadForm: React.FC<PagoMensualidadFormProps> = ({ alquil
           fecha_pago: fechaPago,
           metodo_pago: metodo,
           comprobante_url,
-          voucher_drive_file_id,
         }),
       });
       if (!res.ok) {

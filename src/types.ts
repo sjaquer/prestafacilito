@@ -170,8 +170,11 @@ export interface DocumentoCliente {
   cliente_id: string;
   tipo_documento: TipoDocumento;
   nombre_archivo: string;
-  drive_file_id: string;
-  drive_url: string;
+  /** Ruta en Supabase Storage (bucket privado). */
+  storage_path?: string | null;
+  /** Solo documentos antiguos, guardados en Drive antes de usar Storage. */
+  drive_file_id?: string | null;
+  drive_url?: string | null;
   mime_type: string;
   fecha_subida: string;
   observacion?: string;
